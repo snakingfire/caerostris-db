@@ -562,3 +562,7 @@ DEMO (priority): focused build progressing well (112 lines, ~10min, building the
 done:31 main GREEN. **DEMO LANDED (merge 61ffdac) and VERIFIED by pace-marshal** — `./scripts/demo.sh` inserts (:Person Alice/Bob)+KNOWS, runs `MATCH (p:Person {name:'Alice'}) RETURN p` → returns Alice, and `MATCH (a:Person)-[:KNOWS]->(b) RETURN a,b` → returns the pair. 248 tests pass. Files: src/demo/{store,executor,mod}.rs, src/bin/caero.rs, scripts/demo.sh, docs/DEMO.md. The hackathon deliverable is READY.
 Also landed: T-0004 dashboard, BUG-0010 ADR-hygiene guards. Storage cascade building (T-0007/0008). 5/5 lanes. ~1h29m to deadline.
 NOTE: restored main worktree to main (a T-0008 lane had transiently checked out in main again — recurring; demo unaffected, on main).
+
+## STATUS — T+4:01 (human-testing window; building the POLISHED judge demo)
+done:33 main GREEN (ec47614), working tree ON MAIN (demo runnable + protected). 5/5 lanes. TRACKED REQUEST: polished MinIO-backed wow demo for the 1-min judge video (empty bucket → insert → objects appear → MATCH returns → complex queries). Filed T-DEMO2; dispatched a focused builder (a8120ba) to build the missing S3 ObjectStore backend + persist path + polished scripts/demo-minio.sh, fallback = polish the in-memory demo. Storage writers T-0007/0008 building in parallel.
+Every tick now also VERIFIES the working tree stays on main (protects the demo from the recurring checkout-in-main race). ~59m to deadline.
