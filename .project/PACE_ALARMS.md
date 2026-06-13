@@ -211,3 +211,40 @@ then, the ~10 checkpoint is reachable.
 **Action:** No relaunch (epoch alive). No P0 yet (score ahead). **Hard line: if `find src tests
 formal -name '*.rs' -o -type f` still shows zero landed code at T+1:00 (19:24Z), escalate to
 RED P0** and force implementer dispatch to T-0000+T-0002 on the next epoch.
+
+---
+
+## STATUS — T+00:47 (GREEN — AMBER DOWNGRADED: implementation wave is active in worktrees)
+
+**Level:** GREEN (watch only) — **the T+0:40 AMBER is retired.**
+**Wallclock:** 2026-06-13T19:11:39Z (T+00:47)
+
+**Correction to the last three cycles' framing.** "Implementation not started / T-0002
+unclaimed" was a **misread of the file-board status fields** — the epoch tracks task claims
+**internally**, so `status: ready` on disk did NOT mean unclaimed. `git worktree list` proves
+the **implementation wave is fully underway**, with isolated per-task worktrees building code
+right now:
+- `work/T-0002-tck-harness-wireup` — **Cat 4 (TCK, w12)** — locked/active
+- `work/T-0005-add-cargo-llvm-cov-coverage-reporting` — Cat 10
+- `.worktrees/SPIKE-0002` — commit protocol + **TLA+ model** — Cat 1/11
+- `.worktrees/BUG-0006` — QueryStatistics surface — Cat 4/10
+- `.worktrees/T-0004` — mainspring epoch-recycling/dashboard — Cat 12
+- plus workflow worktrees `wf_…-16/17/18/19/21`
+
+An implementer transcript (`agent-a621…`) reports **a PR is "ready for the adversarial-reviewer
+and premortem-analyst review gate before the integrator lands it."** So code exists and the
+first PR is at the review→land gate; "no commits on main for 7 min" = implementers heads-down
+in worktrees + a PR in review, **not** a stall.
+
+**Why this matters:** the design-independent critical-path tasks (T-0002, T-0005) and a GATE
+design task (SPIKE-0002 TLA+) are all in flight in parallel — exactly the doctrine. The score
+(13, ahead) understates true progress because worktree code hasn't merged yet.
+
+**Env (1b):** MinIO healthy. **Relaunch:** single epoch `wf_84c0f0c7-752` alive (13 files
+<3min) → no relaunch. **Board:** nothing newly unblockable (done-set unchanged; SPIKE-0001
+still in_review); active wave consuming the right work — no grooming needed.
+
+**Revised trigger:** the T+1:00 RED line is effectively moot (code is in flight). New watch:
+if **nothing has LANDED on main by T+1:10 (19:34Z)**, inspect the integrator — PRs may be
+piling at the review gate (in_review bottleneck), in which case nudge the
+reviewer/premortem/integrator rather than dispatch more implementers.
