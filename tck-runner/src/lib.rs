@@ -26,6 +26,7 @@
 //! [master rubric]: ../../docs/requirements/master-rubric.md
 
 pub mod engine;
+pub mod outline;
 pub mod report;
 pub mod runner;
 pub mod scenario;

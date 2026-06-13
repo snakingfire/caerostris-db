@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use gherkin::{Feature, GherkinEnv, Scenario};
 
 use crate::engine::Engine;
+use crate::outline::expand_scenario;
 use crate::report::Summary;
 use crate::scenario::classify;
 
@@ -32,12 +33,26 @@ fn collect(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Every scenario in a parsed feature, including those nested inside `Rule:`
-/// blocks (the TCK 2024.3 corpus uses none, but newer releases may).
-fn all_scenarios(feature: &Feature) -> Vec<&Scenario> {
-    let mut scenarios: Vec<&Scenario> = feature.scenarios.iter().collect();
+/// Every **executable** scenario in a parsed feature — every plain `Scenario:`
+/// plus each `Scenario Outline:` expanded into one concrete scenario per
+/// `Examples` data row (BUG-0009 / Decision 0013), including those nested inside
+/// `Rule:` blocks (the TCK 2024.3 corpus uses none, but newer releases may).
+///
+/// Expansion is what makes `Summary::total` reflect the conventional openCypher
+/// test-case count rather than counting each outline once: a 276-outline /
+/// 2541-Examples-row corpus expands from 1615 definitions to ~3880 cases. Each
+/// returned scenario has its `<placeholder>` tokens substituted, so the engine
+/// never sees literal `<comp>` / `<boolop>` text (which would be a false `fail`
+/// or a stuck `pending`).
+fn all_scenarios(feature: &Feature) -> Vec<Scenario> {
+    let mut scenarios: Vec<Scenario> = Vec::new();
+    for scenario in &feature.scenarios {
+        scenarios.extend(expand_scenario(scenario));
+    }
     for rule in &feature.rules {
-        scenarios.extend(rule.scenarios.iter());
+        for scenario in &rule.scenarios {
+            scenarios.extend(expand_scenario(scenario));
+        }
     }
     scenarios
 }
@@ -57,7 +72,7 @@ where
         Ok(feature) => {
             for scenario in all_scenarios(&feature) {
                 let mut engine = make_engine();
-                summary.record(classify(scenario, &mut engine));
+                summary.record(classify(&scenario, &mut engine));
             }
         }
         Err(_) => {
@@ -281,5 +296,92 @@ Feature: Synthetic-SideEffects
         assert_eq!(summary.total, 1);
         assert_eq!(summary.pending, 1, "unsupported -> pending, never fail");
         assert_eq!(summary.fail, 0);
+    }
+
+    // --- Scenario Outline expansion (BUG-0009 / Decision 0013) --------------
+
+    /// A `Scenario Outline:` with three `Examples` data rows plus one plain
+    /// `Scenario:`. The conventional openCypher test-case count is 1 + 3 = 4,
+    /// not the 2 definitions the unexpanded harness used to report.
+    const OUTLINE_FEATURE: &str = r#"
+Feature: Synthetic-Outline
+  Scenario: a plain one
+    Given any graph
+    When executing query:
+      """
+      RETURN 1 AS n
+      """
+    Then the result should be, in any order:
+      | n |
+      | 1 |
+
+  Scenario Outline: return <value>
+    Given any graph
+    When executing query:
+      """
+      RETURN <value> AS n
+      """
+    Then the result should be, in any order:
+      | n       |
+      | <value> |
+    Examples:
+      | value |
+      | 1     |
+      | 2     |
+      | 3     |
+"#;
+
+    #[test]
+    fn outline_is_expanded_into_one_scenario_per_examples_row() {
+        // The defining file has 2 definitions (1 plain + 1 outline) but 4
+        // conventional test cases (1 + 3 Examples rows). `total` must reflect
+        // the expanded count — this is the BUG-0009 fix.
+        let dir = FixtureDir::new("outline-total");
+        dir.write("outline.feature", OUTLINE_FEATURE);
+        let summary = run_suite(&dir.root, || PendingEngine).unwrap();
+        assert_eq!(
+            summary.total, 4,
+            "1 plain + 3 expanded outline rows = 4 test cases, not 2 definitions"
+        );
+        assert_eq!(summary.pending, 4, "stub engine -> every case pending");
+        assert_eq!(summary.fail, 0);
+    }
+
+    /// An engine that only answers the *substituted* queries (`RETURN 1 AS n`,
+    /// `RETURN 2 AS n`, `RETURN 3 AS n`). A literal `RETURN <value> AS n` is
+    /// `Unsupported`, so if expansion failed to substitute the placeholder the
+    /// scenario would be `pending` — proving the engine never sees `<value>`.
+    struct SubstitutedRetEngine;
+    impl Engine for SubstitutedRetEngine {
+        fn execute(&mut self, query: &str) -> ExecOutcome {
+            let q = query.trim();
+            match q {
+                "RETURN 1 AS n" => ExecOutcome::rows(vec!["n".into()], vec![vec!["1".into()]]),
+                "RETURN 2 AS n" => ExecOutcome::rows(vec!["n".into()], vec![vec!["2".into()]]),
+                "RETURN 3 AS n" => ExecOutcome::rows(vec!["n".into()], vec![vec!["3".into()]]),
+                _ => ExecOutcome::Unsupported,
+            }
+        }
+    }
+
+    #[test]
+    fn expanded_scenarios_run_substituted_queries_and_pass() {
+        // Each expanded variant carries its substituted query *and* its
+        // substituted expected-result cell (`<value>` -> 1/2/3), so all four
+        // pass. A surviving `<value>` in either the query or the result cell
+        // would force a pending (query) or a fail (result mismatch).
+        let dir = FixtureDir::new("outline-pass");
+        dir.write("outline.feature", OUTLINE_FEATURE);
+        let summary = run_suite(&dir.root, || SubstitutedRetEngine).unwrap();
+        assert_eq!(summary.total, 4);
+        assert_eq!(
+            summary.pass, 4,
+            "every substituted variant passes; no literal <value> reached the engine"
+        );
+        assert_eq!(
+            summary.pending, 0,
+            "no placeholder survived -> nothing pending"
+        );
+        assert_eq!(summary.fail, 0, "substituted result cells match -> no fail");
     }
 }
