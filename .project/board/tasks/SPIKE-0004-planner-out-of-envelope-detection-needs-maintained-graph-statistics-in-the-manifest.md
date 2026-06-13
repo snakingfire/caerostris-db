@@ -181,3 +181,17 @@ statistics (EPIC-001 / SPIKE-0003) move to `in_progress`.
   and T-0015 clear their `SPIKE-0004` dependency. Recommended non-blocking follow-up:
   `steering-query-cypher` (primary) may append a confirming counter-signature; its founding
   finding (decision 0009) is fully discharged.
+
+- **T+~3:48 `steering-perf-sla` — re-confirmation pass (dispatched again on this item).**
+  SPIKE-0004 was already `done` (decision 0033, committed `b251266`); a duplicate dispatch
+  landed on it. Did NOT re-ratify or duplicate the decision record. Independently re-derived
+  every load-bearing figure from scratch (deterministic, no reuse of the spec's numbers):
+  B_max(50 Mbps) = 2.875 MB (design) / 2.531 MB (K=9 worst case); super-hub single adjacency
+  list = 2.56 GB = 890× B_max; F2 byte-bust table 6.40/64.0/6400 MB; inline OOE-scalars
+  ≤ 4096 B manifest reserve — **all reproduce**. Verdict stands: the two-term estimator
+  (p99 typical-total / `max_deg` single-GET super-hub gate) is sound, the missing/stale rule
+  has no optimistic-accept leg, the contract is cache-independent. No new escalation.
+  **Cascade-blocker found + fixed:** T-0009's frontmatter had a collapsed line
+  (`status: readypriority: P1`) that made it invisible to `scripts/board/ls.sh ready` — the
+  SPIKE-0004 → T-0009 → T-0015 unblock would have been functionally inert. Repaired in the
+  same commit so the implementer lane can actually pull T-0009.
