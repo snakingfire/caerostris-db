@@ -2,7 +2,7 @@
 id: T-0030
 title: PyO3 + maturin scaffold, importable package, pytest in CI
 type: task
-status: in_review
+status: done
 priority: P2
 assignee: implementer-wf_e9fceb87-27c-8
 epic: EPIC-007
@@ -10,7 +10,7 @@ deps: [T-0001]
 rubric_refs: [8, 10]
 estimate: M
 created: T0+0:20
-updated: T0+3:42
+updated: T0+3:50
 ---
 
 ## Context
@@ -22,13 +22,13 @@ crate skeleton (T-0001); the real query/ingest API is wired once the engine expo
 it (T-0031). License-clean (PyO3/maturin are permissive). See `EPIC-007`.
 
 ## Acceptance criteria
-- [ ] PyO3 + maturin wired: `maturin develop` produces an importable `caerostris` module; `maturin build` produces a wheel; both run in CI.
-- [ ] A trivial exported function (e.g. version string) is callable from Python; a pytest smoke test asserts it.
-- [ ] Rust panics surface as a typed Python exception, not a naked `RuntimeError` string (pattern established here).
-- [ ] CI installs the toolchain, builds the wheel, and runs pytest; `ruff`/`flake8` clean for the Python test code.
-- [ ] tests added (pytest smoke); coverage not regressed on the Rust side
-- [ ] docs / ADR updated with the build + packaging instructions
-- [ ] `./format_code.sh` green for the Rust side
+- [x] PyO3 + maturin wired: `maturin develop` produces an importable `caerostris` module; `maturin build` produces a wheel; both run in CI.
+- [x] A trivial exported function (e.g. version string) is callable from Python; a pytest smoke test asserts it.
+- [x] Rust panics surface as a typed Python exception, not a naked `RuntimeError` string (pattern established here).
+- [x] CI installs the toolchain, builds the wheel, and runs pytest; `ruff`/`flake8` clean for the Python test code.
+- [x] tests added (pytest smoke); coverage not regressed on the Rust side
+- [x] docs / ADR updated with the build + packaging instructions
+- [x] `./format_code.sh` green for the Rust side
 
 ## Notes / log
 Ready now: depends only on T-0001. Establishes the FFI + exception-mapping pattern
@@ -57,3 +57,8 @@ that T-0031 builds the real API on.
   crate metadata; allow-lists correct). Reviewer checkbox left unchecked. Verdict +
   surviving-attacks log in PR.md. Filed BUG-0023 (pre-existing `Unicode-3.0` deny.toml
   gap, out of scope for T-0030).
+- **T0+3:50 — Landed in commit f28b372 at T0+3:50.** Branch
+  `work/T-0030-pyo3-maturin-scaffold-and-ci` (tip `1ed0c36`) merged into main with
+  `--no-ff`; additive ci.yml conflict resolved (union: kept landed `coverage` job from
+  main + added new `python-bindings` job from T-0030). Both adversarial-reviewer and
+  premortem-analyst approved. 178 root tests + 5 python-crate tests green. Status → `done`.
