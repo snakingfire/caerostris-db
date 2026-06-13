@@ -479,3 +479,10 @@ Pool: 3 v3 lanes alive (work-starved, ready=11<12, hold 3). Env OK; SPIKE-0002 s
 done:11 ready:10 backlog:45; no new Merge work/ since T-0039. [workspace] still absent — T-0001 hand-land integrator (bg) is ALIVE and PROGRESSING (cargo process running = compiling/testing the workspace; transcript 109 lines; holds the land-lock legitimately ~9min — a cold workspace build+test takes minutes). Did NOT clear the lock (active agent, not stale).
 Lanes (3) are landing-blocked behind the lock — correct, since NOTHING can land until the workspace exists; they keep building/ratifying meanwhile. Env OK; SPIKE-0002 still in_review.
 NEXT: on integrator completion verify [workspace] on main + T-0001 done; then hand-land T-0002 (TCK) on top + let lanes/cascade flow. If it dies WITHOUT landing, free the lock and finish the merge by hand. Deep RED (~16 vs ~48).
+
+---
+
+## STATUS — T+2:29 (PIVOT: focused direct integrators land; lanes build breadth)
+done:12 ready:9 backlog:41 (cascade opened: 45→41). NO new Merge work/ since keystone 16790d5 — confirms the LANES still don't land reliably, but the focused direct integrator landed T-0001 cleanly in 6min. New strategy: lanes build/ratify breadth; pace-marshal drives the highest-weight critical path with dedicated direct integrators.
+ACTION: reclaimed T-0002 + SPIKE-0002 from lanes; dispatched 2 focused bg agents — (a) integrator to land the TCK harness on the workspace → lifts Cat 4 (w12) off floor 0 + emit live pass-rate; (b) steering-distributed-acid to DECISIVELY ratify SPIKE-0002 (ratify-with-conditions; it's gated the ACID/storage cascade ~1.5h).
+Pool 3 lanes alive; env OK; no land-lock stuck. Deep RED (~16 vs ~50). NEXT: on completion, dispatch the next focused-integrator batch (T-0006 data model, storage writer/reader) to land the 41 built branches onto the workspace.
