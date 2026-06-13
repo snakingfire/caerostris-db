@@ -9,7 +9,7 @@ epic: EPIC-002
 deps: []
 rubric_refs: [4, 12]
 created: T+4:30
-updated: T+5:15
+updated: T+5:30
 ---
 
 ## Context
@@ -94,3 +94,14 @@ stale; the discrepancy is currently undocumented as a defect.
   explicit authorization for that agent-self-modification edit). After fixes, re-run
   `./format_code.sh` + cargo nextest, reset review-gate checkboxes to unchecked, and
   request a fresh adversarial review + pre-mortem pass. Status set to `blocked`.
+- **T+5:30 — integrator** (reland attempt): Two branches exist for BUG-0018.
+  Branch 1 (`work/BUG-0018-tck-parse-gap-citation-and-pin-reconciliation`, worktree
+  `wf_fe688db0-093-30`): both adversarial-reviewer and premortem-analyst returned
+  `changes_requested`; review-gate checkboxes unchecked. CANNOT LAND.
+  Branch 2 (`work/BUG-0018-tck-parse-gap-citations-and-pin-reconcile`, worktree
+  `wf_156e2b80-bb6-44`, 1 commit ahead of main): adversarial-reviewer returned
+  `approve` (T+5:18); premortem-analyst checkbox is unchecked and no pre-mortem
+  section appears in PR.md. CANNOT LAND — missing one sign-off. Status remains
+  `blocked`. Required action: run `premortem-analyst` against Branch 2's PR.md in
+  `wf_156e2b80-bb6-44`. If approve, the integrator can then rebase + merge Branch 2
+  onto main and land.
