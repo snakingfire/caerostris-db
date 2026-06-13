@@ -2,7 +2,7 @@
 id: T-0008
 title: Implement compressed adjacency-list edge writer + chunked range reader
 type: task
-status: in_progress
+status: in_review
 priority: P1
 assignee: implementer-wf_fe688db0-093-33
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: [SPIKE-0003, T-0006]
 rubric_refs: [2, 3]
 estimate: M
 created: T0+0:20
-updated: T0+3:50
+updated: T0+3:55
 ---
 
 ## Context
@@ -46,4 +46,13 @@ cost-model bytes budget from SPIKE-0001 / BUG-0004.
   Co-located dst projection (§3.3) and the cross-shard manifest partition map
   (§5.1) are owned by T-0009/planner and are out of scope here — this task owns
   the on-`.adj`-bytes format + the single-shard banded reader with early-abort.
-</content>
+- T0+3:55 (implementer-wf_fe688db0-093-33): PR opened; → in_review. Branch
+  `work/T-0008-adjacency-edge-writer-reader`. AdjacencyShardWriter +
+  AdjacencyShardReader landed in `src/storage/adjacency.rs` with 25 module tests
+  (incl. a 200-seed SplitMix64 property test) + 7 integration tests in
+  `tests/adjacency_storage.rs`; full suite 280 passed, 0 skipped;
+  `./format_code.sh` green (fmt + clippy -D warnings + taplo). ADR 0008 updated
+  with the T-0008 Implementation-notes addendum; decision 0034 records the two
+  dependency-free choices (FNV-1a trailer checksum, SplitMix64 property gen) vs.
+  pulling blake3/proptest mid-cascade. Awaiting adversarial-reviewer +
+  premortem-analyst sign-off, then integrator.
