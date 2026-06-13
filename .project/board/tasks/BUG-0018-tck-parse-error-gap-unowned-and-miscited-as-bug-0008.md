@@ -126,7 +126,19 @@ stale; the discrepancy is currently undocumented as a defect.
   `./format_code.sh` + cargo nextest, reset review-gate checkboxes to unchecked, and
   request a fresh adversarial review + pre-mortem pass. Status set to `blocked`.
 - **T+5:18 — adversarial-reviewer** (`work/BUG-0018-tck-parse-gap-citations-and-pin-reconcile`):
-  **APPROVE** on this branch. Non-blocking observations recorded in PR.md. BUG-0027 filed.
+  **APPROVE** (verdict block appended to PR.md; adversarial-reviewer box ticked). Verified
+  empirically, not by inspection: ran the live `tck-runner` binary (emits `tck_tag: 2024.3`,
+  `total: 3884`, `parse_errors: 1`, file `Literals6.feature`), grepped the real corpus to
+  confirm the documented composition (1339+276=1615 defs; 13 in Literals6; 1326+2558=3884),
+  ran the full workspace test suite (all green, 0 failures incl. the 7 vendored_corpus + 11
+  contract tests), and `./format_code.sh` (exit 0). The pin reconciliation preserves the
+  anti-gaming pass-rate *definition* and raises the denominator (3884 > 1615) — the GATE is
+  not weakened. Clean rebase (branch diff does not overlap main's advanced files). One
+  residual risk — the deferred grader-prompt edit (`rubric-grader.md` L51-52 still pins
+  `1.0.0-M23`/1615, will mis-fire a spurious tamper-P0 on the live 2024.3/3884 report) — is
+  **pre-existing** (predates this PR; BUG-0009 already moved the live denominator) and
+  genuinely blocked for a test-author agent. Filed **BUG-0027** (P1, ready) as the owning
+  follow-up so it is not orphaned when this item closes. Non-blocking.
 - **T+5:30 — integrator** (reland attempt): premortem-analyst checkbox unchecked. Status
   remained `blocked`. Required premortem sign-off before landing.
 - **T+5:35 — premortem-analyst** (reland dispatch): **APPROVE**. All failure modes guarded:
