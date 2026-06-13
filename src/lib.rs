@@ -10,6 +10,7 @@
 //! | Module | Purpose |
 //! |--------|---------|
 //! | [`cypher`] | openCypher front-end: lexer + parser → typed AST (Cat. 4) |
+//! | [`dataset`] | License-clean synthetic graph dataset generator (Cat. 10) |
 //! | [`engine`] | Graph engine core (stub — lands after SPIKE-0003) |
 //! | [`licenses`] | License-manifest hygiene (Cat. 12) |
 //! | [`model`] | Logical property-graph data model (Node, Edge, PropertyValue, Schema) |
@@ -20,6 +21,7 @@
 //! | [`txn`] | Transaction management (stub — lands after SPIKE-0001) |
 
 pub mod cypher;
+pub mod dataset;
 pub mod engine;
 pub mod licenses;
 pub mod model;
