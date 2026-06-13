@@ -1,31 +1,36 @@
 //! Integration tests over the real vendored openCypher TCK corpus.
 //!
-//! These assert the corpus is present, parses, has the expected scenario count
-//! for the pinned release (`2024.3`), records its provenance, and — under the
-//! stub engine — yields only `pending` verdicts (zero unexpected `fail`s). This
-//! is the live evidence for board item `T-0002` acceptance criteria, and the
-//! suite-shrinkage guard required by BUG-0007.
+//! These assert the corpus is present, parses, expands to the expected
+//! test-case count for the pinned release (`2024.3`), records its provenance,
+//! and — under the stub engine — yields only `pending` verdicts (zero
+//! unexpected `fail`s). This is the live evidence for board items `T-0002` and
+//! `BUG-0009`, and the suite-shrinkage guard required by BUG-0007.
 //!
-//! # Two named, guarded denominator gaps
+//! # The denominator is fully accounted for
 //!
-//! Both are honestly recorded so the Cat. 4 (GATE) denominator cannot silently
-//! shift to certify a false 100% (Decision 0008 forbids any curated-subset
-//! framing):
+//! Every scenario in the pinned suite is accounted for, so the Cat. 4 (GATE)
+//! denominator cannot silently shift to certify a false 100% (Decision 0008
+//! forbids any curated-subset framing):
 //!
 //! - **BUG-0008 (Literals6):** one feature file the `gherkin` 0.16 parser
 //!   cannot read; its 13 scenarios land in `parse_errors`, never `pending`/`fail`.
-//! - **BUG-0009 (Scenario Outline expansion):** the harness counts each
-//!   `Scenario Outline` **once**, not once per `Examples` data row. The
-//!   conventional fully-expanded openCypher count at 2024.3 is ~3880; the
-//!   harness counts 1602. Under the stub engine every outline is `pending`, so
-//!   the current `0/1602` baseline is internally consistent and honest — but a
-//!   real engine (EPIC-002) must expand outlines first, or the achievable
-//!   pass-rate is silently capped below 100%. The guard
-//!   [`outline_expansion_gap_is_named_and_guarded`] pins the unexpanded counts
-//!   so this choice is explicit, not silent. See
+//!   Still open — its scenarios are excluded from `total` until it parses.
+//! - **BUG-0009 (Scenario Outline expansion) — RESOLVED.** The harness now
+//!   expands each `Scenario Outline` into one concrete scenario per `Examples`
+//!   data row, substituting `<placeholder>` tokens into the query, setup
+//!   statements, and expected-result cells (see `tck_runner::outline`). `total`
+//!   therefore reflects the conventional openCypher test-case count: the 1326
+//!   parseable plain `Scenario:` definitions plus 2558 expanded outline cases =
+//!   **3884**, rather than the old unexpanded 1602. The reconciliation guard
+//!   [`outline_expansion_total_is_reconciled`] pins the expanded denominator (and
+//!   asserts no `<placeholder>` survives expansion) so it cannot silently shift
+//!   in either direction. See
 //!   `.project/decisions/0013-tck-scenario-outline-expansion-gap.md` and BUG-0009.
 
+use gherkin::{Feature, GherkinEnv};
+
 use tck_runner::engine::PendingEngine;
+use tck_runner::outline::expand_scenario;
 use tck_runner::report::Report;
 use tck_runner::runner::{discover_features, run_suite};
 use tck_runner::{default_features_dir, read_provenance};
@@ -33,24 +38,22 @@ use tck_runner::{default_features_dir, read_provenance};
 /// The number of `.feature` files vendored at openCypher tag `2024.3`.
 const EXPECTED_FEATURE_FILES: usize = 220;
 
-/// The official scenario count (Scenario + Scenario Outline, counted once each)
-/// at tag `2024.3`, verified against
-/// `grep -rhE '^\s*(Scenario|Scenario Outline):'` over `tck/features`.
-const OFFICIAL_SCENARIOS: usize = 1615;
+/// The official scenario *definition* count (`Scenario` + `Scenario Outline`,
+/// counted once each) at tag `2024.3`, verified against
+/// `grep -rhE '^\s*(Scenario|Scenario Outline):'` over `tck/features`. This is
+/// the count of definitions, **not** executable test cases — outlines expand to
+/// many cases (see [`EXPANDED_TOTAL`]).
+const OFFICIAL_SCENARIO_DEFINITIONS: usize = 1615;
 
-/// Plain `Scenario:` definitions at tag `2024.3`
-/// (`grep -rhE '^\s*Scenario:'`).
+/// Plain `Scenario:` definitions across the whole corpus at tag `2024.3`
+/// (`grep -rhE '^\s*Scenario:'`). 13 of these live in the unparseable
+/// `Literals6` file (BUG-0008).
 const PLAIN_SCENARIOS: usize = 1339;
 
 /// `Scenario Outline:` definitions at tag `2024.3`
-/// (`grep -rhE '^\s*Scenario Outline:'`). Each is counted **once** today
-/// (BUG-0009): outlines are not yet expanded per `Examples` row.
+/// (`grep -rhE '^\s*Scenario Outline:'`). Each now expands per `Examples` data
+/// row (BUG-0009); none live in the unparseable file.
 const SCENARIO_OUTLINES: usize = 276;
-
-/// `Examples:` data rows across all outlines at tag `2024.3`. The conventional
-/// fully-expanded scenario count is `PLAIN_SCENARIOS + EXAMPLES_DATA_ROWS`
-/// (= 3880); the harness does not yet reach this (BUG-0009).
-const EXAMPLES_DATA_ROWS: usize = 2541;
 
 /// Feature files the current Gherkin parser (`gherkin` 0.16) cannot parse —
 /// `Literals6.feature` only, due to its heavily-escaped result-table cells.
@@ -58,11 +61,29 @@ const EXAMPLES_DATA_ROWS: usize = 2541;
 /// in `pending`/`fail`, so they cannot inflate the pass-rate.
 const KNOWN_UNPARSEABLE_FILES: usize = 1;
 
-/// Scenarios in the known-unparseable file(s) (`Literals6` has 13).
+/// Scenarios in the known-unparseable file(s) (`Literals6` has 13 plain
+/// scenarios, 0 outlines).
 const SCENARIOS_IN_UNPARSEABLE_FILES: usize = 13;
 
-/// Scenarios the harness currently parses + counts (outlines counted once).
-const EXPECTED_PARSEABLE_SCENARIOS: usize = OFFICIAL_SCENARIOS - SCENARIOS_IN_UNPARSEABLE_FILES;
+/// Parseable plain `Scenario:` definitions = all plain minus the 13 in the
+/// unparseable `Literals6` file.
+const PARSEABLE_PLAIN_SCENARIOS: usize = PLAIN_SCENARIOS - SCENARIOS_IN_UNPARSEABLE_FILES;
+
+/// Concrete scenarios produced by expanding every `Scenario Outline:` over its
+/// `Examples` data rows, as counted by the authoritative `gherkin` parser.
+///
+/// Note this is **2558**, not the 2541 a naive `grep` of `Examples` rows
+/// reports: the grep heuristic mis-handles commented-out (`#| ... |`) example
+/// rows in `expressions/precedence/Precedence1.feature`, prematurely ending the
+/// table and dropping 17 real data rows. The parser is authoritative — it is
+/// what actually drives the engine — so the harness expansion (and this guard)
+/// use the parser's count.
+const EXPANDED_OUTLINE_CASES: usize = 2558;
+
+/// The full executable test-case count the harness reports as `total`:
+/// parseable plain scenarios + expanded outline cases. This is the BUG-0009
+/// expanded denominator (was 1602 when outlines were counted once).
+const EXPANDED_TOTAL: usize = PARSEABLE_PLAIN_SCENARIOS + EXPANDED_OUTLINE_CASES;
 
 #[test]
 fn corpus_is_vendored_and_discoverable() {
@@ -96,7 +117,7 @@ fn corpus_records_its_pinned_provenance() {
 }
 
 #[test]
-fn corpus_parses_to_expected_counts() {
+fn corpus_expands_to_expected_total() {
     let dir = default_features_dir();
     let summary = run_suite(&dir, || PendingEngine).expect("corpus runs");
 
@@ -105,17 +126,12 @@ fn corpus_parses_to_expected_counts() {
         summary.parse_errors, KNOWN_UNPARSEABLE_FILES,
         "unexpected number of unparseable feature files — see BUG-0008"
     );
-    // The counted scenarios plus those stuck in the unparseable file must equal
-    // the official total: the suite is fully accounted for, nothing silently
-    // dropped or excluded from the denominator.
+    // `total` is now the *expanded* test-case count: each Scenario Outline
+    // contributes one case per Examples data row (BUG-0009). If this drifts,
+    // either the corpus changed or expansion regressed — both must fail CI.
     assert_eq!(
-        summary.total, EXPECTED_PARSEABLE_SCENARIOS,
-        "parsed scenario count drifted from the pinned release 2024.3"
-    );
-    assert_eq!(
-        summary.total + SCENARIOS_IN_UNPARSEABLE_FILES,
-        OFFICIAL_SCENARIOS,
-        "parsed + unparseable scenarios must equal the official TCK total"
+        summary.total, EXPANDED_TOTAL,
+        "expanded scenario count drifted from the pinned release 2024.3"
     );
 }
 
@@ -124,9 +140,11 @@ fn stub_engine_yields_only_pending_no_unexpected_failures() {
     let dir = default_features_dir();
     let summary = run_suite(&dir, || PendingEngine).expect("corpus runs");
 
-    // The stub engine supports nothing, so every parsed scenario must be
+    // The stub engine supports nothing, so every expanded scenario must be
     // pending. Critically: zero fails — unimplemented is `pending`, never
-    // `fail` (T-0002 acceptance criterion).
+    // `fail`. With expansion, the engine is handed substituted queries, so an
+    // outline variant is `pending` (unsupported), never a false `fail` from a
+    // literal `<placeholder>` (the BUG-0009 latent defect).
     assert_eq!(
         summary.fail, 0,
         "stub engine must never produce a hard fail"
@@ -134,7 +152,7 @@ fn stub_engine_yields_only_pending_no_unexpected_failures() {
     assert_eq!(summary.pass, 0, "stub engine cannot pass any scenario");
     assert_eq!(
         summary.pending, summary.total,
-        "every parsed scenario must be counted pending under the stub engine"
+        "every expanded scenario must be counted pending under the stub engine"
     );
     assert_eq!(summary.pass_rate(), 0.0);
 }
@@ -147,7 +165,7 @@ fn report_json_carries_counts_and_provenance() {
     let json = report.to_json();
 
     let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
-    assert_eq!(parsed["total"], EXPECTED_PARSEABLE_SCENARIOS);
+    assert_eq!(parsed["total"], EXPANDED_TOTAL);
     assert_eq!(parsed["fail"], 0);
     assert_eq!(parsed["parse_errors"], KNOWN_UNPARSEABLE_FILES);
     assert_eq!(parsed["pass_rate"].as_f64(), Some(0.0));
@@ -155,103 +173,138 @@ fn report_json_carries_counts_and_provenance() {
     assert!(parsed["pinned_commit"].is_string());
 }
 
-/// BUG-0009 guard: pin the unexpanded Scenario-Outline denominator so the
-/// choice to count each outline **once** (rather than once per `Examples` row)
-/// is explicit and cannot silently shift to certify a false 100% (Decision
-/// 0008). Counts `Scenario:` / `Scenario Outline:` / `Examples` data rows
-/// directly from the vendored corpus and reconciles them against the harness's
-/// counted total.
+/// BUG-0009 reconciliation guard: pin the *expanded* Scenario-Outline
+/// denominator so the count cannot silently shift (in either direction) to
+/// certify a false 100% (Decision 0008), and prove that expansion left no
+/// `<placeholder>` token in any executable query or expected-result cell — the
+/// exact latent defect (false `fail` / stuck `pending`) BUG-0009 names.
 ///
-/// When outline expansion lands (BUG-0009), this guard is updated alongside the
-/// new expanded denominator — a deliberate, reviewed change, not a silent one.
+/// It re-derives, from the authoritative `gherkin` parser, the plain-scenario
+/// and outline-definition composition and the expanded case count, reconciles
+/// them against the pinned constants and the harness's reported `total`, and
+/// scans every expanded scenario for surviving placeholders.
 #[test]
-fn outline_expansion_gap_is_named_and_guarded() {
+fn outline_expansion_total_is_reconciled() {
     let dir = default_features_dir();
-    let (plain, outlines, example_rows) = count_gherkin_constructs(&dir);
+    let (plain, outlines, expanded_cases, placeholder_survivors) = walk_corpus(&dir);
 
-    // The corpus matches the pinned-release composition.
+    // Composition matches the pinned-release definition counts (parseable part).
     assert_eq!(
-        plain, PLAIN_SCENARIOS,
-        "plain `Scenario:` count drifted from pinned 2024.3"
+        plain, PARSEABLE_PLAIN_SCENARIOS,
+        "parseable plain `Scenario:` count drifted from pinned 2024.3"
     );
     assert_eq!(
         outlines, SCENARIO_OUTLINES,
         "`Scenario Outline:` count drifted from pinned 2024.3"
     );
     assert_eq!(
-        example_rows, EXAMPLES_DATA_ROWS,
-        "`Examples` data-row count drifted from pinned 2024.3"
+        expanded_cases, EXPANDED_OUTLINE_CASES,
+        "expanded outline-case count drifted from pinned 2024.3"
     );
 
-    // Official total = plain + outlines (each outline counted ONCE today).
+    // Definition arithmetic: parseable + unparseable definitions = official.
     assert_eq!(
-        plain + outlines,
-        OFFICIAL_SCENARIOS,
-        "plain + outline definitions must equal the official scenario count"
+        plain + outlines + SCENARIOS_IN_UNPARSEABLE_FILES,
+        OFFICIAL_SCENARIO_DEFINITIONS,
+        "parseable + unparseable scenario *definitions* must equal the official count"
     );
 
-    // The harness's counted total equals the unexpanded denominator minus the
-    // BUG-0008 unparseable scenarios. This is the documented, honest baseline:
-    // outlines are NOT yet expanded (BUG-0009), so `total` is the unexpanded
-    // count, not the conventional ~3880 fully-expanded count.
+    // The harness's reported `total` equals the expanded denominator and is
+    // materially larger than the old unexpanded definition count (1602) — the
+    // BUG-0009 fix. If outlines were ever counted once again, this fails.
     let summary = run_suite(&dir, || PendingEngine).expect("corpus runs");
     assert_eq!(
         summary.total,
-        plain + outlines - SCENARIOS_IN_UNPARSEABLE_FILES,
-        "harness total must equal unexpanded(plain+outlines) minus unparseable; \
-         if this changed because outlines are now expanded, update this guard \
-         and the documented denominator (BUG-0009)"
+        plain + expanded_cases,
+        "harness total must equal parseable-plain + expanded-outline-cases (BUG-0009)"
+    );
+    assert_eq!(summary.total, EXPANDED_TOTAL);
+    let old_unexpanded_total = OFFICIAL_SCENARIO_DEFINITIONS - SCENARIOS_IN_UNPARSEABLE_FILES; // 1602
+    assert!(
+        summary.total > old_unexpanded_total,
+        "expanded total ({}) must exceed the old once-per-outline count ({})",
+        summary.total,
+        old_unexpanded_total
     );
 
-    // Document the size of the gap so it is impossible to overlook: the
-    // conventional fully-expanded count is materially larger than what we count.
-    let fully_expanded = plain + example_rows;
+    // No `<placeholder>` may survive expansion in any executable query or
+    // expected-result cell: a survivor is the BUG-0009 latent defect.
     assert_eq!(
-        fully_expanded, 3880,
-        "fully-expanded count (plain + example rows) drifted from pinned 2024.3"
-    );
-    assert!(
-        fully_expanded > summary.total,
-        "the unexpanded denominator ({}) understates the fully-expanded count \
-         ({}); the BUG-0009 gap must remain named while it is open",
-        summary.total,
-        fully_expanded
+        placeholder_survivors, 0,
+        "{placeholder_survivors} expanded scenario(s) still carry a literal \
+         <placeholder> — substitution is incomplete (BUG-0009)"
     );
 }
 
-/// Count `Scenario:`, `Scenario Outline:`, and `Examples` *data* rows across
-/// every vendored `.feature` file. A data row is a `|`-delimited row inside an
-/// `Examples:` block other than the first (header) row. Mirrors the
-/// `grep`/manual counts recorded in BUG-0009.
-fn count_gherkin_constructs(dir: &std::path::Path) -> (usize, usize, usize) {
-    let (mut plain, mut outlines, mut example_rows) = (0usize, 0usize, 0usize);
+/// Walk the vendored corpus through the same `gherkin` parser the harness uses
+/// and return `(parseable_plain, outline_definitions, expanded_outline_cases,
+/// placeholder_survivors)`.
+///
+/// `placeholder_survivors` counts expanded scenarios whose query docstring or a
+/// result-table cell still contains a `<...>` token after substitution.
+fn walk_corpus(dir: &std::path::Path) -> (usize, usize, usize, usize) {
+    let (mut plain, mut outlines, mut expanded_cases, mut survivors) = (0, 0, 0, 0);
     for path in discover_features(dir).expect("corpus is readable") {
-        let text = std::fs::read_to_string(&path).expect("feature file is readable");
-        let mut in_examples = false;
-        let mut header_seen = false;
-        for line in text.lines() {
-            let s = line.trim();
-            if s.starts_with("Scenario Outline:") {
-                outlines += 1;
-                in_examples = false;
-            } else if s.starts_with("Scenario:") {
+        let Ok(feature) = Feature::parse_path(&path, GherkinEnv::default()) else {
+            continue; // BUG-0008 unparseable file; accounted for separately.
+        };
+        let mut defs: Vec<&gherkin::Scenario> = feature.scenarios.iter().collect();
+        for rule in &feature.rules {
+            defs.extend(rule.scenarios.iter());
+        }
+        for def in defs {
+            if def.examples.is_empty() {
                 plain += 1;
-                in_examples = false;
-            } else if s.starts_with("Examples:") {
-                in_examples = true;
-                header_seen = false;
-            } else if in_examples {
-                if s.starts_with('|') {
-                    if header_seen {
-                        example_rows += 1;
-                    } else {
-                        header_seen = true; // the header row, not a data row
-                    }
-                } else if !s.is_empty() {
-                    in_examples = false;
+            } else {
+                outlines += 1;
+            }
+            for concrete in expand_scenario(def) {
+                if !def.examples.is_empty() {
+                    expanded_cases += 1;
+                }
+                if scenario_has_placeholder(&concrete) {
+                    survivors += 1;
                 }
             }
         }
     }
-    (plain, outlines, example_rows)
+    (plain, outlines, expanded_cases, survivors)
+}
+
+/// True if any step's docstring or any data-table cell of `scenario` still
+/// contains an unsubstituted `<placeholder>` token (a `<word>` form).
+fn scenario_has_placeholder(scenario: &gherkin::Scenario) -> bool {
+    fn looks_like_placeholder(text: &str) -> bool {
+        // A `<name>` token: `<`, one-or-more non-`>` non-whitespace chars, `>`.
+        let bytes = text.as_bytes();
+        let mut i = 0;
+        while let Some(open) = text[i..].find('<') {
+            let start = i + open + 1;
+            if let Some(close_rel) = text[start..].find('>') {
+                let inner = &text[start..start + close_rel];
+                if !inner.is_empty()
+                    && !inner.contains(char::is_whitespace)
+                    && inner.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                {
+                    return true;
+                }
+                i = start + close_rel + 1;
+            } else {
+                break;
+            }
+        }
+        let _ = bytes;
+        false
+    }
+    scenario.steps.iter().any(|step| {
+        step.docstring
+            .as_deref()
+            .is_some_and(looks_like_placeholder)
+            || step.table.as_ref().is_some_and(|t| {
+                t.rows
+                    .iter()
+                    .flatten()
+                    .any(|cell| looks_like_placeholder(cell))
+            })
+    })
 }

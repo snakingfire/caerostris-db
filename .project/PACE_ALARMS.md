@@ -542,3 +542,8 @@ KEYSTONE WATCH: SPIKE-0003 storage format spec still in_progress (researcher) �
 done:25 ready:11 in_review:3 backlog:36. MAIN GREEN (455c770, builds 0.95s) — no P0. Landed since last tick: T-0005 coverage (96.29% line via cargo-llvm-cov → Cat-10 GATE ~14→82), BUG-0008/BUG-0014 (Cat 12). 5/5 lanes building.
 ACTION: SPIKE-0003 (storage format spec) stuck in_progress ~30min with nothing committed → dispatched focused steering-storage to produce+ratify the format ADR decisively. This unblocks the storage cascade: T-0007/0008 writer/reader (Cat 2 w12), T-0009/0010 manifest+commit (Cat 1 w14), and the executor that moves Cat 4 off 0. T-0018 planner lander still in flight.
 GATEs now strong: Cat3=78, Cat10~82, Cat11=65. Laggards Cat4/2/1 all gated on SPIKE-0003 → that's the focus. ~1h30m to deadline.
+
+## STATUS — T+3:34 (main green; big items mid-build — brief flat window)
+done:25 ready:11 in_review:3 backlog:36. MAIN GREEN (e197e00) — no P0. No new land this 5-min window: the two highest-value items are mid-build (NOT stuck) — SPIKE-0003 storage-format ADR (steering, writing) + T-0018 planner (focused builder, 144 lines deep). 5/5 lanes building (5/1/9/6/10 files <3min).
+The instant SPIKE-0003 ratifies → storage cascade opens (T-0007/0008 writer/reader Cat2, T-0009/0010 commit Cat1, executor for Cat4) → I dispatch focused builders at it. Cat-12 in_review backlog left to lanes (low value).
+No GATE sliding (Cat3=78, Cat10~82, Cat11=65). ~1h26m to deadline.

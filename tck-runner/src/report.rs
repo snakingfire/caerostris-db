@@ -1,14 +1,17 @@
 //! The machine-readable summary the rubric grader consumes (Cat. 4).
 //!
-//! After a full run the harness emits a JSON object of the shape:
+//! After a full run the harness emits a JSON object of the shape (counts shown
+//! for the pinned `2024.3` corpus under the stub engine: `total` is the
+//! *expanded* test-case count — Scenario Outlines expanded per `Examples` row,
+//! BUG-0009 — and `parse_errors` is the one BUG-0008 unparseable file):
 //!
 //! ```json
 //! {
-//!   "total": 1615,
+//!   "total": 3884,
 //!   "pass": 0,
-//!   "pending": 1615,
+//!   "pending": 3884,
 //!   "fail": 0,
-//!   "parse_errors": 0,
+//!   "parse_errors": 1,
 //!   "pass_rate": 0.0
 //! }
 //! ```

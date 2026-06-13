@@ -2,7 +2,8 @@
 
 - **Date / marker:** T0+1:40 (2026-06-13T~20:04:00Z)
 - **Owner:** implementer-wf_d44011fb-4d5-6 (executing T-0002)
-- **Status:** recorded; gap tracked by BUG-0009 (P1)
+- **Status:** **RESOLVED** by BUG-0009 (expansion landed). See the resolution
+  note at the foot of this file.
 - **Rubric:** Cat. 4 (openCypher/TCK), Cat. 10 (tests/coverage)
 - **Relates to:** Decision 0008 (pass-rate definition + pinning), BUG-0007,
   BUG-0008 (Literals6 parse gap), BUG-0009 (outline expansion).
@@ -84,3 +85,40 @@ is `pending`, so `0/1602 = 0.0` is internally consistent and honest. The defect
 - BUG-0009 remains open (P1) to implement expansion before the pass-rate is
   expected to climb (EPIC-002 P1 reads). The grader reads `pass/total` from
   `.project/reports/tck-latest.json` either way.
+
+## Resolution (BUG-0009 — outline expansion landed)
+
+- **Date / marker:** T0+3:05 (2026-06-13).
+- **Owner:** test-author (BUG-0009, branch `work/BUG-0009-outline-expansion`).
+
+The harness now expands each `Scenario Outline` into one concrete scenario per
+`Examples` data row, substituting `<placeholder>` tokens into the scenario name,
+every step value, every docstring (the query + setup statements), and every
+data-table cell — implemented in `tck-runner/src/outline.rs::expand_scenario`,
+wired through `runner::all_scenarios`. The engine therefore never sees a literal
+`<comp>` / `<boolop>`, so the latent "false `fail` / stuck `pending`" defect is
+closed.
+
+**Corrected counts (parser-authoritative).** Implementing expansion surfaced a
+bug in the *old guard's* row counter: the `grep`-style
+`count_gherkin_constructs` helper mis-handled commented-out (`#| ... |`) example
+rows in `expressions/precedence/Precedence1.feature`, ending that table early and
+dropping **17** real data rows (it reported 36 of the 53 the `gherkin` parser
+actually expands). The previously documented `EXAMPLES_DATA_ROWS = 2541` and
+fully-expanded `3880` were thus themselves slightly understated. The
+authoritative parser figures at tag `2024.3`:
+
+| Quantity                                   | Value |
+|--------------------------------------------|------:|
+| plain `Scenario:` (whole corpus)           |  1339 |
+| plain `Scenario:` (parseable; − Literals6) |  1326 |
+| `Scenario Outline:` definitions            |   276 |
+| **expanded outline cases** (parser)        |  2558 |
+| **harness `total`** (1326 + 2558)          |  **3884** |
+| BUG-0008 unparseable (`Literals6`)         | 13 (in `parse_errors`) |
+
+The guard `tck-runner/tests/vendored_corpus.rs::outline_expansion_total_is_reconciled`
+now pins the **expanded** denominator (3884), re-derives the composition from the
+`gherkin` parser, and additionally asserts that **no `<placeholder>` survives
+expansion** in any query/result cell. The denominator still cannot silently shift
+in either direction without failing CI (Decision 0008 integrity preserved).

@@ -2,9 +2,9 @@
 id: BUG-0009
 title: TCK Scenario Outlines counted once, not expanded per Examples row (denominator ~2.4x too small; <placeholders> unsubstituted)
 type: bug
-status: ready
+status: in_review
 priority: P1
-assignee:
+assignee: test-author-wf_fe688db0-093-3
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
