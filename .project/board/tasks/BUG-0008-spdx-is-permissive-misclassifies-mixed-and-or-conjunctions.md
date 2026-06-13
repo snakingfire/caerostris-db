@@ -2,15 +2,15 @@
 id: BUG-0008
 title: SPDX is_permissive misclassifies mixed AND/OR conjunctions as permissive
 type: bug
-status: ready
+status: in_progress
 priority: P3
-assignee:
+assignee: implementer-wf_e9fceb87-27c-11
 epic: EPIC-010
 deps: [T-0039]
 rubric_refs: [12]
 estimate: S
 created: T0+0:48
-updated: T0+0:48
+updated: T0+3:07
 ---
 
 ## Context
