@@ -2,7 +2,7 @@
 id: T-0039
 title: License manifest, gitleaks pre-commit, and hourly-release automation
 type: task
-status: in_review
+status: done
 priority: P2
 assignee: integrator
 epic: EPIC-010
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+0:20
-updated: T0+2:10
+updated: T0+2:15
 ---
 
 ## Context
@@ -60,3 +60,6 @@ manifest, hourly releases) that the grader scores.
   additive conflict in `src/lib.rs` (kept `pub mod licenses;` + `pub mod query;` +
   `pub mod tck;`, sorted). Both review sign-offs (adversarial-reviewer + premortem-analyst)
   preserved from the original review at ef09948.
+
+- **T0+2:15 — LANDED:** Merged to main at c8b20b0. All 58 tests green,
+  format_code.sh green. Status: done.
