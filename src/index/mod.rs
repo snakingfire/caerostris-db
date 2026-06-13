@@ -35,8 +35,8 @@
 //!    `PropertyIndex` automatically, so a new index type gains the planner facade
 //!    for free.
 //!
-//! See `.project/decisions/` and the index-interface ADR for the rationale and
-//! the rejected alternatives.
+//! See `docs/adr/0004-pluggable-index-interface.md` for the rationale, the
+//! rejected alternatives, and the rubric impact.
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
