@@ -552,3 +552,8 @@ No GATE sliding (Cat3=78, Cat10~82, Cat11=65). ~1h26m to deadline.
 done:27 main GREEN (d320f93). Cleared a stray ci.yml half-merge (reset --merge). SPIKE-0003 storage-format ADR ratified→DONE → cascade OPENED: T-0007/0008 writer/reader (Cat2), T-0009 manifest, then T-0010 commit (Cat1). 5/5 lanes. T-0018 planner in_review.
 PRIORITY PIVOT (hackathon demo in ~2h): dispatched a focused implementer to build a RUNNABLE end-to-end demo (insert → MATCH → return) — minimal in-memory executor on the landed lexer/parser + data model, a `caero` CLI + scripts/demo.sh + docs/DEMO.md, verified working before land. This is the submission deliverable; outranks rubric breadth.
 Lanes keep building storage/python/cache breadth in parallel. ~1h44m to deadline.
+
+## STATUS — T+3:45 (main green, done 30; demo build in flight)
+done:30 ready:10 in_review:2 backlog:33. MAIN GREEN (d73b867) — no P0. SPIKE-0003 storage-format ADR 0008 fully ratified (7 falsification attacks survived) → storage cascade OPEN (T-0007/0008/0009/0010 = Cat 2/1 + Cat-4 executor layer). 5/5 lanes building it.
+DEMO (priority): focused build of runnable insert→MATCH→return CLI + scripts/demo.sh + docs/DEMO.md in flight (~5min in, ETA ~30-45min, will be verified-working before land). T-0018 planner in_review.
+~1h39m to deadline. GATEs strong (Cat3=78, Cat10~82, Cat11=65); overall ~34 climbing.
