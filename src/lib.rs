@@ -9,6 +9,7 @@
 //! exists only to exercise the toolchain (build, test, doctest, clippy, fmt).
 
 pub mod query;
+pub mod tck;
 
 /// The crate version, sourced from `Cargo.toml` at compile time.
 ///

@@ -2,15 +2,15 @@
 id: BUG-0007
 title: 100 percent TCK target is ill-defined without pinned tag and pending-in-denominator rule
 type: bug
-status: blocked
+status: in_progress
 priority: P0
-assignee:
+assignee: implementer-wf_3a7aff59-f20-11
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 estimate: S
 created: 2026-06-13T18:24:00Z
-updated: 2026-06-13T19:45:00Z
+updated: T+01:35
 ---
 
 ## Context
@@ -76,3 +76,15 @@ launch**; it constrains how T-0002 computes and reports the number.
   review-gate checkboxes to unchecked per the protocol).
   Conflict file: `src/lib.rs` — main has `pub mod query;`, branch adds `pub mod tck;`.
   Fix: both lines must be present in the rebased tree.
+- T+01:35 `implementer-wf_3a7aff59-f20-11`: rebase-resolve done on a fresh
+  worktree branch off current `main`. Re-applied the two substantive commits
+  (`feat(tck)` + `docs(tck)`); resolved `src/lib.rs` keeping **both**
+  `pub mod query;` and `pub mod tck;`. A second, unrelated conflict surfaced in
+  `T-0002-tck-harness-wireup.md` (BUG-0006's side-effect-assertion criterion had
+  landed there since the branch was cut) — resolved by keeping BUG-0006's
+  side-effect line *and* BUG-0007's enhanced machine-readable / `pass_rate`
+  criteria (no information lost). Decision 0008 merged cleanly. Rebased onto the
+  latest `main` tip so the diff is exactly BUG-0007's 8 files. All 34 tests +
+  2 doctests green; clippy `-D warnings` clean; `./format_code.sh` green. Both
+  review-gate checkboxes reset to unchecked per the conflict-handling protocol;
+  re-requesting adversarial review + pre-mortem. Status -> in_review.

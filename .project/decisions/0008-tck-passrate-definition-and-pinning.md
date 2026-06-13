@@ -44,3 +44,42 @@ Two ambiguities make "100%" gameable:
 
 Rubric Cat. 4 wording and T-0002 acceptance criteria amended; grader reads the
 documented field. Reproducible, non-gameable Cat. 4 metric.
+
+## Resolution (BUG-0007, T+0:54, implementer-wf_84c0f0c7-752-20)
+
+The pin is now concrete and enforced in code.
+
+- **Pinned release tag:** `1.0.0-M23` (openCypher/openCypher).
+- **Resolved commit:** `007895aff5f33097d67b2e48a0a2babd6bd18590`.
+- **Expected scenario `total`:** **1615** (the Cat. 4 denominator) =
+  1339 `Scenario:` + 276 `Scenario Outline:`.
+- **Feature-file count:** **220** `.feature` files under `tck/features/`
+  (secondary integrity signal).
+
+Why `1.0.0-M23`: it is the last stable milestone of the long-lived `1.0.0-M*`
+series (the calendar `2024.x` releases are newer but the M-series is the suite
+most widely vendored and referenced by other engines, and it is stable). Bumping
+to a newer tag later is a deliberate action: update `caerostris_db::tck`
+constants, this section, and re-measure `total` in the same change.
+
+**Provenance of the counts** (measured directly at the pinned commit):
+
+```bash
+git clone --depth 1 --branch 1.0.0-M23 \
+  https://github.com/opencypher/openCypher.git
+cd openCypher
+find tck/features -name '*.feature' | wc -l                       # -> 220
+grep -rhE '^\s*(Scenario|Scenario Outline):' tck/features \
+  --include='*.feature' | wc -l                                   # -> 1615
+```
+
+**Enforcement.** The contract lives in `src/tck.rs` (`caerostris_db::tck`):
+`PINNED_TCK_TAG`, `PINNED_TCK_COMMIT`, `PINNED_TCK_SCENARIOS`,
+`PINNED_TCK_FEATURE_FILES`; `pass_rate(pass, pending, fail) = pass / total`;
+`TckSummary` (with `is_complete()` and `to_json()` emitting `tck_tag` +
+`tck_commit` + `total`); and `verify_suite_size(loaded)` which errors unless
+`loaded == 1615`. The T-0002 harness consumes these rather than computing its own
+rate. `Scenario Outline` blocks expand into multiple runtime examples; the pinned
+`total` counts *scenarios* (the unit the Gherkin loader yields per `.feature`
+file), so `verify_suite_size` is checked against the loaded scenario count, not
+the post-expansion example count.
