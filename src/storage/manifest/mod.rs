@@ -544,4 +544,92 @@ mod tests {
         assert!(!s.is_colocated("WIDE")); // explicit K=9 fallback
         assert!(s.is_colocated("FOLLOWS"));
     }
+
+    /// Round-trip invariant over a generated matrix of manifests
+    /// (`testing-and-benchmarks.md` §2: storage-format round-trips). For a wide
+    /// variety of structurally-distinct manifests, `bytes → struct → bytes →
+    /// struct` is the identity (both the struct *and* its serialised bytes are
+    /// stable), proving the encoding is lossless and deterministic. We build the
+    /// matrix in-tree (no proptest dependency) so the lockfile / license surface
+    /// stays minimal while still covering the property's intent across many
+    /// shapes.
+    #[test]
+    fn manifest_round_trip_is_lossless_and_stable_over_a_matrix() {
+        use stats::{DegreeStats, Direction, EstimatorParams, Freshness, StatsBlobRef};
+
+        let kinds = [
+            ObjectKind::Ncol,
+            ObjectKind::Adj,
+            ObjectKind::Idx,
+            ObjectKind::Other("future".to_string()),
+        ];
+        let versions = [0u64, 1, 7, 1_000, u64::MAX];
+        let freshnesses = [
+            Freshness::Exact,
+            Freshness::Estimated,
+            Freshness::Stale,
+            Freshness::Absent,
+        ];
+
+        for (i, &v) in versions.iter().enumerate() {
+            let mut m = Manifest::genesis("2026-06-13T18:24:00Z");
+            m.manifest_version = ManifestVersion(v);
+            m.stats.as_of_version = ManifestVersion(v);
+            m.stats.freshness = freshnesses[i % freshnesses.len()];
+            m.stats.total_node_count = v.wrapping_mul(3);
+            m.stats.estimator_params = EstimatorParams {
+                hll_precision: 12 + (i as u8),
+                mcv_h: 16,
+                hist_q: 48,
+                sketch_seed: v,
+            };
+
+            // A handful of objects of every kind.
+            for (j, kind) in kinds.iter().enumerate() {
+                m.objects.push(ObjectRef::new(
+                    format!("db/data/hash{i}{j}/shard-{j}.dat"),
+                    kind.clone(),
+                ));
+            }
+            // Labels, rel-types, projection flags.
+            m.schema.labels = vec!["Person".to_string(), "Account".to_string()];
+            m.schema.rel_types = vec!["FOLLOWS".to_string(), "OWNS".to_string()];
+            m.schema
+                .colocated_projection
+                .insert("FOLLOWS".to_string(), i % 2 == 0);
+            m.stats.set_label_count("Person", v);
+            m.stats.set_degree(
+                "FOLLOWS",
+                Direction::Out,
+                DegreeStats {
+                    edge_count: v.wrapping_add(5),
+                    p99_deg: (i as u32) * 10,
+                    max_deg: (i as u32) * 1_000_000,
+                },
+            );
+            m.stats.set_degree(
+                "FOLLOWS",
+                Direction::In,
+                DegreeStats {
+                    edge_count: v.wrapping_add(5),
+                    p99_deg: (i as u32) * 7,
+                    max_deg: (i as u32) * 2_000_000,
+                },
+            );
+            m.stats_blobs
+                .push(StatsBlobRef::new(format!("db/stats/blob{i}.stats")));
+
+            // bytes -> struct -> bytes -> struct identity.
+            let bytes1 = m.to_bytes().expect("serialise");
+            let back1 = Manifest::from_bytes(&bytes1).expect("parse");
+            assert_eq!(m, back1, "struct round-trip identity (v={v})");
+            let bytes2 = back1.to_bytes().expect("re-serialise");
+            assert_eq!(bytes1, bytes2, "byte round-trip stability (v={v})");
+            let back2 = Manifest::from_bytes(&bytes2).expect("re-parse");
+            assert_eq!(back1, back2, "second struct round-trip (v={v})");
+
+            // The reference set survives intact (every key recoverable).
+            assert_eq!(back1.referenced_keys().len(), kinds.len() + 1);
+        }
+    }
 }
