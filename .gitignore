@@ -27,6 +27,8 @@
 .worktrees/
 .project/.bootstrapped
 .project/.mainspring.lock
+.project/.land.lock
+.project/board/.claims/
 .project/STOP
 # Self-provisioned local environment state (endpoint, creds, locks, pidfiles).
 # Lives in the MAIN worktree; shared across all worktrees; never committed.
