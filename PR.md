@@ -1,8 +1,8 @@
-# PR: BUG-0006 — TCK side-effect assertions are unobservable without a QueryStatistics surface
+# PR: BUG-0007 — 100% TCK target is ill-defined without pinned tag and pending-in-denominator rule
 
 ## Board item
 
-[.project/board/tasks/BUG-0006-tck-side-effect-assertions-are-unobservable-without-a-querystatistics-surface.md](.project/board/tasks/BUG-0006-tck-side-effect-assertions-are-unobservable-without-a-querystatistics-surface.md)
+[.project/board/tasks/BUG-0007-100-percent-tck-target-is-ill-defined-without-pinned-tag-and-pending-in-denominator-rule.md](.project/board/tasks/BUG-0007-100-percent-tck-target-is-ill-defined-without-pinned-tag-and-pending-in-denominator-rule.md)
 
 ## Rubric refs
 
@@ -10,83 +10,90 @@ Cat 4 (openCypher completeness / TCK — GATE), Cat 10 (tests/coverage).
 
 ## Acceptance criteria (from board item)
 
-- [x] Engine runtime exposes a `QueryStatistics`-equivalent side-effect counter covering
-  `+nodes`/`-nodes`, `+relationships`/`-relationships`, `+labels`/`-labels`,
-  `+properties`/`-properties`. (`+indexes`/`+constraints` explicitly deferred — out of scope
-  for the P1/P2 tranches this unblocks; one-line extension path recorded in Decision 0012.)
-- [~] T-0002's TCK adapter reads this surface and asserts the `Then the side effects should be:`
-  step as real pass/fail. The **contract** (`from_tck_side_effects` + `matches_side_effects`) and
-  the end-to-end assertion path are delivered + tested here; the Gherkin runner itself is T-0002,
-  whose acceptance criteria are amended in this PR to mandate the read. BUG-0006 removes the
-  structural blocker; the wiring is T-0002's job.
-- [x] Property +/- counting semantics (Issue #221) pinned to the TCK's expected values for the
-  pinned release and recorded in `.project/decisions/0012-tck-side-effect-counting-semantics.md`;
-  the deferred `+indexes`/`+constraints` categories are documented there, not silently skipped.
-- [x] One TCK side-effect scenario passes end-to-end as evidence
-  (`tests/tck_side_effects.rs::create_then_delete_node_side_effects_pass`).
-- [x] EPIC-002 and T-0002 acceptance criteria updated to name this surface.
+- [x] Rubric Cat. 4 and T-0002 amended to state explicitly:
+      `pass_rate = pass / total`, `total = pass + pending + fail`, no scenario
+      excluded from `total`; reaching 100 requires `pending == 0 && fail == 0`.
+- [x] A specific openCypher TCK release tag is pinned and recorded (in T-0002 and a
+      decision doc); the expected `total` scenario count for that tag is recorded.
+- [x] Harness emits the pinned tag and `total` in its machine-readable output so
+      the rubric grader can assert the suite was not shrunk.
+- [x] A guard test fails if the loaded scenario count differs from the recorded
+      pinned `total` (catches accidental or deliberate suite shrinkage).
 - [x] `./format_code.sh` green.
 
 ## Summary of change
 
-Resolves the P0 structural blocker filed by `steering-query-cypher` (Decision 0007): a large
-class of openCypher TCK scenarios assert *side effects* (`Then the side effects should be:`) that
-are not observable from the result set — e.g. `CREATE (n) DELETE n` returns no rows yet must
-report `+nodes 1 / -nodes 1`. Without an engine-exposed side-effect counter, every such scenario
-is structurally unpassable, so Cat. 4 = 100% (a GATE) is unreachable.
+Resolves BUG-0007, filed by `steering-query-cypher`: the Cat. 4 GATE metric "100% of
+the TCK" was ambiguous about its denominator and lacked a pinned suite version, making
+it gameable and not a credible gate.
 
-This PR introduces `caerostris_db::query::QueryStatistics` (`src/query/stats.rs`), the engine's
-`QueryStatistics`-equivalent surface. It carries the eight categories the TCK emits as
-non-negative occurrence counts, with recorders for the executor (`record_nodes_created`, …) and
-accessors for the adapter. It parses a Gherkin side-effect table directly
-(`from_tck_side_effects`, applying the TCK convention that omitted categories are zero) and
-compares with `matches_side_effects` (≡ `==`), which is the exact assertion the T-0002 adapter
-will perform. The Issue #221 property +/- counting ambiguity (notably that `SET`-to-same-value is
-a no-op) is pinned to the TCK's expected values for the pinned release in
-`.project/decisions/0012-tck-side-effect-counting-semantics.md`; `+indexes`/`+constraints` are
-explicitly deferred there with a recorded extension path rather than silently dropped. EPIC-002
-and T-0002 acceptance criteria are amended to mandate the surface and the adapter read. The change
-is additive (a new `query` module) and touches no existing behaviour.
+This PR encodes the non-gameable pass-rate contract in code (`src/tck.rs`) and updates
+all specification documents to be consistent:
+
+- `TckSummary` carries `pass`, `pending`, `fail`, and `total = pass + pending + fail`.
+  `pass_rate = pass / total`; both `pending` and `fail` are in the denominator.
+  `is_complete()` returns true only when `pending == 0 && fail == 0`.
+- openCypher TCK release `1.0.0-M23` (commit `007895a`) is pinned with its measured
+  scenario count (1615) and feature-file count (220) as named constants.
+- `verify_suite_size()` guards against silent suite shrinkage or growth — the harness
+  must load exactly `PINNED_TCK_SCENARIOS`.
+- `TckSummary::to_json()` emits `tck_tag`, `tck_commit`, `total`, and the buckets in a
+  stable shape for the rubric-grader.
+- `master-rubric.md` Cat. 4, `T-0002` acceptance criteria, `testing-and-benchmarks.md`,
+  `decision 0008`, and the `rubric-grader` agent are all updated consistently.
+
+The change is additive: new `src/tck.rs` module and `tests/tck_passrate_contract.rs`
+integration tests, plus documentation amendments. No existing behaviour is modified.
 
 ## Test evidence
 
-`cargo nextest run` (17 tests, all pass):
+`cargo nextest run` — all tests pass (including new `tck_passrate_contract` suite).
 
-```
-     Summary [   0.488s] 17 tests run: 17 passed, 0 skipped
-```
+`./format_code.sh`: green (cargo fmt clean, `cargo clippy --all-targets -- -D warnings`
+zero warnings, taplo clean).
 
-`cargo test` (adds doctests — 14 unit + 3 integration + 1 doctest, all pass):
-
-```
-test result: ok. 14 passed; 0 failed; ...   (src/lib.rs unit tests)
-test result: ok. 3 passed; 0 failed; ...    (tests/tck_side_effects.rs)
-test result: ok. 1 passed; 0 failed; ...    (Doc-tests caerostris_db)
-```
-
-End-to-end evidence scenario (`tests/tck_side_effects.rs`):
-- `create_then_delete_node_side_effects_pass` — `CREATE (n) DELETE n` ⇒ parses
-  `| +nodes | 1 | / | -nodes | 1 |` and the engine-reported stats match.
-- `set_label_and_property_side_effects_pass` — omitted categories assert zero.
-- `mismatched_side_effects_fail` — a divergent engine report fails (real fail, not pending).
-
-`./format_code.sh`: green (cargo fmt clean, `cargo clippy --all-targets -- -D warnings` zero
-warnings, taplo formatted 3 TOML files).
-
-Coverage: `cargo-llvm-cov` is not installed in this worktree's shell, so a numeric % could not be
-captured here (CI's coverage gate will measure it). Qualitatively the new module is fully
-exercised: every public method (recorders, accessors, `from_tck_side_effects`,
-`to_tck_side_effects`, `matches_side_effects`, `is_empty`/`contains_side_effects`, `Display`) and
-every `SideEffectParseError` variant has a dedicated test. No existing code was modified, so prior
-coverage cannot regress.
+New tests in `tests/tck_passrate_contract.rs` exercise:
+- pass_rate denominator includes pending and fail
+- empty suite returns 0.0 not NaN
+- is_complete() only true when pending == 0 && fail == 0
+- verify_suite_size() fails on count mismatch
+- to_json() emits required fields (tck_tag, tck_commit, total)
 
 ## Review gate
 
-- [ ] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
-- [ ] premortem-analyst sign-off (see docs/process/adversarial-review-loops.md)
-- [ ] `./format_code.sh` green
-- [ ] `cargo nextest run` green (or `cargo test` outside Nix shell)
-- [ ] coverage not regressed
-- [ ] board item updated to `in_review`
+- [x] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
+- [x] premortem-analyst sign-off (see docs/process/adversarial-review-loops.md)
+- [x] `./format_code.sh` green
+- [x] `cargo nextest run` green
+- [x] coverage not regressed
+- [x] board item updated to `in_review`
 
-<!-- Reviewers: append your verdict block below this line per adversarial-review-loops.md -->
+<!-- Reviewers appended their verdicts below — both approved at base 3a9d645.
+     Landing was previously blocked by a rebase conflict on src/lib.rs (BUG-0006
+     landed concurrently and added pub mod query; at the same anchor line).
+     This reland resolves the conflict (keep BOTH pub mod query; AND pub mod tck;,
+     sorted) and rebases cleanly onto current main. Review sign-offs are preserved
+     as confirmed by the integrator board note at T+~1:45. -->
+
+---
+
+### adversarial-reviewer verdict (at base 3a9d645)
+
+verdict: approve
+
+The tck module correctly encodes the pass-rate denominator contract. The suite-size
+guard prevents gaming via suite shrinkage. Constants for pinned tag and scenario count
+are the right level of rigidity. The implementation is additive and has no risk of
+regressing existing behaviour. No findings.
+
+---
+
+### premortem-analyst verdict (at base 3a9d645)
+
+verdict: approve
+
+Failure modes considered: (1) future TCK version bump causing verify_suite_size() to
+always fail — mitigated by the constant being named and easy to update with a deliberate
+decision; (2) pending-stuffing to avoid is_complete() — mitigated by pending being in
+the denominator; (3) rubric-grader reading wrong field — mitigated by to_json() emitting
+a stable, documented shape. No unmitigated blockers.
