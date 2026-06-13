@@ -1,4 +1,4 @@
-# ADR 0004 — Pluggable secondary-index interface
+# ADR 0005 — Pluggable secondary-index interface
 
 ## Status
 

@@ -41,7 +41,7 @@ exercising the interface (not the object-store B-tree, which is T-0023), and a
 second, unordered, `Vec`-backed equality-only index type is sketched in the tests
 to prove the trait is not B-tree-shaped (acceptance criterion 4). The decision,
 two-layer rationale, and three rejected alternatives are recorded in
-`docs/adr/0004-pluggable-index-interface.md` (status: proposed). Object-store
+`docs/adr/0005-pluggable-index-interface.md` (status: proposed). Object-store
 persistence and atomic index/data commit are explicitly out of scope here and
 remain gated on SPIKE-0003 / EPIC-004.
 

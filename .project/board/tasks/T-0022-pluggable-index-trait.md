@@ -46,6 +46,6 @@ T+3:10 — implementer-wf_6a2f8faf-da3-8, branch `work/T-0022-pluggable-index-tr
 - `InMemoryIndex` reference impl; a second unordered equality-only index type
   sketched in tests proves no B-tree leakage (acceptance criterion 4).
 33 unit tests, all 156 suite tests green; `./format_code.sh` green.
-ADR `docs/adr/0004-pluggable-index-interface.md` records the decision (proposed).
+ADR `docs/adr/0005-pluggable-index-interface.md` records the decision (proposed).
 Status -> in_review; PR.md at worktree root. Awaiting adversarial-reviewer +
 premortem-analyst sign-off.

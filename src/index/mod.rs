@@ -35,7 +35,7 @@
 //!    `PropertyIndex` automatically, so a new index type gains the planner facade
 //!    for free.
 //!
-//! See `docs/adr/0004-pluggable-index-interface.md` for the rationale, the
+//! See `docs/adr/0005-pluggable-index-interface.md` for the rationale, the
 //! rejected alternatives, and the rubric impact.
 
 use std::cmp::Ordering;
