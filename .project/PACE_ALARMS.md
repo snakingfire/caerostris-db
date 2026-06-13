@@ -52,3 +52,33 @@
 **Action:** No alarm. Re-check at next tick (~T+0:28): expect first rubric report,
   SPIKE-0001 (latency envelope) / SPIKE-0002 (commit protocol) design progress, and
   crate skeleton (T-0001) landing.
+
+---
+
+## STATUS — T+00:22 (GREEN — first grade in: overall 6, slightly ahead of setup-phase)
+
+**Level:** GREEN (with one AMBER watch — see below)
+**Wallclock:** 2026-06-13T18:47:00Z (T+00:22)
+**Grade:** First rubric report committed → `.project/reports/rubric-T+00-22.md`, **overall 6/100**.
+  Expected at this marker ≈ 1–3 (setup just ending) → **+3–5 ahead**, lead entirely from
+  design (Cat 3 = 8) + process (Cat 12 = 55). Every landed-artifact GATE (1/2/4/10/11) near
+  floor — expected pre-code.
+**Env (1b):** MinIO healthy @ `http://127.0.0.1:9000` (container up). No action.
+**Board grooming:** Healthy. 17 READY items; **not blocked**. SPIKE-0003 correctly held
+  `backlog` (`deps:[SPIKE-0001]`, unmet — design-before-code). Nothing in_review/stalled on
+  the file board (epoch tracks claims internally). Working tree clean. **No unblock/no new
+  tasks** — all critical-path enablers (SPIKE-0001/0002, T-0001/0002) already READY P0.
+**Relaunch decision:** Epoch 1 (`wf_84c0f0c7-752`) **alive** — agent transcript modified
+  <5 min ago. Per the cron rule, **did NOT relaunch** a concurrent epoch.
+
+**⚠️ AMBER watch — implementation not yet landing:** At T+0:22 epoch 1 has produced 7
+  ratification decisions / 9 spikes / 4 bugs but **zero landed code or committed specs**.
+  Correct for the design-ratification wave, but T-0001 (crate skeleton) and T-0002 (TCK
+  harness) are **design-independent, P0, READY** and on the critical path to the T+0:40
+  numeric checkpoint (~10). **Directive for the NEXT relaunch:** when epoch 1 completes, the
+  relaunched epoch must prioritize landing T-0001 + T-0002 and the design specs
+  (`docs/specs/latency-envelope.md` from SPIKE-0001; TLA+ draft / `formal/` from SPIKE-0002)
+  in parallel. If no code/spec has landed by **T+0:40**, escalate this to **RED P0**.
+  Highest-ROI single move: wire T-0002 → Cat 4 (weight 12) leaves floor 0.
+
+**Action:** No P0 yet. Hard re-check at T+0:40 (19:04Z) against the ~10 checkpoint.

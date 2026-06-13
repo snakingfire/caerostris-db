@@ -55,4 +55,8 @@ If actual < expected at a marker:
 - **Crons armed (re-launch):** rubric-grader `0c896bf3` (`*/20 * * * *`);
   pace-marshal `47888961` (`*/10 * * * *`). Both session-only (live with this
   launch session — if it ends, re-run `/launch`).
-- **Epoch 1 mainspring** kicked off at T0 by `/launch` (run id in launch hand-off).
+- **Epoch 1 mainspring** kicked off at T0 by `/launch` (run id `wf_84c0f0c7-752`).
+- **T+0:22 grade:** overall **6/100** (`.project/reports/rubric-T+00-22.md`) — ON TRACK
+  / slightly ahead of the setup-phase expectation. Design+process leading; landed-artifact
+  GATEs near floor (expected pre-code). AMBER watch: implementation not yet landing — hard
+  re-check at T+0:40 (≥~10 expected; envelope spec / TLA+ draft / skeleton / TCK harness).
