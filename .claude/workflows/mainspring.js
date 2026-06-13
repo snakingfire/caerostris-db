@@ -24,7 +24,7 @@ export const meta = {
 
 const LANE = (args && args.lane) || 1
 const ROUND_CAP = (args && args.roundCap) || 8 // distinct items this lane claims per round
-const MAX_ROUNDS = (args && args.maxRounds) || 40
+const MAX_ROUNDS = (args && args.maxRounds) || 150
 const MIN_BUDGET = (args && args.minBudget) || 120_000
 
 const CANON =
@@ -35,11 +35,12 @@ const CANON =
 
 // Your item is ALREADY CLAIMED for this lane by scripts/board/claim.sh — just do the work.
 const LANDLOCK =
-  'LAND-LOCK: before merging, acquire the global land-lock — ' +
-  '`for i in $(seq 1 90); do mkdir .project/.land.lock 2>/dev/null && break || sleep 2; done`. ' +
-  'Hold it ONLY across the merge, then release with `rmdir .project/.land.lock`. ' +
-  'Before merging, rebase/merge latest main into the branch and resolve trivial additive conflicts ' +
-  '(e.g. the "pub mod ...;" lines in src/lib.rs — keep BOTH, sorted) so parallel branches land cleanly.'
+  'MAIN-WRITE PROTOCOL (mandatory — prevents the shared-worktree race): do ALL build/test in an ISOLATED worktree, and NEVER `git checkout` a feature/steering branch in the main worktree. ' +
+  'To write to main: (1) acquire the lock — `for i in $(seq 1 180); do mkdir .project/.land.lock 2>/dev/null && break || sleep 2; done`; ' +
+  '(2) ensure on main — `git symbolic-ref --short HEAD` must be "main" (else `git checkout main`); ' +
+  '(3-LAND) merge a branch INTO main while staying on main: `git merge --no-ff <branch>`, resolve additive conflicts in place (union the "pub mod ...;" lines in src/lib.rs + Cargo workspace members; keep both board sides), then `cargo build` sanity — if broken, `git merge --abort`, fix in the worktree, never leave main broken; ' +
+  '(3-COMMIT) for board/ADR/decision edits: just `git add` + `git commit` on main (you are already on main; do NOT create or checkout any branch); ' +
+  '(4) release — `rmdir .project/.land.lock`. Hold the lock only for steps 2–4 (seconds), NEVER during build/test.'
 
 const CODE_ROLES = ['implementer', 'test-author', 'perf-engineer']
 const STEERING = {
@@ -111,7 +112,18 @@ const RESULT_SCHEMA = {
 }
 
 // orient = release last batch, atomically claim a fresh DISJOINT batch, classify it.
-function orient(prevClaims) {
+// Retries on null (a transient API blip on orient must NOT permanently kill a lane).
+async function orient(prevClaims) {
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const s = await orientOnce(prevClaims)
+    if (s) return s
+    log(`Lane ${LANE}: orient attempt ${attempt}/4 returned null (transient?) — retrying.`)
+    prevClaims = [] // first attempt may have already released; don't double-release
+  }
+  return null
+}
+
+function orientOnce(prevClaims) {
   const rel = prevClaims && prevClaims.length ? `scripts/board/claim.sh release ${prevClaims.join(' ')}` : '(no prior claims to release)'
   return agent(
     `${CANON}\nORIENT + CLAIM (lane ${LANE}). Do EXACTLY this, in order, and report the structured result:\n` +
@@ -176,23 +188,24 @@ const ratifyItem = (it) =>
   agent(
     `${CANON}\nAs ${it.steering_role || STEERING.formal}, run the design-falsification + sign-off pass on in_review item ${it.id} ("${it.title}"). ` +
       `Try to break it; if it survives, RATIFY: record sign-off in .project/decisions/, set the ADR status accepted, set the board item status ` +
-      `done, commit (board:). This unblocks dependent implementation. If it fails, send back with specific blocking findings (status blocked).`,
+      `done. ${LANDLOCK} — commit these edits to main via the COMMIT path (do NOT create/checkout a branch). This unblocks dependent implementation. ` +
+      `If it fails, send back with specific blocking findings (status blocked).`,
     { label: `ratify:${it.id}`, phase: 'Ratify', model: 'opus', agentType: it.steering_role || STEERING.formal, schema: RESULT_SCHEMA }
   )
 
 const relandItem = (it) =>
   agent(
-    `${CANON}\nAs the integrator, RELAND ${it.id}${it.branch ? ` (branch ${it.branch})` : ''}: rebase/merge latest main into the branch, resolve the ` +
+    `${CANON}\nAs the integrator, RELAND ${it.id}${it.branch ? ` (branch ${it.branch})` : ''}: in an ISOLATED worktree, rebase/merge latest main into the branch, resolve the ` +
       `additive conflict (typically the "pub mod ...;" ordering in src/lib.rs — keep BOTH modules, sorted), re-run ./format_code.sh + cargo test ` +
-      `in the worktree, then ${LANDLOCK} run scripts/pr/land.sh ${it.id}, release the lock, set the board item done with the landing sha (board:). ` +
-      `On a genuine test/review failure, file a BUG and leave blocked.`,
+      `in that worktree. ${LANDLOCK} — land it via the LAND path (git merge --no-ff the branch into main), then commit the board item done with the landing sha (board:). ` +
+      `Do NOT use scripts/pr/land.sh (it checks out in main). On a genuine test/review failure, file a BUG and leave blocked.`,
     { label: `reland:${it.id}`, phase: 'Build', model: 'sonnet', agentType: 'integrator', schema: RESULT_SCHEMA }
   )
 
 const designItem = (it) =>
   agent(
-    `${CANON}\nAs ${it.role}, do ${it.id} ("${it.title}"): produce the spec/ADR/model/research, commit it (board:), set the board item to in_review with a ` +
-      `steering sign-off request in .project/decisions/ so it is ratified next round. Resolve bug/spike findings folded into your scope inline.`,
+    `${CANON}\nAs ${it.role}, do ${it.id} ("${it.title}"): produce the spec/ADR/model/research (write files freely — these are docs, not code branches), set the board item to in_review with a ` +
+      `steering sign-off request in .project/decisions/ so it is ratified next round. ${LANDLOCK} — commit your files to main via the COMMIT path (do NOT create/checkout a branch). Resolve bug/spike findings folded into your scope inline.`,
     { label: `design:${it.id}`, phase: 'Design', model: 'opus', agentType: it.role, schema: RESULT_SCHEMA }
   )
 
@@ -227,9 +240,10 @@ function buildAndLand(items) {
       const approved = !prev.skip && prev.review && prev.review.verdict === 'approve' && prev.premortem && prev.premortem.verdict === 'approve'
       if (!approved) return { id: prev.it.id, status: 'in_review', notes: 'not approved this round' }
       return agent(
-        `${CANON}\nAs the integrator, LAND ${prev.it.id} (branch ${prev.impl.branch}). Verify both sign-offs are ticked in PR.md. ${LANDLOCK} ` +
-          `Then run scripts/pr/land.sh ${prev.it.id} (runs ./format_code.sh + cargo test, merges to main, cleans the worktree), release the lock, ` +
-          `set the board item done with the landing sha (board:). On failure file a BUG and leave blocked.`,
+        `${CANON}\nAs the integrator, LAND ${prev.it.id} (branch ${prev.impl.branch}). Verify both sign-offs are ticked in PR.md. The branch was already ` +
+          `built+tested in its isolated worktree by the implement step. ${LANDLOCK} — land it via the LAND path (git merge --no-ff ${prev.impl.branch} into main). ` +
+          `Then commit the board item done with the landing sha (board:). Do NOT run scripts/pr/land.sh (it checks out in the main worktree). On a real ` +
+          `build/test failure after merge, git merge --abort, file a BUG, leave the item in_review (do NOT leave main broken).`,
         { label: `land:${prev.it.id}`, phase: 'Build', model: 'sonnet', agentType: 'integrator', schema: RESULT_SCHEMA }
       )
     }

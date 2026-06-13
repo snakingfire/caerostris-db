@@ -11,6 +11,13 @@ GIT_COMMON=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) 
 MAIN=$(dirname "$GIT_COMMON")
 BOARD="$MAIN/.project/board/tasks"
 
+# Serialize all main-writes through the global land-lock so concurrent unblock.sh
+# runs (one per lane's orient) + land merges never race on the shared main worktree.
+LOCK="$MAIN/.project/.land.lock"
+ACQUIRED=0
+for _ in $(seq 1 120); do mkdir "$LOCK" 2>/dev/null && { ACQUIRED=1; break; }; sleep 1; done
+trap '[ "$ACQUIRED" = "1" ] && rmdir "$LOCK" 2>/dev/null || true' EXIT
+
 field() { grep -m1 "^$2:" "$1" 2>/dev/null | sed "s/^$2:[[:space:]]*//" | tr -d '\r'; }
 
 # 1) collect the set of done ids
