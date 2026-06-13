@@ -2,7 +2,7 @@
 id: BUG-0024
 title: .adj writer overflows i64 on neighbour dst ids that straddle 2^63 (debug panic / silent release wrap)
 type: bug
-status: in_review
+status: done
 priority: P1
 assignee: implementer-wf_e9fceb87
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [2, 3]
 estimate: S
 created: T0+4:12
-updated: T0+5:02
+updated: T0+5:15
 ---
 
 ## Context
@@ -92,3 +92,5 @@ production to the signed variant → test RED (`subtract with overflow` at `:355
 clean. Boundary test green in debug **and** release; full `adjacency_storage` suite 8/8;
 `./format_code.sh` exit 0. Non-blocking: stale PR.md test-evidence prose; `drop`→`guard`
 repurposing (a strict improvement, accepted). Pre-mortem box ticked in PR.md. Clear to land.
+
+**T0+5:15 — Landed in commit 8717b31.** Both sign-offs verified (adversarial-reviewer approve T+4:58, premortem-analyst approve T+5:02). `./format_code.sh` green; adjacency_storage 8/8 pass (debug). Merged no-ff into main: `land: BUG-0024 adj writer i64-delta overflow on high node ids — boundary regression guard`. Status: done.
