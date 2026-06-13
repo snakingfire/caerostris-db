@@ -4,13 +4,13 @@ title: Specify on-object storage format layout
 type: spike
 status: in_progress
 priority: P0
-assignee: steering-storage
+assignee: researcher
 epic: EPIC-001
 deps: [SPIKE-0001]
 rubric_refs: [2]
 estimate: M
 created: T0
-updated: 2026-06-13T19:40:00Z
+updated: 2026-06-13T21:00:00Z
 ---
 
 ## Context
@@ -51,3 +51,11 @@ Status is `backlog` pending SPIKE-0001 ratification. Once SPIKE-0001 is done, th
   swap) and **F3** (safe-GC-vs-reader policy: retention grace window / TTL'd pins).
   `steering-storage` will not ratify this spec until F1/F2/F3 are explicitly
   addressed. See `.project/decisions/0001-storage-domain-ratification-findings.md`.
+- **T+~01:28 steering-formal-methods note (decision 0015, ADR 0001 finding F2):**
+  the early-abort partial adjacency read (SPIKE-0008 F1) must be specified as a
+  **hard per-GET byte/row cap** — the reader truncates an adjacency range-GET once the
+  running LIMIT/byte budget is consumed. This is the mechanism that bounds realized bytes
+  even when a frontier node is a super-hub (out-degree ≫ p99), making the super-hub case a
+  *detection*-only concern (handled by T-0015/SPIKE-0004's max-degree estimator) rather
+  than a realized-latency bust. Restated here so the format spec wires early-abort as a
+  budget-driven hard cap, not merely an optional optimization.

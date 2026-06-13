@@ -35,3 +35,17 @@ the manifest statistics block (T-0009). See `EPIC-003`, `EPIC-002`.
 ## Notes / log
 Design-before-code: blocked on SPIKE-0001 + SPIKE-0004 ratification and T-0009
 (manifest statistics). This is the planner half of the Cat. 3 GATE.
+
+- **T+~01:28 steering-formal-methods ratification conditions (decision 0015, ADR 0001):**
+  When SPIKE-0001 ratification completes, these two conditions are BINDING on this task:
+  - **F1 (α-corrected OOE-4 thresholds):** the deployment-latency check must use
+    `(T − T_compute)/(K_min·α)`, i.e. **102 ms** for the 1 s target and **216 ms** for
+    the 2 s ceiling — NOT the α-free 112.5 / 237.5 ms figures printed in ADR §1.4 / §4.2
+    (those drop the α=1.10 max-of-M factor and are optimistic). Add a test asserting a
+    deployment at L_p99=230 ms is flagged (it busts the α-aware 2 s ceiling).
+  - **F2 (max-degree byte safety bound):** the byte estimator must size the adjacency-byte
+    safety bound from a hard per-GET byte cap (early-abort) or the per-rel-type **max**
+    out-degree (from SPIKE-0004's contract), NOT the p99. A frontier whose degree band
+    includes a node above the maintained max-degree statistic must be conservatively
+    rejected (same doctrine as OOE-5). Add a super-hub test where p99 admits but max
+    rejects.

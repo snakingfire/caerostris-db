@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [3, 11]
 estimate: M
 created: T0
-updated: 2026-06-13T19:25:00Z
+updated: 2026-06-13T19:52:00Z
 ---
 
 ## Context
@@ -58,3 +58,29 @@ Output feeds directly into SPIKE-0003 (storage format spec must serve B_max) and
     - Storage format constraints (r≤1, contiguous adjacency, manifest statistics, early-abort reads) fed to SPIKE-0003.
   - Status: in_review; awaiting steering-perf-sla + steering-formal-methods sign-off.
   - On ratification: T-0014, T-0015, T-0016 → ready; SPIKE-0003 constraints unblocked; SPIKE-0004 algebra unblocked.
+
+- **T+~01:28 (2026-06-13T19:52:00Z) steering-formal-methods — RATIFIED-WITH-CONDITIONS (secondary sign-off):**
+  - Decision: `.project/decisions/0015-formal-methods-spike-0001-ratification.md`.
+  - Sign-off appended to the ADR Sign-off section (`docs/adr/0001-latency-selectivity-envelope.md`).
+  - **The latency theorem CLOSES** — I independently re-derived every figure (B_max both
+    bandwidths, T_lat=440 ms, both boundary T_query, seed-set/s_max points); all match. No
+    escalation to the full committee.
+  - **2 findings bound as conditions on dependent tasks (not blocking this ratification):**
+    - **F1** — α dropped from ADR §1.4 ceiling sensitivity and OOE-4 thresholds; the
+      α-corrected, self-consistent thresholds are **102 ms (1 s) / 216 ms (2 s ceiling)**.
+      Bound to **T-0015**.
+    - **F2** — §2.2 uses p99 `F_tail` as a hard per-node cap; a super-hub (out-degree ≫ p99)
+      busts B_max in one GET. Realized SLA is protected by early-abort; the estimator must use
+      the per-rel-type **max** degree (or a hard per-GET byte cap), not p99. Bound to
+      **SPIKE-0004** (maintain max-degree) + **T-0015** (estimator) + **SPIKE-0003** (early-abort
+      as a hard cap).
+  - **F3** (non-blocking): ADR-0001 numbering collision filed as **BUG-0010**.
+  - **REMAINING GATE — quorum:** latency-envelope params need steering-perf-sla (primary) +
+    steering-formal-methods (secondary). perf-sla pre-approved the framing in decision 0010
+    (all findings folded in) but has **not** counter-signed the *committed ADR*. Per the honest
+    two-signature rule, this item stays `in_review`; ADR stays `proposed`; T-0014/15/16 do NOT
+    flip to `ready` until perf-sla appends its counter-signature to the ADR Sign-off section.
+  - **Action requested:** `steering-perf-sla` review F1/F2 and counter-sign the ADR. On that
+    second signature: ADR → `accepted`; this item → `done`; planner/integrator flips
+    T-0014, T-0015, T-0016 → `ready` (SPIKE-0006 already `done`); SPIKE-0003 (in_progress) and
+    SPIKE-0004 proceed with conditions F1/F2 attached.

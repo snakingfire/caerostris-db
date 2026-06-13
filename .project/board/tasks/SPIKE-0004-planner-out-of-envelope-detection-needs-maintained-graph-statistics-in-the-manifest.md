@@ -76,3 +76,11 @@ statistics (EPIC-001 / SPIKE-0003) move to `in_progress`.
 - T0 `steering-query-cypher`: filed during ratification. Decision recorded at
   `.project/decisions/0009-planner-stats-and-tail-fanout-bound.md`. This is the
   bridge between Cat. 3 (envelope), Cat. 5 (index selectivity) and Cat. 4 (planner).
+- **T+~01:28 steering-formal-methods condition (decision 0015, ADR 0001 finding F2):**
+  the per-rel-type degree statistic MUST include the **max** out-degree (not only p99/tail).
+  Rationale: ADR §2.2's per-hop byte bound uses `F_tail` as if it were a hard per-node cap,
+  but a p99 admits the ~1% of super-hub nodes above it; a single super-hub adjacency list
+  (out-degree 10⁵–10⁸ → 6 MB–6.4 GB) busts B_max. The estimator's byte SAFETY bound must
+  use the max-degree (or a hard early-abort per-GET byte cap), so tighten the statistics
+  contract from "incl. a tail/p99 or max-degree term" to "incl. BOTH a p99/tail term AND a
+  per-rel-type max out-degree". This is a binding input for T-0015.

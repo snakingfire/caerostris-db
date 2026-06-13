@@ -742,8 +742,120 @@ in §2.2 is the correct replacement.
 
 ### Adversarial review record
 
-_(no rounds yet — submitted for steering review)_
+#### Round 1 — steering-formal-methods (design-falsification pass), T+~01:28
+
+`steering-formal-methods` ran an independent re-derivation of every arithmetic
+claim (deterministic Python, no RNG; reproduction below) and three targeted
+falsification attacks. Summary verdict: **the latency theorem closes** — a feasible
+parameter region exists where in-envelope queries fit in 1 s at both 1 Gbps and
+50 Mbps — so this is **not** a falsification of the design (no escalation to the
+full committee). Three findings surfaced; none is fatal; all are tracked.
+
+**Reproduced and confirmed (independent computation matches the ADR):**
+
+| ADR claim | Re-derived | Match |
+|-----------|-----------|:-----:|
+| `B_max` 1 Gbps, M_max=8 = 57.5 MB | 57.50 MB | ✓ |
+| `B_max` 50 Mbps, M_max=8 = 2.88 MB | 2.875 MB | ✓ |
+| `T_lat` = 8·50 ms·1.10 = 440 ms | 440 ms | ✓ |
+| 1 Gbps boundary `T_query` = 1.000 s | 1.000 s | ✓ |
+| 50 Mbps boundary `T_query` = 1.001 s | 1.0008 s (rounded `B_max`); 1.0000 s (exact) | ✓ |
+| Seed-set points (F_tail 10/50/100/500 → 11.1k/10.6k/10.0k/5.2k) | 11,114 / 10,634 / 10,034 / 5,234 | ✓ |
+| 1 Gbps seed bound 224,473; s ≈ 2.2×10⁻⁴ | 224,473; 2.24×10⁻⁴ | ✓ |
+| `s_max` 50 Mbps ≈ 1.1×10⁻⁵ | 1.111×10⁻⁵ | ✓ |
+
+The 50 Mbps "1.001 s" is a rounding artifact of carrying `B_max` as 2.88 MB; the
+exact transfer term closes at exactly 1.000 s by construction (`usable` is *defined*
+as `T_budget − T_lat − T_compute`). No hidden slack and no hidden bust — the model is
+internally consistent on its central inequality.
+
+**Finding F1 (blocking-as-condition, non-fatal) — α omitted from §1.4 ceiling
+sensitivity and from the OOE-4 deployment-latency threshold.** Part 3 computes
+`T_lat = K_min·L_p99·α`, but §1.4's "max L_p99 the 2 s ceiling survives = (2.000 −
+0.100)/8 = 237 ms" and OOE-4's thresholds (112.5 ms / 237.5 ms) drop the α factor.
+The α-corrected, self-consistent figures are: 2 s ceiling survives to **L_p99 ≈
+216 ms** (not 237 ms); OOE-4 should fire the 1 s warning at **L_p99 > 102 ms** (not
+112.5 ms) and the 2 s ceiling warning at **L_p99 > 216 ms** (not 237.5 ms). As
+written, OOE-4 would silently admit a deployment at L_p99 = 230 ms that the ADR's own
+α-aware cost model shows busts the 2 s ceiling — a self-inconsistency that points the
+wrong way (optimistic). **Resolution:** OOE-4 and §1.4 must use the α-corrected form
+`(T − T_compute)/(K_min·α)`. Bound to T-0015 (planner detection) as a hard
+implementation requirement; tracked in decision 0015.
+
+**Finding F2 (blocking-as-condition, non-fatal) — the §2.2 byte inequality uses
+`F_tail` (a p99/tail statistic) as if it were a hard per-node degree cap; a super-hub
+frontier node falsifies the per-hop byte bound.** The per-hop bound
+`bytes_per_hop_phase ≤ M_max·F_tail·bytes_edge_row` treats `F_tail` as a maximum, but
+Part 4.1 correctly defines `est_F_tail` as the *p99* out-degree — by definition ~1 %
+of nodes exceed it. In a 1B-node power-law graph the max out-degree can reach 10⁶–10⁸;
+a single un-truncated adjacency GET over one such node is 64 MB–6.4 GB, which alone
+busts `B_max`. The realized SLA is *protected* by the mandated early-abort read
+(Part 5 #5) acting as a hard per-GET byte cap plus the running byte/LIMIT counter — so
+the engine does not actually over-read — **but the estimator (OOE-2) admits such a
+query** because it sizes bytes from the p99, not the max. This is a false-negative
+risk in OOE detection, not a realized-latency falsification. **Resolution:** (a) the
+in-envelope *safety* bound in §2.2 must be stated against a hard per-GET byte cap
+(early-abort truncation) or the per-rel-type **max** degree, not the p99; (b) OOE-2's
+estimator must treat a frontier whose tail-degree band includes a node above the
+maintained max-degree statistic as out-of-envelope (conservative reject), per the same
+"missing/optimistic statistic ⇒ reject" doctrine already in OOE-5 and decision 0009.
+Bound to SPIKE-0004 (statistics contract: must maintain per-rel-type **max** degree,
+not only p99) and T-0015 (estimator). Tracked in decision 0015.
+
+**Finding F3 (non-blocking) — ADR numbering collision.** `docs/adr/0001-*` is occupied
+by both this ADR and `0001-cold-start-benchmark-protocol.md` (SPIKE-0007). Docs/board
+hygiene, not a design issue. Filed as `BUG-0010` for the docs-curator to renumber the
+benchmark-protocol ADR and fix its two inbound references in
+`docs/process/testing-and-benchmarks.md`.
+
+**Why these are conditions, not a `reject`:** F1 and F2 do not change the feasible
+region — they tighten *detection* thresholds and the *estimator's* safety margin. The
+proof that in-envelope queries (correctly classified) hit the SLA is unaffected; what
+F1/F2 fix is the boundary of "in-envelope" so the classifier cannot be optimistic.
+Both are naturally implemented in T-0015/SPIKE-0004, which are downstream of this ADR.
+Holding the entire dependent queue (SPIKE-0003 in_progress, SPIKE-0004, T-0014/15/16)
+to re-spin the ADR text would cost more than binding the two conditions to the tasks
+that already own them. Pace doctrine (Cat. 3 and Cat. 11 are GATEs; we are behind at
+T+1:22) reinforces: ratify-with-conditions and unblock, do not re-loop on a proof that
+survived falsification.
+
+Reproduction of the arithmetic is in decision `0015-formal-methods-spike-0001-ratification.md`.
 
 ### Steering ratification
 
-_(pending adversarial review — steering-perf-sla and steering-formal-methods must both sign off)_
+**steering-formal-methods — RATIFIED-WITH-CONDITIONS — T+~01:28**
+
+- **Verdict:** ratified-with-conditions (this is the *secondary* sign-off for the
+  latency-envelope parameters per the steering-committee.md owner table; the *primary*
+  owner is `steering-perf-sla`).
+- **Rationale:** The cost model's central inequality closes under the stated
+  design-point parameters (r=1, L_p99=50 ms, M_max=8, α=1.10, T_compute=100 ms) at both
+  1 Gbps and 50 Mbps; I re-derived every figure independently and they match. The
+  serial latency floor (SPIKE-0006) and the intra-phase max-of-M term (decision 0005)
+  are both correctly folded in. The two findings (F1 α-omission in OOE-4/§1.4; F2
+  p99-vs-max super-hub estimator gap) are detection/estimator tightenings that do not
+  move the feasible region and are bound as hard requirements to T-0015 and SPIKE-0004.
+- **Conditions (binding on dependent tasks, not on this ADR's ratification):**
+  1. T-0015 (planner OOE detection) MUST use the α-corrected OOE-4 thresholds
+     (`(T − T_compute)/(K_min·α)`): 102 ms for the 1 s target, 216 ms for the 2 s ceiling.
+  2. SPIKE-0004 (statistics contract) MUST maintain per-rel-type **max** out-degree (not
+     only p99); T-0015's byte estimator MUST size the adjacency-byte safety bound from a
+     hard per-GET byte cap (early-abort) or the max-degree statistic, and conservatively
+     reject frontiers whose degree band exceeds it.
+  3. The realized read path MUST implement early-abort adjacency reads (Part 5 #5) as a
+     hard per-GET byte/row cap — this is the mechanism that makes F2 a detection-only
+     concern rather than a realized-latency bust. This is already a Part 5 storage
+     constraint; restated here as a ratification condition for SPIKE-0003.
+
+- **Quorum note:** Latency-envelope parameters require `steering-perf-sla` (primary) +
+  `steering-formal-methods` (secondary). `steering-perf-sla` substantively pre-approved
+  this framing in decision `0010-perf-sla-ratification-pass.md` ("launch APPROVED";
+  binding findings on K_min·L_p99, r≤1, both-bandwidth-cases, benchmark validity) and
+  **every** one of those findings is incorporated in this committed ADR. To keep the
+  record formally clean, `steering-perf-sla` is requested to append a counter-signature
+  to *this committed ADR* (not just the pre-launch decision). **Until that second
+  signature lands, this ADR remains `proposed` and SPIKE-0001 stays `in_review`; the
+  dependent implementation tasks (T-0014/15/16) do NOT flip to `ready` yet.** This is
+  the honest application of the two-signature quorum rule — my sign-off is one of two.
+
+  _(awaiting: steering-perf-sla counter-signature on the committed ADR)_
