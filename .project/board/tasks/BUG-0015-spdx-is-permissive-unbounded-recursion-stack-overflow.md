@@ -62,6 +62,11 @@ which is the more conservative behaviour the module otherwise upholds.
   cap fails closed (conservative `false`), boundary pinned by tests, format+tests
   re-run green. Two non-blocking notes recorded in PR.md. Still needs premortem-analyst
   sign-off before landing.
+- T0+3:52 — Claimed by implementer-wf_e9fceb87-27c-42. Worktree on branch
+  `work/BUG-0015-spdx-depth-cap` (canonical `work/BUG-0015-...` prefix; the
+  long auto-slug branch from a stale, zero-commit scaffold was avoided). TDD-first
+  fix: cap parenthesis nesting depth in `SpdxParser` at 64 and return a
+  conservative `false` past the cap.
 - T0+4:08 — premortem-analyst **approve** on the same branch
   (`work/BUG-0015-spdx-depth-cap`, worktree `wf_e9fceb87-27c-42`, HEAD 8d5ce5a).
   Worked the corruption/SLA/concurrency/error/operational/security lenses: change
