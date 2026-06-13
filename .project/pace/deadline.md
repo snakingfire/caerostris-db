@@ -60,3 +60,9 @@ If actual < expected at a marker:
   / slightly ahead of the setup-phase expectation. Design+process leading; landed-artifact
   GATEs near floor (expected pre-code). AMBER watch: implementation not yet landing — hard
   re-check at T+0:40 (≥~10 expected; envelope spec / TLA+ draft / skeleton / TCK harness).
+- **T+0:37 grade:** overall **13/100** (`.project/reports/rubric-T+00-37.md`) — **AHEAD** of
+  the T+0:40 (~10) checkpoint. **Latency envelope ADR landed** (Cat 3 8→48 — signature GATE
+  defined on schedule); Cat 11 5→20 (cost-model committed; TLA+ pending). Design wave nearly
+  done. **Open risk:** zero compiled code yet; Cat 4 (TCK, w12) still floor 0 — needs an
+  implementer/test-author on T-0002, and T-0000 (env hardening) completed to unblock the
+  skeleton. Flagged to pace-marshal: dispatch implementers next wave; flip SPIKE-0003 ready.
