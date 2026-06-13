@@ -465,3 +465,10 @@ FIX: relaunch via scriptPath (reads disk directly). Stopped all v2 lanes; relaun
 ready:11 done:11 blocked:0 backlog:45. Code on main growing (src 4→6, tests 1→4 since T+2:00); merges via v3 land path (BUG-0007 + relands). Still deep RED on pace (~16 vs ~45).
 ACTION: decoupled T-0001 (crate skeleton) from T-0000 — env already works, so the skeleton (which gates the whole data-model/query/storage chain) can land now without waiting on T-0000's hardening. SPIKE-0002 still ratifying (ACID gate).
 Pool: 3 v3 lanes alive (work-saturated; ready=11<12 so holding 3). Scale to 5 the moment T-0001 lands + backlog cascades. HAND-LAND watch: if T-0001/T-0002 not landed next tick, land them directly.
+
+---
+
+## STATUS — T+2:13 (TAKING THE WHEEL on the keystone)
+Board STATIC since last tick: done:11, no new Merge work/ (only BUG-0007), src/tests flat. T-0001/T-0002 ready but NOT landing. Root cause confirmed: NO [workspace] in Cargo.toml → no crate (tck-runner etc.) can build/land until the skeleton lands. T-0001 is the keystone and it's built on branch work/T-0001-... but never merged (the recurring "built-not-landed" failure).
+ACTION: Hand-land trigger fired (foundational tasks didn't land in 2 ticks). Claimed T-0001 (lanes skip it) and dispatched a DEDICATED integrator (bg) to rebase + resolve src/lib.rs/Cargo.toml conflicts + land work/T-0001 directly, or build a minimal green workspace if the branch is broken. Once it lands, the crate chain (T-0002/T-0006/...) can finally land.
+Pool: 3 v3 lanes alive (work-starved, ready=11<12, hold 3). Env OK; SPIKE-0002 still ratifying; no land-lock stuck. Deep RED (~16 vs ~48). Next tick: verify T-0001 landed → then hand-land T-0002, scale lanes as backlog cascades.
