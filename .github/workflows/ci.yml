@@ -27,9 +27,29 @@ jobs:
       - name: Format check
         run: cargo fmt --all --check
       - name: Clippy (deny warnings)
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - name: Test
-        run: cargo test --all-features --verbose
+        run: cargo test --workspace --all-features --verbose
+
+      # openCypher TCK (Cat. 4): run the vendored corpus through the harness and
+      # surface the live pass-rate. The corpus is vendored under
+      # tck/openCypher/features, so this needs no external network access.
+      - name: openCypher TCK pass-rate
+        run: |
+          mkdir -p .project/reports
+          cargo run --quiet -p tck-runner -- \
+            --format json --output .project/reports/tck-latest.json
+          echo '### openCypher TCK pass-rate' >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat .project/reports/tck-latest.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload TCK report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tck-latest
+          path: .project/reports/tck-latest.json
 
   # Hygiene gate: secrets must never reach the repo. gitleaks scans full history
   # using the committed .gitleaks.toml, so a pushed secret fails the build (not
