@@ -33,6 +33,7 @@ At T0 the engine has no openCypher implementation, so the expected initial resul
 - [ ] TCK `.feature` files vendored or fetched by a reproducible script; pinned to a specific openCypher release; CI does not require external network access to run them.
 - [ ] Gherkin parser integrated: all `.feature` files parsed without errors; scenario count matches the official TCK count for the pinned release.
 - [ ] Harness runner executes each scenario against the engine adapter; unimplemented paths yield `pending`, not panics.
+- [ ] **Side-effect assertion (BUG-0006):** the adapter reads the engine's `caerostris_db::query::QueryStatistics` surface and asserts the `Then the side effects should be:` step by parsing the Gherkin table with `QueryStatistics::from_tck_side_effects` and comparing with `matches_side_effects` (≡ `==`); such scenarios count as real pass/fail, never auto-`pending`. Semantics pinned in `.project/decisions/0012-tck-side-effect-counting-semantics.md`.
 - [ ] Machine-readable output emitted: JSON (or structured text) with `total`, `pass`, `pending`, `fail`, `pass_rate` fields; file path documented so the rubric grader can find it.
 - [ ] CI step added: TCK runner runs in CI; pass-rate is surfaced in the CI job summary or artifact.
 - [ ] Initial run shows the correct `total` count matching the pinned TCK; zero unexpected `fail` results (all unimplemented = `pending`).

@@ -26,6 +26,7 @@ Relevant requirements: R1 (graph data model), R10 (100% openCypher), R6 (fast ag
 ## Acceptance criteria
 
 - [ ] TCK harness wired (see T-0002) and running in CI; pass-rate emitted as a machine-readable number the rubric grader consumes.
+- [ ] **Side-effect accounting surface (BUG-0006):** the executor/runtime populates `caerostris_db::query::QueryStatistics` (`+nodes`/`-nodes`, `+relationships`/`-relationships`, `+labels`/`-labels`, `+properties`/`-properties`) as it applies a statement, so the T-0002 adapter can assert `Then the side effects should be:` steps. Without this, write/txn side-effect scenarios are structurally unpassable and Cat. 4 = 100% is unreachable. Semantics: `.project/decisions/0012-tck-side-effect-counting-semantics.md`.
 - [ ] Phase 1 milestone: all read-only TCK scenarios (MATCH, WHERE, RETURN, WITH, UNWIND, ORDER BY, LIMIT, SKIP, basic pattern matching) passing.
 - [ ] Phase 2 milestone: write TCK scenarios passing (CREATE, MERGE, SET, DELETE, REMOVE) and transaction scenarios passing.
 - [ ] Phase 3 milestone: full TCK breadth — 100% pass-rate in CI, no skipped scenarios.
