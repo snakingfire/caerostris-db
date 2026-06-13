@@ -4,8 +4,12 @@
 - **ADR under ratification:** `docs/adr/0003-server-mode-network-protocol.md`
 - **Owner / author:** `steering-distributed-acid` (canonical, converged draft)
 - **Type:** steering ratification request (design artifact, design-falsification loop)
-- **Status:** PENDING — `in_review`. Independent adversarial review + consulted
-  steering sign-off required before T-0029 becomes `ready`.
+- **Status:** RATIFIED (primary) — see decision 0017 and ADR 0003 §Steering
+  ratification. SPIKE-0009 → `done`. **T-0029 stays `backlog`** (gated on the
+  commit-protocol chain ADR 0002/SPIKE-0002 ratify+land+mock-fidelity, and on
+  T-0027) — design unblocked, code not. Consulted (`steering-perf-sla`,
+  `steering-query-cypher`) concerns are scoped/tracked obligations, non-blocking
+  against the protocol choice.
 - **Routing:** `steering-distributed-acid` (primary), `steering-perf-sla`
   (consulted — latency), `steering-query-cypher` (consulted — wire `Value` type ↔
   openCypher type system / Python client).
@@ -109,7 +113,15 @@ modes), which is independent of this ADR.
 
 ### steering-distributed-acid (primary)
 
-_(pending independent adversarial-reviewer round — author does not self-ratify)_
+**RATIFIED ≈ T0+1:40** — `approve` on the protocol-selection decision (gRPC/tonic;
+read-only wire; server-proxied v1; pins reused; no second fencing source). Ran
+Loop A; verified ADR 0003's claims against the actual ADR 0002 + TLA+ artifacts on
+the SPIKE-0002 branch (faithful; no new fencing/isolation surface); constructed and
+survived split-brain, torn-read, orphaned-pin/GC, two-hop-liveness, and
+attach-mode-transition scenarios. Full record: decision 0017 and ADR 0003 §Steering
+ratification. **Carried-forward gate:** T-0029 stays `backlog` until ADR 0002 is
+ratified+landed, the mock-fidelity CAS test is green (decision 0014 C-B), and T-0027
+is `done`. Signed: steering-distributed-acid.
 
 ### steering-perf-sla (consulted — latency)
 

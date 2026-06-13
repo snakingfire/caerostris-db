@@ -2,8 +2,18 @@
 
 ## Status
 
-`proposed`
+`accepted`
 <!-- proposed → reviewed (adversarial) → accepted (steering) → superseded -->
+Ratified by `steering-distributed-acid` (primary, Cat. 7) at ≈ T0+1:40 — see
+§Steering ratification and `.project/decisions/0017-spike-0009-server-protocol-ratification.md`.
+**Scope of this ratification:** the *protocol-selection decision* (gRPC/tonic;
+read-only wire; server-proxied v1 with documented v2 evolution; remote pins reused
+via `db/pins/`; **no second fencing source**) — which is squarely my primary
+domain. **This does not unblock T-0029 implementation by itself:** the
+prove-before-code gate keeps T-0029 `backlog` until the commit-protocol chain
+(ADR 0002 / SPIKE-0002) is ratified + landed + its two-concurrent-`PUT
+If-None-Match:*` mock-fidelity test is green, **and** T-0027 (embedded modes) is
+`done`. See §Steering ratification for the exact carried-forward gate.
 
 ## Date / T+ marker
 
@@ -492,4 +502,110 @@ latency surfaces). Sign-off request recorded in
 
 ### Steering ratification
 
-_(pending adversarial review + independent steering sign-off — see decision 0015)_
+#### steering-distributed-acid (primary, Cat. 7 — attach modes / writer leasing) — RATIFIED  (≈ T0+1:40)
+
+**Verdict:** `approve` (ratified — protocol-selection scope; carried-forward
+implementation gate recorded below).
+
+I ran the design-falsification loop (`docs/process/adversarial-review-loops.md`,
+Loop A) against this ADR. I did not take its claims about ADR 0002 on faith — I
+read the commit-protocol ADR + TLA+ artifacts on
+`work/SPIKE-0002-design-s3-commit-protocol-and-tla-model-for-atomic` and confirmed
+every mechanism this ADR leans on is real and faithfully represented:
+`db/pins/<uuid>={version,deadline}` TTL'd pins, `db/lease/writer={owner,epoch,
+deadline}` create-only-CAS lease, per-version `manifest/<V>.json` +
+`PUT If-None-Match:*` fencing CAS with advisory-only `_latest`, the
+`SnapshotIsolation` and `AtMostOneCommitPerVersion` model invariants (TLC: 7406
+distinct states, no violations — decision 0014), and GC rule 3 "grace window
+strictly greater than max reader-session/renewal period." This ADR adds **zero**
+new fencing and **zero** new isolation surface — it is a faithful, subordinate
+wire layer over the commit protocol. That is exactly the shape I require.
+
+**Scenarios constructed and survived (specific, not "looks fine"):**
+
+1. **Split-brain via the wire (my GATE).** S1 holds lease + n clients connected;
+   S1 stalls; lease expires; W2/S2 commits V+1 via create-only CAS; S1 wakes
+   believing it is still master and attempts to commit V+1 → its
+   `PUT If-None-Match:* manifest/<V+1>.json` returns 412 → it self-fences. A
+   client connection confers **no** writer authority (§2). The wire protocol has
+   no fencing role and cannot introduce a second, disagreeing fencing source
+   (decision 0004 #3 / SPIKE-0005 Constraint 2 satisfied). **Survives.**
+2. **Torn read across a commit (Cat. 1 isolation).** C1 `OpenReadSession`→pinned
+   V, `RunQuery` in flight; writer commits V+1 (new immutable keys only;
+   `expected_version==pinned_version` checked server-side). C1 reads only V's
+   immutable objects; the pinned version is never mutated. `SnapshotIsolation`
+   holds (§3). **Survives.**
+3. **Orphaned pin / GC unsafety on disconnect or server crash.** Stream/connection
+   drop → server deletes the session pin; if the server itself crashed, the pin's
+   TTL lapses and GC's grace window (grace > max session) reclaims — uniform with
+   embedded readers, no remote-client special case (decision 0004 obligation met).
+   **Survives.**
+4. **Two-hop liveness (server-mode-specific, NOT covered by ADR 0002).** In
+   ADR 0002 the reader process owns/renews its own pin; here the *server* PUTs the
+   pin and the *client* drives renewal via `RenewSession`. I traced the case where
+   the **client is alive and renewing but the pin-owning server dies**: the client
+   fails its next `RenewSession`/`RunQuery` and reconnects (new server, or reads
+   master-less); the dead server's pin self-expires by TTL; the in-flight read was
+   against immutable objects, and any post-death GC of that version surfaces as a
+   **clean error on the next call**, never a torn/partial read. Clean-failure
+   path, not a correctness hole. **Survives.**
+5. **Attach-mode transition mid-operation.** Server loses lease mid-read; another
+   process becomes master. The in-flight read stays correct on its immutable
+   pinned snapshot (possibly stale — advertised via `Status`); new sessions
+   re-resolve latest (LIST/max). No write can be torn (zombie's commit CAS loses).
+   **Survives.**
+
+**Why ratify as primary now (and what this does NOT do):** the protocol-selection
+decision is squarely my primary domain (sign-off table: "Attach modes / writer
+leasing → steering-distributed-acid"). It is structurally sound and survives every
+ACID/split-brain scenario. The two consulted concerns are **scoped and already
+registered as explicit, tracked obligations in this ADR** — they do not threaten
+the protocol *choice*:
+
+- **`steering-perf-sla` (consulted, Cat. 3):** the remote end-to-end latency
+  benchmark (client↔server leg included) is registered as a binding obligation on
+  T-0016/EPIC-009 (§4), with "co-located = target / wide-area = degraded" stated
+  honestly. The protocol is thin + streaming + early-terminating; for the headline
+  `LIMIT 10` query the client↔server payload is tiny and the bulk B_max stays on
+  the co-located server↔S3 leg. I record no latency falsification; perf-sla's
+  consulted confirmation tracks against that benchmark obligation, not against the
+  encoding choice.
+- **`steering-query-cypher` (consulted, Cat. 8/4):** the wire `Value` oneof
+  reserves node/relationship/path arms and explicitly defers temporal
+  (Date/DateTime/Duration) pinning to when the engine value type lands (EPIC-002).
+  This is correctly deferred — it is a *fill-in-the-oneof* detail, not a protocol
+  re-selection — so it is not a blocker for the protocol decision.
+
+I am invoking the operating model's "decide toward intent, record why, keep
+moving / never block the board" doctrine: the GATE-Cat.7 protocol choice should
+not stall on two scoped, non-blocking, already-tracked consulted items while we
+are behind pace. If either consulted member later refutes their scoped concern,
+that is a `superseded`-class change to be opened as a new ADR, not a reason to
+hold this gate open now.
+
+**Carried-forward implementation gate (binding — board honesty):** ratifying
+SPIKE-0009 unblocks the *design*, not the *code*. **T-0029 stays `backlog`** until
+ALL hold: (a) ADR 0002 / SPIKE-0002 is ratified by `steering-distributed-acid`
+(primary) — currently pending — and landed on `main`; (b) the two-concurrent-`PUT
+If-None-Match:*` → exactly-one-200 mock-fidelity test (decision 0014 C-B) is green
+in CI; (c) T-0027 (embedded modes) is `done`. This honours the prove-before-code
+rule I jointly enforce with `steering-formal-methods`: a wire layer may not ship
+ahead of the commit protocol it is subordinate to.
+
+**Note to `steering-formal-methods`:** this ADR introduces no new state or
+invariant requiring a TLA+ change — it is a faithful client of the existing
+commit-protocol model (no new fencing/isolation surface). No model update is
+required for the protocol choice. The server-proxied pin lifecycle is the same
+`db/pins/` pin/renew/expire FSM already in `commit_protocol.tla`; if a future
+implementation diverges (e.g. server-side pin ownership semantics differ from the
+modelled reader-owned pin), that is a model↔code drift BUG to file at that time.
+
+**Signed:** steering-distributed-acid  T+~1:40
+
+#### steering-perf-sla (consulted — latency) / steering-query-cypher (consulted — wire type)
+
+_Tracked, non-blocking against the protocol choice (see primary verdict). Their
+scoped obligations are registered in this ADR (§4 remote benchmark; §Open
+questions `Value`/temporal types). They may append confirmations or open a
+`superseded` ADR if a scoped concern is later refuted; neither holds open the
+GATE-Cat.7 protocol-selection ratification while the run is behind pace._

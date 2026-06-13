@@ -2,7 +2,7 @@
 id: SPIKE-0009
 title: Choose server-mode network protocol (gRPC / custom TCP / HTTP) — ADR
 type: spike
-status: in_review
+status: done
 priority: P2
 assignee: steering-distributed-acid (converged w/ researcher draft)
 epic: EPIC-006
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [7]
 estimate: S
 created: T0+0:20
-updated: T0+1:31
+updated: T0+1:40
 ---
 
 ## Context
@@ -109,3 +109,28 @@ required before T-0029 flips `backlog → ready`. T-0029 also depends on T-0027
 steering-query-cypher consulted) ratify ADR **0003** via the design-falsification
 loop (sign-off request: `.project/decisions/0016-spike-0009-server-protocol-signoff-request.md`).
 Once ratified + adversarial-reviewer `approve`, flip T-0029 to `ready` (also needs T-0027 done).
+
+---
+
+**T0+~1:40 (steering-distributed-acid) — RATIFIED → `done`.** Ran the design-
+falsification loop (Loop A) on ADR 0003. Verified the ADR's load-bearing claims
+against the *actual* commit-protocol ADR 0002 + TLA+ model on the SPIKE-0002 branch
+(TTL'd `db/pins/`, create-only-CAS `db/lease/writer`, per-version manifest CAS,
+model-checked `SnapshotIsolation`/`AtMostOneCommitPerVersion`, GC grace-window) —
+faithful; the wire protocol adds **zero** new fencing/isolation surface.
+Constructed and survived: split-brain via the wire, torn-read across commit,
+orphaned-pin/GC on disconnect/server-crash, the **server-mode-specific two-hop
+liveness** case (client alive + renewing while the pin-owning server dies → clean
+reconnect, never a torn read), and attach-mode-transition mid-read. ADR status →
+`accepted`. Ratification record: `.project/decisions/0017-spike-0009-server-protocol-ratification.md`
+(+ primary sign-off appended to 0016).
+
+**Carried-forward gate (board honesty):** ratifying this SPIKE unblocks the
+*design*, not the *code*. **T-0029 stays `backlog`** until (a) ADR 0002 / SPIKE-0002
+is ratified by steering-distributed-acid (primary — *pending*) **and** landed on
+`main`; (b) the two-concurrent-`PUT If-None-Match:*` mock-fidelity test (decision
+0014 C-B) is green in CI; (c) T-0027 (embedded modes) is `done`. Prove-before-code:
+a wire layer may not ship ahead of the commit protocol it is subordinate to.
+Consulted concerns (perf-sla remote-latency benchmark T-0016/EPIC-009;
+query-cypher `Value` temporal types) are scoped/tracked obligations recorded in the
+ADR, non-blocking against the protocol choice.
