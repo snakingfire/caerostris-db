@@ -179,3 +179,96 @@ name = "zmij"
 version = "1.0.21"
 spdx = "MIT"
 note = "Dependency of gherkin (builder macro); MIT licensed."
+
+# ---------------------------------------------------------------------------
+# Dependencies introduced by the `python/` PyO3 bindings crate (T-0030,
+# EPIC-007). That crate is its own isolated workspace (own python/Cargo.lock),
+# so these are recorded here and audited by tests/license_manifest.rs against
+# python/Cargo.lock. All are standard, permissive crates in the PyO3 ecosystem.
+# (heck, proc-macro2, quote, syn, unicode-ident are already recorded above and
+# shared with the engine workspace.)
+# ---------------------------------------------------------------------------
+
+[[dependency]]
+name = "pyo3"
+version = "0.27.2"
+spdx = "MIT OR Apache-2.0"
+note = "Rust<->Python FFI layer (the bindings substrate); dual-licensed permissive."
+
+[[dependency]]
+name = "pyo3-ffi"
+version = "0.27.2"
+spdx = "MIT OR Apache-2.0"
+note = "Raw CPython FFI bindings used by pyo3; dual-licensed permissive."
+
+[[dependency]]
+name = "pyo3-build-config"
+version = "0.27.2"
+spdx = "MIT OR Apache-2.0"
+note = "Build-time interpreter discovery for pyo3; dual-licensed permissive."
+
+[[dependency]]
+name = "pyo3-macros"
+version = "0.27.2"
+spdx = "MIT OR Apache-2.0"
+note = "Proc-macro front-end (#[pymodule]/#[pyfunction]) for pyo3; dual-licensed permissive."
+
+[[dependency]]
+name = "pyo3-macros-backend"
+version = "0.27.2"
+spdx = "MIT OR Apache-2.0"
+note = "Code-generation backend for pyo3-macros; dual-licensed permissive."
+
+[[dependency]]
+name = "libc"
+version = "0.2.186"
+spdx = "MIT OR Apache-2.0"
+note = "Raw libc/CPython symbol declarations used by pyo3-ffi; dual-licensed permissive."
+
+[[dependency]]
+name = "indoc"
+version = "2.0.7"
+spdx = "MIT OR Apache-2.0"
+note = "Indented-string macro used by pyo3's generated code; dual-licensed permissive."
+
+[[dependency]]
+name = "unindent"
+version = "0.2.4"
+spdx = "MIT OR Apache-2.0"
+note = "Companion to indoc (pyo3 code-gen); dual-licensed permissive."
+
+[[dependency]]
+name = "memoffset"
+version = "0.9.1"
+spdx = "MIT"
+note = "offset_of! for pyo3-ffi struct layout; MIT licensed."
+
+[[dependency]]
+name = "once_cell"
+version = "1.21.4"
+spdx = "MIT OR Apache-2.0"
+note = "Lazy one-time initialization used by pyo3; dual-licensed permissive."
+
+[[dependency]]
+name = "autocfg"
+version = "1.5.1"
+spdx = "Apache-2.0 OR MIT"
+note = "Build-time rustc feature probing (memoffset build dep); dual-licensed permissive."
+
+[[dependency]]
+name = "portable-atomic"
+version = "1.13.1"
+spdx = "Apache-2.0 OR MIT"
+note = "Portable atomics shim used by pyo3 on some targets; dual-licensed permissive."
+
+[[dependency]]
+name = "rustversion"
+version = "1.0.22"
+spdx = "MIT OR Apache-2.0"
+note = "Compile-time rustc-version cfg attributes used by pyo3; dual-licensed permissive."
+
+[[dependency]]
+name = "target-lexicon"
+version = "0.13.5"
+spdx = "Apache-2.0"
+note = "Target-triple parsing (pyo3-build-config). Upstream SPDX is `Apache-2.0 WITH LLVM-exception`; the LLVM exception only *relaxes* Apache-2.0's terms (so it is at least as permissive), recorded here as the base Apache-2.0 — see open-source-guardrails.md §5."

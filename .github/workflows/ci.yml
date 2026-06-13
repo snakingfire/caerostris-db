@@ -74,9 +74,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run cargo-deny (licenses + sources)
+      - name: Run cargo-deny (engine workspace — licenses + sources)
         uses: EmbarkStudios/cargo-deny-action@v2
         with:
+          command: check licenses sources
+      # The python/ PyO3 bindings crate is its own isolated workspace (own
+      # Cargo.lock) so the root invocation above does not see its dependency
+      # tree. Point cargo-deny at it explicitly with its own deny.toml.
+      - name: Run cargo-deny (python bindings workspace — licenses + sources)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: python/Cargo.toml
           command: check licenses sources
 
   # Latency simulation: the formal/latency-sim sub-workspace is its own [workspace]
@@ -102,6 +110,63 @@ jobs:
         run: cargo test --manifest-path formal/latency-sim/Cargo.toml --all-features
       - name: SLA assertion (exits non-zero if any envelope SLA is violated)
         run: cargo run --manifest-path formal/latency-sim/Cargo.toml --release -- --trials 20000 --seed 1
+
+  # Python bindings (Cat. 8): the python/ PyO3 crate is its own isolated
+  # workspace (own Cargo.lock) so it is invisible to the root cargo commands in
+  # the `test` job. Build it with maturin, run the pytest smoke suite against the
+  # importable module, build a wheel, lint the Python with ruff, and run the
+  # crate's Rust unit tests. T-0030 wires this; the real query/ingest API (T-0031)
+  # extends the suite.
+  python-bindings:
+    name: python (maturin build + pytest + ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install maturin + test tooling
+        run: python -m pip install --upgrade pip "maturin>=1.7,<2.0" "pytest>=7" "ruff>=0.5"
+
+      # Lint + format-check the Python test code (Cat. 8 acceptance criterion).
+      - name: Ruff lint
+        run: ruff check --config python/ruff.toml python/
+      - name: Ruff format check
+        run: ruff format --config python/ruff.toml --check python/
+
+      # Rust-side unit tests for the bindings crate (panic-mapping etc.). Runs
+      # WITHOUT the extension-module feature so the test binary links libpython.
+      - name: Cargo fmt check (python crate)
+        run: cargo fmt --manifest-path python/Cargo.toml --all --check
+      - name: Clippy (python crate, deny warnings)
+        run: cargo clippy --manifest-path python/Cargo.toml --all-targets -- -D warnings
+      - name: Cargo test (python crate)
+        run: cargo test --manifest-path python/Cargo.toml
+
+      # Build the extension into the environment and run the pytest smoke suite.
+      - name: maturin develop (importable module)
+        run: maturin develop -m python/Cargo.toml
+      - name: pytest smoke suite
+        run: pytest python/tests -v
+
+      # Acceptance criterion: `maturin build` produces a wheel.
+      - name: maturin build (wheel)
+        run: maturin build -m python/Cargo.toml --release
+      - name: Upload wheel artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: caerostris-wheel
+          path: python/target/wheels/*.whl
+          if-no-files-found: error
 
   # Secondary signal: prove the Nix dev shell still builds (catches flake rot).
   nix:
