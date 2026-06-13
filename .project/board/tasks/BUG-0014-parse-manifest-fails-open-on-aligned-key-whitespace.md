@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+2:45
-updated: T0+3:10
+updated: T0+3:18
 ---
 
 ## Context
@@ -82,3 +82,15 @@ defeats only the hand-rolled manifest cross-check, not all license enforcement.
   both `parse_manifest` and `parse_lockfile`. 4 TDD tests added (RED→GREEN). Full
   suite 127/127 green; `./format_code.sh` green. Status -> in_review; dispatching
   adversarial-reviewer + premortem-analyst.
+- T+3:18 — premortem-analyst sign-off: **approve** (verdict block appended to PR.md;
+  premortem checkbox ticked). Re-verified in the worktree: `licenses` 16/16, the
+  `license_manifest` integration test 2/2 against the real Cargo.lock + 25-entry manifest,
+  clippy clean, `./format_code.sh` exit 0. Probed `parse_key_value` directly: the fix
+  strictly tightens the parser (matches a superset of real key lines, rejects every non-key
+  line — `dependencies =`, `source =`, `checksum =`, dotted keys, embedded `=` in value),
+  so no new fail-open vector; all error modes degrade fail-closed. No storage/commit/latency/
+  concurrency surface touched; no new dependency. Operational note (non-blocking): two other
+  branches (`work/BUG-0014-aligned-key-whitespace`, `work/BUG-0014-parse-manifest-silently-...`)
+  also did this work — integrator-serialized landing resolves the duplication (first lands;
+  others rebase to no-op / drop). main has not touched src/licenses.rs since merge-base 494a9e7,
+  so this branch rebases cleanly onto current main (3889aa9).

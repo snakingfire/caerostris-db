@@ -95,10 +95,72 @@ no-`=`, quote-strip) is exercised by the new and existing tests through both
 ## Review gate
 
 - [ ] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
-- [ ] premortem-analyst sign-off (see docs/process/adversarial-review-loops.md)
+- [x] premortem-analyst sign-off (see docs/process/adversarial-review-loops.md)
 - [x] `./format_code.sh` green
 - [x] `cargo nextest run` green (127 passed)
 - [x] coverage not regressed (CI-measured; net-add of tests + a fully-exercised helper)
 - [x] board item updated to `in_review`
 
 <!-- Reviewers: append your verdict block below this line per adversarial-review-loops.md -->
+
+## Pre-mortem Analysis
+
+**Verdict:** approve
+
+**Failure modes — blocking (must be mitigated before landing):**
+- None. (See the explicit per-lens justification below — a blank risk section is invalid,
+  so each considered failure mode is enumerated and shown impossible or mitigated.)
+
+**Failure modes — considered and ruled out / non-blocking:**
+- [CORRUPTION / ACID / SLA / CONCURRENCY] N/A. This diff touches only `src/licenses.rs`
+  (compile-/CI-time license-hygiene tooling) and tests. It contains no storage, commit,
+  manifest-swap, writer-lease, snapshot-pin, GC, or query-execution code. The S3 commit
+  protocol, snapshot isolation, the latency selectivity-envelope theorem, and the byte/phase
+  bounds are untouched. There is no production data path through which this change could
+  write partial data, blow B_max/K, or enable split-brain.
+- [SECURITY — fail-OPEN regression, the one real risk class for a license gate] Ruled out.
+  The pre-existing bug was fail-open in the *strict* direction: `strip_prefix("name = ")`
+  matched only the single-space spelling, silently dropping aligned/tab/no-space entries so
+  they were never checked against the allow-list. The fix's `parse_key_value` splits on the
+  first `=` and compares the **trimmed LHS exactly** to the key. Crucially this matches a
+  *superset* of real key lines (more whitespace variants) while still rejecting every non-key
+  line — so it can only ever parse *more* legitimate entries, never fewer of the lines that
+  must not be mistaken for `name`/`spdx`/`version`. No NEW fail-open vector is introduced.
+  Probed directly against `dependencies = [`, `source = "..."`, `checksum = "..."`, dotted
+  keys (`metadata.foo`), embedded `=` in the value (`"crate=with=eq"`), no-`=` lines, and
+  empty values: every non-key line returns `None`, and any value garbling (e.g. a trailing
+  comment) fails *closed* (name/SPDX mismatch → MissingManifestEntry or non-permissive flag),
+  never silently passing a copyleft crate.
+- [OPERATIONAL] The branch is 3 commits ahead of an older `main` tip (`494a9e7`); current
+  `main` is `3889aa9`. Accepted: `main` has NOT modified `src/licenses.rs` since the
+  merge-base (verified with `git log 494a9e7..main -- src/licenses.rs` → empty), so the code
+  change rebases cleanly; only board/PR files overlap and `land.sh` rebases them mechanically.
+  The PR.md "based on latest main 494a9e7" line is mildly stale but not load-bearing. Not a
+  pre-mortem blocker — it is the integrator's routine pre-land rebase.
+- [DEPENDENCY / LICENSE HYGIENE] No new dependency added; pure parsing-logic change. The
+  independent `cargo-deny` (`deny.toml`) defense-in-depth layer is unaffected.
+
+**Mitigations verified:**
+- Fail-open closure, end-to-end: `parse_manifest_aligned_non_permissive_entry_is_flagged_by_check`
+  proves an aligned-key `GPL-3.0` dependency is now parsed AND flagged `NonPermissiveLicense`
+  by `check` — the exact acceptance criterion. (16/16 `licenses` unit tests green.)
+- No-regression on real files: `tests/license_manifest.rs`
+  (`lockfile_dependencies_are_all_recorded_and_permissive`) passes against the real `Cargo.lock`
+  and the 25-entry single-space `docs/licenses/manifest.toml` (ran here: 2/2 green).
+- Look-alike-key safety: `parse_manifest_does_not_match_lookalike_keys` (`namespace`,
+  `spdx_note`) green — exact-key compare prevents over-matching.
+- Whitespace symmetry: `parse_manifest_handles_no_space_and_tab_around_equals` green.
+- Same fix applied to the twin pattern in `parse_lockfile`, so the fail-open class is closed
+  in both parsers, not just the one named in the board item.
+- Green checks verified in the worktree: `cargo build --lib` OK; `cargo clippy --lib --tests`
+  zero warnings; `./format_code.sh` exit 0; `cargo test --lib licenses` 16/16.
+
+**Rationale:** Six months out, the realistic incident for license tooling is a copyleft crate
+slipping into a public-repo release because the gate failed open. This change closes exactly
+that hazard and — verified by direct edge-case probing — strictly tightens the parser without
+opening a new silent-pass path; every error mode degrades fail-closed. It carries no
+storage/commit/latency/concurrency surface, adds no dependency, ships four targeted tests, and
+all GATE-category invariants are out of scope and untouched. Approving.
+
+**Signed:** premortem-analyst  T+3:18
+
