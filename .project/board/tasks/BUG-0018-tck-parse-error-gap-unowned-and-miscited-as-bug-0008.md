@@ -2,14 +2,14 @@
 id: BUG-0018
 title: TCK parse-error gap (1602 vs pinned 1615) is unowned and mis-cited as "BUG-0008"
 type: bug
-status: in_review
+status: done
 priority: P1
 assignee: test-author-wf_156e2b80-bb6-44
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 12]
 created: T+4:30
-updated: T+5:30
+updated: T+5:35
 ---
 
 ## Context
@@ -144,3 +144,8 @@ stale; the discrepancy is currently undocumented as a defect.
 - **T+5:35 — premortem-analyst** (reland dispatch): **APPROVE**. All failure modes guarded:
   pin drift (compile-time const-block), gap silent-close (named guard), new unparseable file
   (count guard), grader mis-fire (pre-existing, BUG-0027 owned). No new unguarded risks.
+- **T+5:35 — integrator**: Landed in commit 5068dc7 at T+5:35. 544 tests passed, 0 failed.
+  `./format_code.sh` green. Both review gates cleared (adversarial-reviewer T+5:18 approve;
+  premortem-analyst T+5:35 approve). Rebase conflict in board file resolved additively
+  (union of all log entries, kept both sides). Worktree `wf_156e2b80-bb6-44` and branch
+  `work/BUG-0018-tck-parse-gap-citations-and-pin-reconcile` cleaned up.
