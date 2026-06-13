@@ -12,6 +12,30 @@ fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
+/// Recursively collect every regular file under `dir` (relative to the repo
+/// root), skipping the `target/` build tree.
+fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let file_type = match entry.file_type() {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        if file_type.is_dir() {
+            if path.file_name().and_then(|n| n.to_str()) == Some("target") {
+                continue;
+            }
+            walk_files(&path, out);
+        } else if file_type.is_file() {
+            out.push(path);
+        }
+    }
+}
+
 fn read(rel: &str) -> String {
     let path = repo_root().join(rel);
     std::fs::read_to_string(&path)
@@ -131,4 +155,62 @@ fn assert_is_executable(rel: &str) {
 #[cfg(not(unix))]
 fn assert_is_executable(_rel: &str) {
     // Executable bit is a Unix concept; on other platforms presence is enough.
+}
+
+/// No stale `docs/design/` cross-references survive in the board or docs.
+///
+/// The storage-format spec is owned by `SPIKE-0003` and lands under `docs/adr/`;
+/// `docs/design/` does not exist and will not be created. A pointer there sends
+/// an implementer on a wild grep (see BUG-0003 / BUG-0011). The only files
+/// allowed to mention the path are the bug records that *document the defect
+/// itself* — BUG-0011 (this guard's bug) and BUG-0003 (its parent + review
+/// verdict) — matched by filename prefix so a slug rename cannot silently
+/// re-open the gap. This is the same "historical record" exception BUG-0003
+/// applied to SPIKE-0002. (Rubric Cat. 12 docs-hygiene; Cat. 2 implementer
+/// friction on the storage epic.)
+#[test]
+fn no_stale_docs_design_references() {
+    const ALLOWLIST_PREFIXES: [&str; 2] = ["BUG-0011-", "BUG-0003-"];
+    const SEARCH_DIRS: [&str; 2] = [".project/board", "docs"];
+
+    let root = repo_root();
+    let mut violations: Vec<String> = Vec::new();
+
+    for dir in SEARCH_DIRS {
+        let mut files = Vec::new();
+        walk_files(&root.join(dir), &mut files);
+        for file in files {
+            let name = file
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default();
+            if ALLOWLIST_PREFIXES
+                .iter()
+                .any(|prefix| name.starts_with(prefix))
+            {
+                continue;
+            }
+            // Read as bytes; skip anything that is not valid UTF-8 (e.g. images).
+            let contents = match std::fs::read(&file) {
+                Ok(bytes) => match String::from_utf8(bytes) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                },
+                Err(_) => continue,
+            };
+            for (lineno, line) in contents.lines().enumerate() {
+                if line.contains("docs/design/") {
+                    let rel = file.strip_prefix(&root).unwrap_or(&file);
+                    violations.push(format!("{}:{}: {}", rel.display(), lineno + 1, line.trim()));
+                }
+            }
+        }
+    }
+
+    assert!(
+        violations.is_empty(),
+        "stale `docs/design/` references found — repoint at the SPIKE-0003-owned \
+         storage-format spec (lands under docs/adr/):\n  {}",
+        violations.join("\n  ")
+    );
 }

@@ -20,7 +20,8 @@ property, sorted by node id for range access) so the planner can issue a single
 large range GET over a contiguous node-id span. This is the storage-format
 implementation and is **design-gated on SPIKE-0003** (the format spec), which in
 turn depends on SPIKE-0001's byte budget. Stays `backlog` until SPIKE-0003 is
-steering-ratified (`steering-storage`). See `EPIC-001`, `docs/design/storage-format.md`.
+steering-ratified (`steering-storage`). See `EPIC-001` and the storage-format spec
+owned by `SPIKE-0003` (lands under `docs/adr/`).
 
 ## Acceptance criteria
 - [ ] Writer serialises a batch of nodes into columnar node-property objects per the SPIKE-0003 spec (field order, encoding, alignment, object naming).
