@@ -17,8 +17,13 @@
 //!   needs concurrent I/O on the hot path. The trait is synchronous and
 //!   object-safe. Wrappers that add async can be layered on top.
 
+pub mod adjacency;
 pub mod memory;
 
+pub use adjacency::{
+    AdjacencyShardReader, AdjacencyShardWriter, Direction, ExpandCap, Expansion, Neighbor,
+    StorageFormatError,
+};
 pub use memory::MemoryStore;
 
 /// Errors returned by [`ObjectStore`] operations.
