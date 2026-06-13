@@ -2,7 +2,7 @@
 id: BUG-0025
 title: .adj writer allocates a dense offset directory over the full source-id span — panics/OOMs on a sparse band
 type: bug
-status: in_progress
+status: in_review
 priority: P1
 assignee: implementer-wf_e9fceb87-27c-59
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [2, 3]
 estimate: M
 created: T0+4:12
-updated: T0+5:33
+updated: T0+5:40
 ---
 
 ## Context
@@ -69,3 +69,5 @@ So this BUG is: (a) a hard reason the duplicate PR cannot land, and (b) a real d
 in the landed code — a writer should reject or bound a band whose dense directory would
 exceed a sane cap rather than `vec!`-allocate proportional to the id span. Coordinate with
 T-0009 (manifest partition map) on which layer owns banding. Rubric Cat. 2/3 (GATE).
+
+- **T0+5:40 (implementer-wf_e9fceb87-27c-59):** opened simulated PR on branch `work/BUG-0025-adj-writer-allocates-a-dense-offset-directory-over` (worktree `.worktrees/BUG-0025`, based on latest `main`). `finish` now caps the dense directory by band width (default `DEFAULT_MAX_DIR_ENTRIES` = 4 MiB/16 B), returns `Result` with new `StorageFormatError::BandTooWide`, and computes band width with checked arithmetic — no panic/OOM on a sparse band. 11 new tests (8 unit + 3 ObjectStore-level); 486/486 green; `./format_code.sh` green. Decision 0035 records the writer-guard vs. T-0009-proactive-banding boundary; ADR 0008 §3.1 cross-referenced. Status -> in_review; awaiting adversarial-reviewer + premortem-analyst sign-off.
