@@ -40,3 +40,8 @@ Design-before-code: depends on the cache wrapper (T-0033) and the read path
   See acceptance criteria: add a criterion confirming enabled-cache wiring only ships
   after BUG-0017 is resolved (i.e. the fence is in place and the concurrent test
   passes).
+- T+4:05 — BUG-0017's generation fence is implemented and in review
+  (`work/BUG-0017-...`). `cache.rs` now documents the fence (the old "Concurrency
+  warning" section is replaced); the deterministic race tests pass. Once BUG-0017
+  lands, this dep clears and T-0040 may wire an enabled cache. See ADR-0009 /
+  Decision 0034.
