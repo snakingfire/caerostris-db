@@ -318,4 +318,45 @@ Epoch-1 (`wf_84c0f0c7-752`) completed: landed BUG-0006/0007/T-0039, produced SPI
 
 **pace-marshal cron** replaced (`b59eb545`→`366ea28f`, now every 6 min): maintains a **3-lane pool** (relaunch any that die), clears stale `.project/.land.lock`, prioritizes ratifying SPIKE-0001/0002, writes STOP at T0+5:00.
 
+---
+
+## STATUS — T+01:21 (AMBER — implementation in worktrees but not yet on main; T+1:40 checkpoint at risk)
+
+**Level:** AMBER
+**Wallclock:** 2026-06-13T19:45:45Z (T+01:21)
+**Last rubric grade:** 13 (T+0:37, `.project/reports/rubric-T+00-37.md`)
+**Expected at T+1:40 (20:04Z):** ~35
+**Gap:** ~22 points in ~18 min — **behind the checkpoint extrapolation.**
+
+**Assessment:** The overall score of 13 reflects the state before the implementation wave that is now active. Code IS in worktrees; BUG-0006 has landed (src/query/mod.rs + src/query/stats.rs + tests/tck_side_effects.rs). T-0002 (TCK harness, weight-12 Cat 4) is in_review and nearly ready to merge — its harness is fully implemented in the worktree (tck-runner crate, Gherkin runner, CI step). SPIKE-0002 (TLA+ model, Cat 11) is in_review with formal-methods secondary sign-off done, awaiting distributed-acid primary sign-off. S3 env is healthy (MinIO up at :9000).
+
+**Key bottlenecks:**
+
+1. **T-0002 (TCK harness) blocked by rebase conflict.** The worktree branch needs `git rebase main` to resolve the `src/lib.rs` conflict (keep both `pub mod query;` and `pub mod tck;`), then re-run format+tests. This is the single highest-leverage action — landing T-0002 moves Cat 4 (weight 12, GATE) off the floor of 0.
+
+2. **SPIKE-0001 steering sign-off incomplete.** The latency-envelope ADR is committed and SPIKE-0006/0007 sub-spikes are done, but SPIKE-0001's board status is `in_review` (updated 19:25Z — 20 min ago). The steering-perf-sla "launch APPROVED" (decision 0010) pre-dates the final ADR — a formal ratification of the completed `docs/adr/0001-latency-selectivity-envelope.md` by both steering-perf-sla and steering-formal-methods is still pending. Until SPIKE-0001 is `done`, SPIKE-0003 (storage format spec), T-0014 (latency sim), T-0015 (planner detection), T-0016 (cold-start benchmark) remain backlog.
+
+3. **SPIKE-0002 needs distributed-acid primary sign-off.** Formal-methods secondary approved (decision 0014, commit a7df377). Distributed-acid primary approval required to flip SPIKE-0002 `done` and unblock T-0009/T-0010/T-0011/T-0012/T-0013/T-0026.
+
+4. **T-0000 (env hardening) still READY, unclaimed.** T-0001 (crate skeleton, object store abstraction) remains backlog waiting for T-0000. Without the skeleton, no storage/query code can land.
+
+5. **BUG-0007 and T-0039 blocked by rebase conflicts.** Both need to rebase onto current main; both have empty deps (i.e., no design blocker, just a merge conflict to resolve).
+
+**Epoch dispatch — Epoch 3 — T+01:21:**
+
+The continuous 3-lane swarm is the active model. Highest-leverage dispatch for the next wave:
+
+1. T-0002 — Rebase + resolve conflict + re-land TCK harness (Cat 4, w12, GATE) → implementer (P0)
+2. SPIKE-0001 — Ratify: steering-perf-sla primary sign-off on the completed envelope ADR → steering-perf-sla (P0)
+3. SPIKE-0002 — Ratify: steering-distributed-acid primary sign-off on protocol ADR + TLA+ → steering-distributed-acid (P0)
+4. T-0000 — Complete env hardening (integration harness + concurrency proof) → implementer (P0)
+5. SPIKE-0003 — Unblocks when SPIKE-0001 done: storage format spec (Cat 2, w12) → researcher/planner-decomposer (P0)
+6. BUG-0007 — Rebase + reland: TCK target ill-defined fix → implementer (P1)
+7. T-0039 — Rebase + reland: license manifest + hourly release (Cat 12) → implementer (P1)
+8. T-0004 — Harness epoch recycling/dashboard (Cat 12) → implementer (P2)
+
+**S3 env:** healthy — `already up` at :9000. No action needed.
+
+**Hard line:** if T-0002 does not land on main by **T+1:40 (20:04Z)**, escalate to RED P0 — Cat 4 (weight 12, GATE) at floor 0 is an existential gap that compounds with every passing minute.
+
 **Watch:** more parallel branches ⇒ more src/lib.rs land-conflicts; mitigated by land-lock + integrator rebase. If conflict-thrash dominates, reduce lanes to 2.
