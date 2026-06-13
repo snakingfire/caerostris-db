@@ -2,15 +2,15 @@
 id: T-0030
 title: PyO3 + maturin scaffold, importable package, pytest in CI
 type: task
-status: ready
+status: in_progress
 priority: P2
-assignee:
+assignee: implementer-wf_e9fceb87-27c-8
 epic: EPIC-007
 deps: [T-0001]
 rubric_refs: [8, 10]
 estimate: M
 created: T0+0:20
-updated: T0+0:20
+updated: T0+0:42
 ---
 
 ## Context
