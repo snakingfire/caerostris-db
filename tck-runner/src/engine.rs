@@ -5,6 +5,12 @@
 //! without touching the harness. Until then, [`PendingEngine`] reports every
 //! query as unsupported, so every executable scenario is counted `pending`
 //! (not `fail`) — see board item `T-0002`.
+//!
+//! An [`ExecOutcome::Rows`] carries the engine's [`QueryStatistics`] alongside
+//! the result rows so the harness can assert `Then the side effects should be:`
+//! TCK steps as real pass/fail (BUG-0006 / Decision 0012), not just the rows.
+
+use caerostris_db::query::QueryStatistics;
 
 /// A single row of a query result: an ordered list of column values, already
 /// rendered to the TCK's canonical string form (e.g. `"1"`, `"'abc'"`,
@@ -18,14 +24,59 @@ pub enum ExecOutcome {
     /// harness counts the owning scenario as `pending`, never `fail`.
     Unsupported,
     /// The engine executed the query and produced a (possibly empty) result.
-    /// `columns` is the ordered column name list; `rows` the result rows.
+    /// `columns` is the ordered column name list; `rows` the result rows;
+    /// `side_effects` the [`QueryStatistics`] the engine recorded while applying
+    /// the statement (all-zero for a read-only query). The harness reads
+    /// `side_effects` to assert `Then the side effects should be:` steps.
     Rows {
         columns: Vec<String>,
         rows: Vec<ResultRow>,
+        side_effects: QueryStatistics,
     },
     /// The engine rejected the query with an error of the named kind
     /// (e.g. `"SyntaxError"`, `"TypeError"`) at the given phase.
     Raised { kind: String, phase: ErrorPhase },
+}
+
+impl ExecOutcome {
+    /// Construct a [`Rows`](ExecOutcome::Rows) outcome with no side effects —
+    /// the common case for a read-only query. Keeps call sites that do not
+    /// care about side effects terse.
+    #[must_use]
+    pub fn rows(columns: Vec<String>, rows: Vec<ResultRow>) -> Self {
+        ExecOutcome::Rows {
+            columns,
+            rows,
+            side_effects: QueryStatistics::new(),
+        }
+    }
+
+    /// Construct a [`Rows`](ExecOutcome::Rows) outcome carrying the engine's
+    /// recorded [`QueryStatistics`]. A write statement reports its side effects
+    /// here; the harness asserts them against the scenario's expected table.
+    #[must_use]
+    pub fn rows_with_side_effects(
+        columns: Vec<String>,
+        rows: Vec<ResultRow>,
+        side_effects: QueryStatistics,
+    ) -> Self {
+        ExecOutcome::Rows {
+            columns,
+            rows,
+            side_effects,
+        }
+    }
+
+    /// The side effects the engine reported for this outcome. A non-`Rows`
+    /// outcome (unsupported / raised) reports no side effects — the correct
+    /// "all zero" value for a statement that did not apply successfully.
+    #[must_use]
+    pub fn side_effects(&self) -> QueryStatistics {
+        match self {
+            ExecOutcome::Rows { side_effects, .. } => *side_effects,
+            ExecOutcome::Unsupported | ExecOutcome::Raised { .. } => QueryStatistics::new(),
+        }
+    }
 }
 
 /// When an error was raised, mirroring the TCK's distinction.

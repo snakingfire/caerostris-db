@@ -190,10 +190,7 @@ Feature: Synthetic-Fail
     impl Engine for OnesEngine {
         fn execute(&mut self, query: &str) -> ExecOutcome {
             if query.trim() == "RETURN 1 AS n" {
-                ExecOutcome::Rows {
-                    columns: vec!["n".into()],
-                    rows: vec![vec!["1".into()]],
-                }
+                ExecOutcome::rows(vec!["n".into()], vec![vec!["1".into()]])
             } else {
                 ExecOutcome::Unsupported
             }
@@ -228,5 +225,61 @@ Feature: Synthetic-Fail
         let summary = run_suite(Path::new("/nonexistent/tck/path"), || PendingEngine).unwrap();
         assert_eq!(summary.total, 0);
         assert_eq!(summary.parse_errors, 0);
+    }
+
+    /// A `.feature` whose only assertion is `Then the side effects should be:`.
+    /// Drives the full harness path for BUG-0006 / Decision 0012: the side
+    /// effects are asserted against the engine's reported `QueryStatistics`.
+    const SIDE_EFFECT_FEATURE: &str = r#"
+Feature: Synthetic-SideEffects
+  Scenario: create then delete reports side effects
+    Given an empty graph
+    When executing query:
+      """
+      CREATE (n) DELETE n
+      """
+    Then the side effects should be:
+      | +nodes | 1 |
+      | -nodes | 1 |
+"#;
+
+    /// An engine that reports `CREATE (n) DELETE n` as creating then deleting
+    /// one node — the exact side effects the fixture expects.
+    struct CreateDeleteEngine;
+    impl Engine for CreateDeleteEngine {
+        fn execute(&mut self, query: &str) -> ExecOutcome {
+            if query.trim() == "CREATE (n) DELETE n" {
+                let mut se = caerostris_db::query::QueryStatistics::new();
+                se.record_nodes_created(1);
+                se.record_nodes_deleted(1);
+                ExecOutcome::rows_with_side_effects(Vec::new(), Vec::new(), se)
+            } else {
+                ExecOutcome::Unsupported
+            }
+        }
+    }
+
+    #[test]
+    fn side_effect_scenario_passes_through_full_harness() {
+        let dir = FixtureDir::new("side-effects");
+        dir.write("side_effects.feature", SIDE_EFFECT_FEATURE);
+        let summary = run_suite(&dir.root, || CreateDeleteEngine).unwrap();
+        assert_eq!(summary.total, 1);
+        assert_eq!(summary.pass, 1, "matching side effects are a real pass");
+        assert_eq!(summary.fail, 0);
+        assert_eq!(
+            summary.pending, 0,
+            "side-effect scenarios are never auto-pending"
+        );
+    }
+
+    #[test]
+    fn side_effect_scenario_is_pending_under_stub_engine() {
+        let dir = FixtureDir::new("side-effects-pending");
+        dir.write("side_effects.feature", SIDE_EFFECT_FEATURE);
+        let summary = run_suite(&dir.root, || PendingEngine).unwrap();
+        assert_eq!(summary.total, 1);
+        assert_eq!(summary.pending, 1, "unsupported -> pending, never fail");
+        assert_eq!(summary.fail, 0);
     }
 }

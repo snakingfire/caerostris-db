@@ -150,6 +150,7 @@ dependencies = [
 name = "tck-runner"
 version = "0.0.0"
 dependencies = [
+ "caerostris-db",
  "gherkin",
  "serde",
  "serde_json",

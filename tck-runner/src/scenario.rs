@@ -17,12 +17,17 @@
 //!   Then the result should be, in any order:   # OR an expected error
 //!     | n |
 //!     | 1 |
-//!   And no side effects
+//!   And the side effects should be:             # optional side-effect table
+//!     | +nodes | 1 |
 //! ```
 //!
-//! We extract the setup statements, the main query, and the expectation, run
-//! them through the [`Engine`], and compare.
+//! We extract the setup statements, the main query, the result/error
+//! expectation, and any `Then the side effects should be:` table, run them
+//! through the [`Engine`], and compare. The side-effect table is asserted
+//! against the engine's reported [`QueryStatistics`] as a real pass/fail —
+//! never auto-`pending` (BUG-0006 / Decision 0012).
 
+use caerostris_db::query::QueryStatistics;
 use gherkin::{Scenario, StepType};
 use serde::Serialize;
 
@@ -54,9 +59,10 @@ enum Expectation {
     },
     /// `Then a <Kind> should be raised at <phase>: ...`.
     Error { kind: String, phase: ErrorPhase },
-    /// A scenario whose only assertion is about side effects / no result rows.
-    /// We treat a successful (supported) execution as a pass for these; the
-    /// real engine work that validates side effects lands with EPIC-002.
+    /// A scenario whose only assertion is `no side effects` / `the result
+    /// should be empty` with no checkable rows. A supported execution counts as
+    /// a pass at the harness level (an explicit side-effect table, when
+    /// present, is checked separately — see [`TckScenario::expected_side_effects`]).
     NoResultRows,
 }
 
@@ -66,6 +72,24 @@ struct TckScenario {
     setup: Vec<String>,
     query: Option<String>,
     expectation: Option<Expectation>,
+    /// The expected side effects, parsed from a `Then the side effects should
+    /// be:` table (BUG-0006 / Decision 0012). `None` when the scenario asserts
+    /// nothing about side effects; `Some(stats)` makes the harness compare the
+    /// engine's reported [`QueryStatistics`] for a real pass/fail. A parse
+    /// failure of the table is recorded as [`SideEffectExpectation::Unparseable`]
+    /// so the scenario is `pending`, never a spurious `fail`.
+    expected_side_effects: Option<SideEffectExpectation>,
+}
+
+/// The side-effect assertion extracted from a scenario, if any.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum SideEffectExpectation {
+    /// A parsed `Then the side effects should be:` table.
+    Table(QueryStatistics),
+    /// The table was present but could not be parsed into a `QueryStatistics`
+    /// (a corpus/harness edge case). The scenario is treated as `pending` so a
+    /// harness limitation never masquerades as a conformance `fail`.
+    Unparseable,
 }
 
 /// Extract the executable shape from a parsed Gherkin scenario.
@@ -77,6 +101,7 @@ fn lower(scenario: &Scenario) -> TckScenario {
     let mut setup = Vec::new();
     let mut query = None;
     let mut expectation = None;
+    let mut expected_side_effects = None;
 
     for step in &scenario.steps {
         let value = step.value.trim();
@@ -100,6 +125,14 @@ fn lower(scenario: &Scenario) -> TckScenario {
                 }
             }
             StepType::Then => {
+                // `Then the side effects should be:` carries its own table and
+                // is checked against the engine's QueryStatistics independently
+                // of the result-row assertion (BUG-0006 / Decision 0012).
+                if lower.starts_with("the side effects should be") {
+                    expected_side_effects = Some(parse_side_effects(step));
+                    continue;
+                }
+
                 // A scenario can have several `Then`/`And` assertions (e.g. a
                 // `result should be` table followed by `no side effects`). The
                 // primary, harness-checkable assertion is the result table or
@@ -121,6 +154,32 @@ fn lower(scenario: &Scenario) -> TckScenario {
         setup,
         query,
         expectation,
+        expected_side_effects,
+    }
+}
+
+/// Parse a `Then the side effects should be:` step's Gherkin table into the
+/// expected [`QueryStatistics`] (BUG-0006 / Decision 0012). Renders the table
+/// back to the canonical `| key | n |` text form and delegates to
+/// [`QueryStatistics::from_tck_side_effects`], which treats omitted categories
+/// as zero and rejects unknown categories.
+fn parse_side_effects(step: &gherkin::Step) -> SideEffectExpectation {
+    let Some(table) = &step.table else {
+        // `the side effects should be:` with no table means "no side effects" —
+        // an all-zero statistics object.
+        return SideEffectExpectation::Table(QueryStatistics::new());
+    };
+    let mut rendered = String::new();
+    for row in &table.rows {
+        // Each row is `[category, count]`; render `| category | count |`.
+        if row.len() != 2 {
+            return SideEffectExpectation::Unparseable;
+        }
+        rendered.push_str(&format!("| {} | {} |\n", row[0].trim(), row[1].trim()));
+    }
+    match QueryStatistics::from_tck_side_effects(&rendered) {
+        Ok(stats) => SideEffectExpectation::Table(stats),
+        Err(_) => SideEffectExpectation::Unparseable,
     }
 }
 
@@ -202,25 +261,52 @@ pub fn classify<E: Engine>(scenario: &Scenario, engine: &mut E) -> Verdict {
     }
 
     let outcome = engine.execute(&query);
-    let Some(expectation) = lowered.expectation else {
-        // Executable query but no recognizable Then: only pending/fail are
-        // meaningful. Unsupported -> pending, otherwise we cannot assert, so
-        // treat a supported run as pending (no expectation to check against).
-        return match outcome {
-            ExecOutcome::Unsupported => Verdict::Pending,
-            _ => Verdict::Pending,
-        };
-    };
 
-    judge(&expectation, outcome)
+    // Unsupported anywhere -> pending, regardless of what was asserted.
+    if let ExecOutcome::Unsupported = outcome {
+        return Verdict::Pending;
+    }
+
+    // A `Then the side effects should be:` table that the harness could not
+    // parse is a harness limitation, not a conformance miss -> pending.
+    if let Some(SideEffectExpectation::Unparseable) = lowered.expected_side_effects {
+        return Verdict::Pending;
+    }
+
+    // Decide the primary (result / error) verdict, if there is a primary
+    // assertion. A scenario whose *only* assertion is side effects has no
+    // primary expectation; treat a supported execution as a primary `pass` and
+    // let the side-effect check below be decisive.
+    let primary = match &lowered.expectation {
+        Some(expectation) => judge(expectation, &outcome),
+        None => Verdict::Pass,
+    };
+    if primary != Verdict::Pass {
+        return primary;
+    }
+
+    // The result/error matched (or there was nothing to check). Now assert the
+    // side effects against the engine's reported QueryStatistics, if the
+    // scenario asserts them (BUG-0006 / Decision 0012). This is a real
+    // pass/fail — never auto-`pending`.
+    if let Some(SideEffectExpectation::Table(expected)) = &lowered.expected_side_effects {
+        let actual = outcome.side_effects();
+        return if actual.matches_side_effects(expected) {
+            Verdict::Pass
+        } else {
+            Verdict::Fail
+        };
+    }
+
+    Verdict::Pass
 }
 
-fn judge(expectation: &Expectation, outcome: ExecOutcome) -> Verdict {
+fn judge(expectation: &Expectation, outcome: &ExecOutcome) -> Verdict {
     match (expectation, outcome) {
-        // Unsupported anywhere -> pending.
+        // Unsupported is handled by the caller before judge() is reached.
         (_, ExecOutcome::Unsupported) => Verdict::Pending,
 
-        // Expected rows, got rows: compare.
+        // Expected rows, got rows: compare (side effects checked separately).
         (
             Expectation::Result {
                 columns: exp_cols,
@@ -230,9 +316,10 @@ fn judge(expectation: &Expectation, outcome: ExecOutcome) -> Verdict {
             ExecOutcome::Rows {
                 columns: got_cols,
                 rows: got_rows,
+                ..
             },
         ) => {
-            if rows_match(exp_cols, exp_rows, *ordered, &got_cols, &got_rows) {
+            if rows_match(exp_cols, exp_rows, *ordered, got_cols, got_rows) {
                 Verdict::Pass
             } else {
                 Verdict::Fail
@@ -245,7 +332,7 @@ fn judge(expectation: &Expectation, outcome: ExecOutcome) -> Verdict {
         // Expected an error, got the matching error kind: pass (phase is
         // advisory — kind match is the primary signal the TCK asserts).
         (Expectation::Error { kind: exp_kind, .. }, ExecOutcome::Raised { kind: got_kind, .. }) => {
-            if exp_kind.eq_ignore_ascii_case(&got_kind) {
+            if exp_kind.eq_ignore_ascii_case(got_kind) {
                 Verdict::Pass
             } else {
                 Verdict::Fail
@@ -255,9 +342,9 @@ fn judge(expectation: &Expectation, outcome: ExecOutcome) -> Verdict {
         // Expected an error but the engine returned rows: fail.
         (Expectation::Error { .. }, ExecOutcome::Rows { .. }) => Verdict::Fail,
 
-        // Side-effects-only scenarios: a supported execution (rows or a benign
-        // raise was already handled above) counts as a pass at the harness
-        // level; deep side-effect validation arrives with the real engine.
+        // Side-effects-only marker (`no side effects`, `result should be
+        // empty`): a supported execution passes the primary check; an explicit
+        // side-effect table, if present, is asserted by the caller.
         (Expectation::NoResultRows, ExecOutcome::Rows { .. }) => Verdict::Pass,
         (Expectation::NoResultRows, ExecOutcome::Raised { .. }) => Verdict::Fail,
     }
@@ -374,10 +461,7 @@ Feature: T
     fn matching_result_passes() {
         let mut engine = ScriptedEngine::new().on(
             "RETURN 1 AS n",
-            ExecOutcome::Rows {
-                columns: vec!["n".into()],
-                rows: vec![vec!["1".into()]],
-            },
+            ExecOutcome::rows(vec!["n".into()], vec![vec!["1".into()]]),
         );
         assert_eq!(
             classify(&scenario_from(PASS_SRC), &mut engine),
@@ -389,10 +473,7 @@ Feature: T
     fn mismatching_result_fails() {
         let mut engine = ScriptedEngine::new().on(
             "RETURN 2 AS n",
-            ExecOutcome::Rows {
-                columns: vec!["n".into()],
-                rows: vec![vec!["2".into()]],
-            },
+            ExecOutcome::rows(vec!["n".into()], vec![vec!["2".into()]]),
         );
         assert_eq!(
             classify(&scenario_from(FAIL_SRC), &mut engine),
@@ -480,10 +561,7 @@ Feature: T
         // Setup unsupported -> pending even though main query is scripted.
         let mut engine = ScriptedEngine::new().on(
             "MATCH (n) RETURN n",
-            ExecOutcome::Rows {
-                columns: vec!["n".into()],
-                rows: vec![vec!["(:Person {name: 'A'})".into()]],
-            },
+            ExecOutcome::rows(vec!["n".into()], vec![vec!["(:Person {name: 'A'})".into()]]),
         );
         assert_eq!(classify(&scenario_from(src), &mut engine), Verdict::Pending);
     }
@@ -505,10 +583,7 @@ Feature: T
 "#;
         let mut engine = ScriptedEngine::new().on(
             "UNWIND [1, 2] AS n RETURN n",
-            ExecOutcome::Rows {
-                columns: vec!["n".into()],
-                rows: vec![vec!["1".into()], vec!["2".into()]],
-            },
+            ExecOutcome::rows(vec!["n".into()], vec![vec!["1".into()], vec!["2".into()]]),
         );
         assert_eq!(classify(&scenario_from(src), &mut engine), Verdict::Pass);
     }
@@ -530,11 +605,121 @@ Feature: T
 "#;
         let mut engine = ScriptedEngine::new().on(
             "UNWIND [1, 2] AS n RETURN n",
-            ExecOutcome::Rows {
-                columns: vec!["n".into()],
-                rows: vec![vec!["2".into()], vec!["1".into()]],
-            },
+            ExecOutcome::rows(vec!["n".into()], vec![vec!["2".into()], vec!["1".into()]]),
         );
         assert_eq!(classify(&scenario_from(src), &mut engine), Verdict::Fail);
+    }
+
+    // --- side-effect assertions (BUG-0006 / Decision 0012) ------------------
+
+    const SIDE_EFFECT_SRC: &str = r#"
+Feature: T
+  Scenario: create then delete reports side effects
+    Given an empty graph
+    When executing query:
+      """
+      CREATE (n) DELETE n
+      """
+    Then the side effects should be:
+      | +nodes | 1 |
+      | -nodes | 1 |
+"#;
+
+    /// An engine whose reported side effects exactly match the expected table
+    /// passes the scenario as a real `pass` (never auto-`pending`).
+    #[test]
+    fn matching_side_effects_pass() {
+        let mut se = QueryStatistics::new();
+        se.record_nodes_created(1);
+        se.record_nodes_deleted(1);
+        let mut engine = ScriptedEngine::new().on(
+            "CREATE (n) DELETE n",
+            ExecOutcome::rows_with_side_effects(Vec::new(), Vec::new(), se),
+        );
+        assert_eq!(
+            classify(&scenario_from(SIDE_EFFECT_SRC), &mut engine),
+            Verdict::Pass
+        );
+    }
+
+    /// An engine whose reported side effects diverge from the expected table is
+    /// a real conformance `fail`, not a pass and not `pending`.
+    #[test]
+    fn mismatching_side_effects_fail() {
+        let mut se = QueryStatistics::new();
+        se.record_nodes_created(1); // missing the `-nodes 1` the scenario expects
+        let mut engine = ScriptedEngine::new().on(
+            "CREATE (n) DELETE n",
+            ExecOutcome::rows_with_side_effects(Vec::new(), Vec::new(), se),
+        );
+        assert_eq!(
+            classify(&scenario_from(SIDE_EFFECT_SRC), &mut engine),
+            Verdict::Fail
+        );
+    }
+
+    /// A category present in the engine's report but absent from the expected
+    /// table (asserted-zero by the TCK convention) is a `fail`: the comparison
+    /// is total across every category.
+    #[test]
+    fn extra_unexpected_side_effect_fails() {
+        let mut se = QueryStatistics::new();
+        se.record_nodes_created(1);
+        se.record_nodes_deleted(1);
+        se.record_properties_set(1); // not in the expected table -> must fail
+        let mut engine = ScriptedEngine::new().on(
+            "CREATE (n) DELETE n",
+            ExecOutcome::rows_with_side_effects(Vec::new(), Vec::new(), se),
+        );
+        assert_eq!(
+            classify(&scenario_from(SIDE_EFFECT_SRC), &mut engine),
+            Verdict::Fail
+        );
+    }
+
+    /// A side-effect scenario the engine cannot run is `pending`, never `fail`.
+    #[test]
+    fn unsupported_side_effect_scenario_is_pending() {
+        let mut engine = crate::engine::PendingEngine;
+        assert_eq!(
+            classify(&scenario_from(SIDE_EFFECT_SRC), &mut engine),
+            Verdict::Pending
+        );
+    }
+
+    /// A scenario asserting `the result should be ...` *and* `the side effects
+    /// should be:` must check both: matching rows but wrong side effects fails.
+    #[test]
+    fn result_plus_side_effects_both_checked() {
+        let src = r#"
+Feature: T
+  Scenario: result and side effects
+    Given an empty graph
+    When executing query:
+      """
+      CREATE (n) RETURN n
+      """
+    Then the result should be, in any order:
+      | n |
+      | (n) |
+    And the side effects should be:
+      | +nodes | 1 |
+"#;
+        // Rows match but the engine reports the wrong side effects -> fail.
+        let wrong = QueryStatistics::new(); // expected +nodes 1, engine reports none
+        let mut engine = ScriptedEngine::new().on(
+            "CREATE (n) RETURN n",
+            ExecOutcome::rows_with_side_effects(vec!["n".into()], vec![vec!["(n)".into()]], wrong),
+        );
+        assert_eq!(classify(&scenario_from(src), &mut engine), Verdict::Fail);
+
+        // Rows match and side effects match -> pass.
+        let mut right = QueryStatistics::new();
+        right.record_nodes_created(1);
+        let mut engine2 = ScriptedEngine::new().on(
+            "CREATE (n) RETURN n",
+            ExecOutcome::rows_with_side_effects(vec!["n".into()], vec![vec!["(n)".into()]], right),
+        );
+        assert_eq!(classify(&scenario_from(src), &mut engine2), Verdict::Pass);
     }
 }
