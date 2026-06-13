@@ -110,9 +110,7 @@ fn nodes_are_sorted_by_id_regardless_of_input_order() {
 
 #[test]
 fn duplicate_id_in_shard_is_error() {
-    let err = NcolWriter
-        .serialize(&[person(1), person(1)])
-        .unwrap_err();
+    let err = NcolWriter.serialize(&[person(1), person(1)]).unwrap_err();
     assert!(matches!(err, NcolError::Malformed(_)));
 }
 

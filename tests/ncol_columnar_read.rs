@@ -59,10 +59,7 @@ fn person(id: u64, country: &str) -> Node {
         )),
     );
     props.insert("age".to_string(), PropertyValue::Integer((id % 100) as i64));
-    props.insert(
-        "score".to_string(),
-        PropertyValue::Float((id as f64) * 1.5),
-    );
+    props.insert("score".to_string(), PropertyValue::Float((id as f64) * 1.5));
     Node {
         id: NodeId(id),
         labels: ["Person".to_string()].into_iter().collect(),
@@ -147,8 +144,7 @@ fn range_read_over_id_subspan_reconstructs_only_in_range_nodes() {
     let (store, dir, _) = write_seed_shard(n_seed);
 
     let (lo, hi) = (200u64, 209u64);
-    let nodes =
-        NcolReader::read_nodes_in_id_range(&store, KEY, &dir, lo, hi).expect("range read");
+    let nodes = NcolReader::read_nodes_in_id_range(&store, KEY, &dir, lo, hi).expect("range read");
 
     let ids: Vec<u64> = nodes.iter().map(|n| n.id.0).collect();
     assert_eq!(ids, (lo..=hi).collect::<Vec<_>>());

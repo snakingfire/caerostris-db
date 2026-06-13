@@ -204,7 +204,11 @@ impl std::fmt::Display for NcolError {
             NcolError::Malformed(why) => write!(f, "malformed .ncol object: {why}"),
             NcolError::NoSuchColumn(k) => write!(f, "no column for property key {k:?}"),
             NcolError::IdOutOfBand { id, band } => {
-                write!(f, "node id {id} outside shard id band [{}, {}]", band.0, band.1)
+                write!(
+                    f,
+                    "node id {id} outside shard id band [{}, {}]",
+                    band.0, band.1
+                )
             }
             NcolError::Store(e) => write!(f, "object store error: {e}"),
         }
@@ -344,7 +348,9 @@ fn encode_value(buf: &mut Vec<u8>, v: &PropertyValue) {
 
 /// Decode one [`PropertyValue`] from `b` starting at `*at`, advancing `*at`.
 fn decode_value(b: &[u8], at: &mut usize) -> Result<PropertyValue, NcolError> {
-    let t = *b.get(*at).ok_or(NcolError::Truncated { context: "value tag" })?;
+    let t = *b.get(*at).ok_or(NcolError::Truncated {
+        context: "value tag",
+    })?;
     *at += 1;
     match t {
         tag::NULL => Ok(PropertyValue::Null),
@@ -363,9 +369,9 @@ fn decode_value(b: &[u8], at: &mut usize) -> Result<PropertyValue, NcolError> {
         tag::STRING => {
             let len = get_u64(b, *at)? as usize;
             *at += 8;
-            let bytes = b
-                .get(*at..*at + len)
-                .ok_or(NcolError::Truncated { context: "string body" })?;
+            let bytes = b.get(*at..*at + len).ok_or(NcolError::Truncated {
+                context: "string body",
+            })?;
             *at += len;
             let s = String::from_utf8(bytes.to_vec())
                 .map_err(|_| NcolError::Malformed("non-utf8 string"))?;
@@ -677,11 +683,10 @@ fn parse_column_dir(
     for _ in 0..count {
         let _prop_key_id = get_u32(dir_bytes, at)?;
         at += 4;
-        let logical_type = LogicalType::from_u8(
-            *dir_bytes
-                .get(at)
-                .ok_or(NcolError::Truncated { context: "logical_type" })?,
-        );
+        let logical_type =
+            LogicalType::from_u8(*dir_bytes.get(at).ok_or(NcolError::Truncated {
+                context: "logical_type",
+            })?);
         at += 1;
         let codec_raw = *dir_bytes
             .get(at)
@@ -700,7 +705,9 @@ fn parse_column_dir(
         at += 2;
         let name_bytes = dir_bytes
             .get(at..at + name_len)
-            .ok_or(NcolError::Truncated { context: "column name" })?;
+            .ok_or(NcolError::Truncated {
+                context: "column name",
+            })?;
         at += name_len;
         let key = String::from_utf8(name_bytes.to_vec())
             .map_err(|_| NcolError::Malformed("non-utf8 column name"))?;
@@ -743,10 +750,7 @@ impl NcolReader {
     /// # Errors
     ///
     /// Propagates [`NcolError`] for a malformed/foreign object or a store error.
-    pub fn read_dir<S: ObjectStore + ?Sized>(
-        store: &S,
-        key: &str,
-    ) -> Result<ColumnDir, NcolError> {
+    pub fn read_dir<S: ObjectStore + ?Sized>(store: &S, key: &str) -> Result<ColumnDir, NcolError> {
         let bytes = store.get(key)?;
         let header = parse_header(&bytes)?;
         // Fail-closed: the object must be at least as long as it declares.
@@ -764,9 +768,9 @@ impl NcolReader {
         if dir_end < dir_start {
             return Err(NcolError::Malformed("directory offset past trailer"));
         }
-        let dir_bytes = bytes
-            .get(dir_start..dir_end)
-            .ok_or(NcolError::Truncated { context: "directory" })?;
+        let dir_bytes = bytes.get(dir_start..dir_end).ok_or(NcolError::Truncated {
+            context: "directory",
+        })?;
         parse_column_dir(dir_bytes, header.id_band, header.row_count)
     }
 
