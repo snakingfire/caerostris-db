@@ -528,3 +528,10 @@ Env OK; cascade gated on SPIKE-0003 (storage format spec, in-progress → unbloc
 MAIN GREEN. T-0017 openCypher lexer+parser→AST LANDED (91b934c) — the first query-engine piece (Cat 4 path opens: next planner T-0018 → executor T-0019 → TCK reads start passing). T-0005 coverage + T-0022 index landers still in flight. Board done=19 (status commit lagging the code merge; →20+ shortly). 5/5 lanes building breadth.
 Focused-lander pattern working: lanes build (43 worktrees), focused integrators land (T-0001/0002/0006/0014/0017). Land-lock serializes merges; main stays green.
 Env OK, lock free, cascade gated on SPIKE-0003 (storage format spec). ~1h40m to deadline. Next: verify T-0005/0022 land + dispatch the query-chain next (planner/executor) and storage once SPIKE-0003 lands.
+
+---
+
+## STATUS — T+3:25 (main green; done 22, high-value landers in flight)
+done:22 (T-0017 lexer + T-0022 index + BUG-0013 landed) ready:10 in_review:5 backlog:36. MAIN GREEN (019d18b, builds 0.06s) — no P0. 5/5 lanes building.
+Focused landers running: T-0005 coverage (Cat-10 GATE; slow — sub-workspace llvm-cov complexity), T-0018 planner (Cat-4 chain, on top of landed lexer). in_review backlog (BUG-0008/0010/0014, T-0004) is all low-value Cat-12 hygiene → left to lanes (not worth dedicated landers; Cat12 already ~62/w4).
+KEYSTONE WATCH: SPIKE-0003 storage format spec still in_progress (researcher) — the biggest pending unlock (→ T-0007/0008 writer/reader Cat2, T-0009/0010 commit Cat1, executor for Cat4). Will fast-ratify the moment it hits in_review. No GATE sliding. ~1h35m to deadline.
