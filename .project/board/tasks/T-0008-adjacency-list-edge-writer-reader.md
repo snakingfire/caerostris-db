@@ -19,8 +19,8 @@ The edge side of the layout: edges stored as compressed adjacency lists sorted b
 source node id, chunked so a hop expansion fetches only the frontier's adjacency
 without reading the whole edge set. Per `SPIKE-0008` falsification F1, adjacency
 chunking must allow **early-abort partial reads** so the binding 50 Mbps / 4 MB
-case is feasible. Design-gated on SPIKE-0003. See `EPIC-001`,
-`docs/design/storage-format.md`.
+case is feasible. Design-gated on SPIKE-0003. See `EPIC-001` and the storage-format
+spec owned by `SPIKE-0003` (lands under `docs/adr/`).
 
 ## Acceptance criteria
 - [ ] Writer serialises edges into source-sorted, chunked adjacency-list objects per the SPIKE-0003 spec; chunk granularity matches the spec's range-read access pattern.

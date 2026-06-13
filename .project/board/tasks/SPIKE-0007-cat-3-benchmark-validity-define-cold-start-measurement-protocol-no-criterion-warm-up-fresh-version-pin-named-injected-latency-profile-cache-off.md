@@ -41,7 +41,7 @@ readable artifact so the weight-14 GATE cannot be scored on invalid evidence.
 
 ## Acceptance criteria
 
-- [x] A documented cold-start measurement protocol (ADR or `docs/design/`) that specifies:
+- [x] A documented cold-start measurement protocol (an ADR under `docs/adr/`) that specifies:
   - Each timed sample is a **fresh engine/process or explicitly evicted state**: no warm
     OS page cache, no warm local cache, a fresh manifest/version pin per sample. Criterion's
     warm-up must be disabled or the harness must re-cold between samples (or a bespoke
