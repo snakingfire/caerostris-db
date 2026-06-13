@@ -2,7 +2,7 @@
 id: BUG-0016
 title: PR.md review artifact is committed on main (and not gitignored)
 type: bug
-status: ready
+status: dropped
 priority: P3
 assignee:
 epic: EPIC-010
@@ -43,3 +43,7 @@ Discovered while landing T-0004 (the worktree inherited a stale T-0014 PR.md).
   cosmetic/hygiene, no correctness or gate impact. Out of scope for T-0004's three
   deliverables, so split off per the task-board protocol ("file a BUG the moment
   you find one; don't fix silently").
+
+- **Dropped — duplicate of BUG-0013** (done; landed `4eef834`). BUG-0013 already
+  un-tracked PR.md from main and added a `/PR.md` rule to `.gitignore`. Filed
+  independently while landing T-0004 before observing BUG-0013 had it covered.
