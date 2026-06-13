@@ -36,4 +36,4 @@ Relevant requirements: R3 (all four attach modes), R2 (single-writer/multi-reade
 
 ## Notes / log
 
-Depends on EPIC-004 (writer leasing design from SPIKE-0002) being ratified before the leasing implementation here becomes `ready`. Server-mode network protocol choice (gRPC, custom TCP, HTTP) should be decided by ADR.
+Depends on EPIC-004 (writer leasing design from SPIKE-0002) being ratified before the leasing implementation here becomes `ready`. Server-mode network protocol choice (gRPC, custom TCP, HTTP) is decided in **ADR 0003** (`docs/adr/0003-server-mode-network-protocol.md`, SPIKE-0009): **gRPC over HTTP/2 via `tonic`**, read-only wire (no remote write RPC; second writer rejected, not queued), server-streaming results, remote readers pin the snapshot via the same TTL'd `db/pins/…` mechanism as embedded modes (wire protocol adds no fencing — split-brain stays in the ADR 0002 commit CAS). ADR 0003 is `in_review` (steering sign-off pending) — T-0029 flips `ready` once it ratifies and T-0027 is `done`.

@@ -37,3 +37,5 @@ Relevant requirements: R8 (Python bindings), R3 (all attach modes accessible fro
 ## Notes / log
 
 Depends on EPIC-001 (storage abstraction) and EPIC-002 (query engine) being sufficiently complete to expose a usable Rust API. Can be started as soon as a minimal query round-trip is possible — full TCK completion is not a prerequisite.
+
+**Remote (`via-server`) attach mode protocol:** the Python remote-read client targets the server-mode protocol decided in **ADR 0003** (`docs/adr/0003-server-mode-network-protocol.md`, SPIKE-0009): **gRPC over HTTP/2** via the shared `.proto`. A thin generated `grpcio`/`betterproto` stub gives the remote-read client without hand-written socket code; the typed `Value` oneof returns native Python objects. The embedded modes use the Rust engine directly (PyO3), not gRPC.
