@@ -9,8 +9,8 @@ epic: EPIC-001
 deps: []
 rubric_refs: [3, 2]
 estimate: M
-created: T0+~4:05
-updated: T0+~4:05
+created: T0+4:12
+updated: T0+4:12
 ---
 
 ## Context
@@ -51,7 +51,21 @@ actual count (`1 + non-empty-sources`) is not so bounded.
 - [ ] Coverage not regressed; `./format_code.sh` green.
 
 ## Notes / log
-Reported by adversarial-reviewer on T-0008 PR. Blocks T-0008 land (GATE Cat. 3 / C1).
-If a single-round read of a contiguous band proves infeasible under the sync trait,
-escalate to steering per ADR 0001 §1.5 — do not ship K_min = 14 silently.
-Related: BUG-0028 (byte-cap-below-degree-prefix) touches the same expand path.
+Reported by adversarial-reviewer on the **stale duplicate** T-0008 PR
+`work/T-0008-implement-compressed-adjacency-list-edge-writ` (`AdjShardWriter::expand_band`).
+
+**Scope: largely PR-specific, but a real open latency question for the planner.** The
+canonical T-0008 on `main` (`3c0bd9c`, `AdjacencyShardWriter`) exposes only a **single-source**
+`expand(source, cap)` (≤ 2 `get_range`: directory entry + one block), so it does not itself
+issue the unbounded serial per-block GETs this duplicate's `expand_band` does — multi-source
+frontier coalescing is (correctly) left to the planner/caller on `main`. So:
+- For the **dropped duplicate**: this is a hard latency-theorem defect in `expand_band`; drop
+  with the PR.
+- For **`main` + the planner (T-0018)**: the underlying obligation remains — when the planner
+  expands an `M_max`-wide frontier band it MUST coalesce into one round of I/O (ADR 0008 §4),
+  not `M_max` serial single-source `expand` calls. There is no test yet asserting the per-hop
+  **band** GET count ≤ `M_max` (steering C1 as written). Re-scope this BUG to the planner hop
+  primitive when T-0018 lands; until then keep it open as the C1 band-level coverage gap.
+If a single-round read of a contiguous band proves infeasible under the sync `ObjectStore`
+trait, escalate to steering per ADR 0001 §1.5 — do not ship `K_min = 14` silently.
+Related: BUG-0028 (byte-cap-below-degree-prefix) touches the same expand path on `main`.

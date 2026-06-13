@@ -9,8 +9,8 @@ epic: EPIC-001
 deps: []
 rubric_refs: [2, 3]
 estimate: S
-created: T0+~4:05
-updated: T0+~4:05
+created: T0+4:12
+updated: T0+4:12
 ---
 
 ## Context
@@ -48,4 +48,13 @@ directed typed edge sets" claim is unproven for the full `u64` id space.
 - [ ] Coverage not regressed; `./format_code.sh` green.
 
 ## Notes / log
-Reported by adversarial-reviewer on T-0008 PR. Blocks T-0008 land (GATE Cat. 2/3).
+Reported by adversarial-reviewer on the **stale duplicate** T-0008 PR
+`work/T-0008-implement-compressed-adjacency-list-edge-writ` (`AdjShardWriter`).
+
+**Scope: PR-specific.** The canonical T-0008 that landed on `main` (`3c0bd9c`,
+`AdjacencyShardWriter`) already encodes the delta with `wrapping_sub` in the `u64` domain
+(`src/storage/adjacency.rs:355` on `main`) and is **not** affected by this overflow. This
+bug is therefore a defect of the dropped duplicate only. Recommended disposition: **drop**
+alongside the duplicate PR (see PR.md "OVERRIDING PROCESS FINDING"). Kept on the board so
+the lesson — never round-trip `u64` node ids through `i64` for delta encoding — is recorded;
+if the duplicate is closed without merge, mark this `dropped`.

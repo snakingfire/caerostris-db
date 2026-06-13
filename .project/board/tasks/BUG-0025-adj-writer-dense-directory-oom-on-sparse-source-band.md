@@ -9,8 +9,8 @@ epic: EPIC-001
 deps: []
 rubric_refs: [2, 3]
 estimate: M
-created: T0+~4:05
-updated: T0+~4:05
+created: T0+4:12
+updated: T0+4:12
 ---
 
 ## Context
@@ -49,5 +49,23 @@ does not budget.
 - [ ] Round-trip + size tests for sparse bands; coverage not regressed; `./format_code.sh` green.
 
 ## Notes / log
-Reported by adversarial-reviewer on T-0008 PR. Blocks T-0008 land (GATE Cat. 2/3).
-Coordinate with T-0009 (manifest partition map) on which layer owns banding.
+Reported by adversarial-reviewer on the (stale duplicate) T-0008 PR
+`work/T-0008-implement-compressed-adjacency-list-edge-writ`.
+
+**Scope note (important):** the duplicate PR is being dropped (the canonical T-0008
+already landed on `main` in `3c0bd9c` as `AdjacencyShardWriter`). The defect's *severity*
+differs by implementation:
+- **Dropped duplicate PR (`AdjShardWriter`):** severe — `finish()` *derives* the band from
+  min/max of arbitrary added edges, so a sparse id set unavoidably forces a huge dense
+  directory (proven: OOM-kill at a 10^9 gap; `u32::try_from(...).expect()` panic above
+  `u32::MAX`).
+- **Landed `main` (`AdjacencyShardWriter`):** mitigated but not eliminated — `new(...,
+  src_band_lo, src_band_hi)` takes the band as a *caller* argument (caller owns the ≤ 4 MiB
+  contract), but `finish()` still does `vec![(0,0,0); band_width]` (line ~345), so a caller
+  that passes a wide band (or no banding layer yet enforcing ≤ 4 MiB) still blows up. There
+  is no banding/splitter caller on `main` today.
+
+So this BUG is: (a) a hard reason the duplicate PR cannot land, and (b) a real defensive gap
+in the landed code — a writer should reject or bound a band whose dense directory would
+exceed a sane cap rather than `vec!`-allocate proportional to the id span. Coordinate with
+T-0009 (manifest partition map) on which layer owns banding. Rubric Cat. 2/3 (GATE).

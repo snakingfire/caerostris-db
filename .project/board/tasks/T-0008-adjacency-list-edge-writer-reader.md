@@ -10,7 +10,7 @@ deps: [SPIKE-0003, T-0006]
 rubric_refs: [2, 3]
 estimate: M
 created: T0+0:20
-updated: T0+4:10
+updated: T0+4:12
 ---
 
 ## Context
@@ -74,3 +74,18 @@ cost-model bytes budget from SPIKE-0001 / BUG-0004.
   regardless of the already-landed state. Full verdict + 4 non-blocking notes
   (C1 r<=1 scope-split escalation, open() full-GET vs cap-test honesty, mock-vs-S3
   range semantics, block_off internal-consistency guard) in the worktree PR.md.
+- T0+~4:05 (adversarial-reviewer): reviewed the **second / duplicate** T-0008 PR on
+  branch `work/T-0008-implement-compressed-adjacency-list-edge-writ` (worktree
+  `wf_156e2b80-bb6-41`, `AdjShardWriter`, HEAD `2e74b3f`). Verdict =
+  **changes_requested**; review-gate box left UNCHECKED. **This PR is a stale parallel
+  duplicate** — it diverged from `main` at `d4a9c70`, does NOT contain the landed
+  `3c0bd9c`, and conflicts with it (`adjacency.rs` differs entirely). Disposition:
+  **drop/close, do not land** (landing regresses main). Technical blockers found in the
+  duplicate's code: **BUG-0024** (`i64` delta overflow on dst ids straddling 2^63 — debug
+  panic / release wrap; PR-specific, main uses `wrapping_sub`), **BUG-0025** (writer derives
+  band from min/max of arbitrary edges → dense directory OOM/`u32` panic on sparse ids;
+  main mitigates via caller-supplied band but still `vec!`-allocates band_width — defensive
+  gap), **BUG-0027** (`expand_band` issues 1 + non-empty-sources serial range-GETs/hop →
+  r > 1; main has only single-source `expand`, so the obligation re-scopes to the planner
+  T-0018 + the C1 band-level test gap). C2 hard byte-cap genuinely discharged; format,
+  fail-closed parsing, and pvalue codec sound. Full verdict in worktree PR.md.
