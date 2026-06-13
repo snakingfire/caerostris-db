@@ -38,7 +38,7 @@ This output is jointly a Cat. 3 (latency) and Cat. 11 (formal artifacts) deliver
 - [ ] Envelope parameters (s, B_max, K, max seed-set size) defined with explicit derivations; the 1 Gbps ≈ 75 MB and 50 Mbps ≈ 4 MB cases both shown with the full formula.
 - [ ] Analytical cost model committed: step-by-step algebra proving in-envelope queries hit P99 ≤ 1 s cold, citing S3 latency distribution assumptions.
 - [ ] Out-of-envelope detection algorithm specified: input (query plan estimates), threshold formula, and required planner response documented.
-- [ ] Document committed to `docs/design/` or `docs/adrs/` and cross-referenced from EPIC-003 and SPIKE-0003.
+- [ ] Document committed to `docs/adr/` and cross-referenced from EPIC-003 and SPIKE-0003.
 - [ ] Steering-ratification record committed: both steering-perf-sla and steering-formal-methods sign-off recorded in `.project/decisions/`.
 - [ ] No code required — this is a design/proof artifact. A simulation to corroborate is welcome but not required here (that is EPIC-003's benchmark task).
 

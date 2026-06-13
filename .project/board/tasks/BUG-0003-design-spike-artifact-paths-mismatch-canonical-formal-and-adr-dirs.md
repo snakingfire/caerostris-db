@@ -2,15 +2,15 @@
 id: BUG-0003
 title: Design-spike artifact paths mismatch canonical formal and ADR dirs
 type: bug
-status: ready
+status: done
 priority: P0
-assignee:
+assignee: docs-memory-curator
 epic: EPIC-004
 deps: []
 rubric_refs: [1, 11, 7]
 estimate: S
 created: 2026-06-13T18:30:19Z
-updated: 2026-06-13T18:30:19Z
+updated: 2026-06-13T20:05:00Z
 ---
 
 ## Context
@@ -49,19 +49,29 @@ Cat. 11 caps at ≤50, and my Cat. 1 sign-off loses its referent — both GATE
 categories silently underscore for a pure pathing reason.
 
 ## Acceptance criteria
-- [ ] `SPIKE-0001`, `SPIKE-0002`, `SPIKE-0003`, and `EPIC-004` acceptance-criteria
+- [x] `SPIKE-0001`, `SPIKE-0002`, `SPIKE-0003`, and `EPIC-004` acceptance-criteria
       text updated so **ADR path = `docs/adr/`** and **formal-artifact path =
       `formal/`** (e.g. `formal/commit-protocol/`, `formal/latency-model/`,
       `formal/latency-sim/`), matching `docs/adr/README.md` and
       `docs/process/formal-verification-policy.md`.
-- [ ] A repo-wide grep confirms no remaining references to `docs/adrs/` or
+- [x] A repo-wide grep confirms no remaining references to `docs/adrs/` or
       `docs/formal/` in `.project/board/` or `docs/` (except this bug's own
       description and any historical decision record).
-- [ ] No code change required; docs/board-text only.
-- [ ] `./format_code.sh` green (no Rust touched; trivially green).
+- [x] No code change required; docs/board-text only.
+- [x] `./format_code.sh` green (no Rust touched; trivially green).
 
 ## Notes / log
 - T0+ratification: filed by steering-distributed-acid. This is a doc/board-text
   fix only — pure pathing — and is independent of the protocol design itself, so
   it does not block the launch. Assign to `docs-memory-curator` or `planner-decomposer`.
   Fix early so the SPIKE-0002 author commits to the right paths the first time.
+- 2026-06-13T20:05:00Z (docs-memory-curator): Fixed. Four edits:
+  - SPIKE-0001 AC: `docs/design/` or `docs/adrs/` → `docs/adr/`
+  - SPIKE-0003 AC: `docs/design/storage-format.md` (or `docs/adrs/`) → `docs/adr/0003-storage-format.md`
+  - EPIC-004 AC: `docs/formal/` → `formal/commit-protocol/`
+  - SPIKE-0002 already self-corrected (its acceptance criteria used canonical paths;
+    its line 38 is a historical explanatory note documenting the original wrong paths —
+    preserved per the AC exception for "historical decision records").
+  Confirmed: no actionable references to `docs/adrs/` or `docs/formal/` remain in
+  board or docs outside of this BUG file and SPIKE-0002's historical note.
+  `./format_code.sh` green. Landing commit: see `board:` + `docs:` commits.

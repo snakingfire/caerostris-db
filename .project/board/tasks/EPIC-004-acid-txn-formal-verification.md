@@ -26,7 +26,7 @@ Relevant requirements: R2 (ACID, single-writer/multi-reader), R3 (attach modes â
 ## Acceptance criteria
 
 - [ ] Protocol ADR committed: atomic manifest swap mechanism, writer leasing/fencing strategy, reader snapshot pinning, GC safety, and failure modes documented.
-- [ ] TLA+/Apalache model committed to `docs/formal/` covering atomicity (no partial commit visible to readers), snapshot isolation (readers see consistent version V while writer commits V+1), and fencing (no two writer-masters simultaneously).
+- [ ] TLA+/Apalache model committed to `formal/commit-protocol/` covering atomicity (no partial commit visible to readers), snapshot isolation (readers see consistent version V while writer commits V+1), and fencing (no two writer-masters simultaneously).
 - [ ] Model checked by Apalache with no invariant violations for the full protocol state space (within a bounded model check).
 - [ ] Rust implementation passes all ACID property tests: unit tests for each invariant (atomicity, consistency, isolation, durability) plus property-based tests with arbitrary interleavings.
 - [ ] Crash/partial-write recovery tested: simulated failures at each commit phase leave the database in the pre-commit state.
