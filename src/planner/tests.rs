@@ -443,6 +443,188 @@ fn explain_indents_children_under_parents() {
     );
 }
 
+// --- review-finding regressions ---------------------------------------------
+// The adversarial-reviewer + premortem-analyst gate (T+3:45) found several
+// silent-mis-plan holes; these tests pin the fixes (faithful-lower or explicit
+// PlanError, never a silently-wrong plan).
+
+#[test]
+fn destination_node_labels_are_not_dropped() {
+    // FINDING: `(a:X)-[:R]->(b:Person)` previously lost the `:Person` constraint
+    // on `b`, killing the selectivity anchor and returning wrong rows. The
+    // destination labels must survive as a __has_labels filter.
+    let p = planned("MATCH (a:Person)-[:KNOWS]->(b:Admin) RETURN b");
+    let preds = all_filter_predicates(&p.root);
+    let has_label_filter = preds.iter().any(|e| match e {
+        crate::cypher::ast::Expr::FunctionCall { name, args, .. } => {
+            name == super::HAS_LABELS_FN
+                && args.iter().any(|a| {
+                    matches!(a, crate::cypher::ast::Expr::Literal(
+                        crate::model::PropertyValue::String(s)) if s == "Admin")
+                })
+        }
+        _ => false,
+    });
+    assert!(
+        has_label_filter,
+        "destination label :Admin must survive as a __has_labels filter; explain:\n{}",
+        p.explain()
+    );
+}
+
+#[test]
+fn destination_label_filter_rests_above_the_binding_expand() {
+    // The __has_labels(b, ...) filter references `b`, bound only by the expand,
+    // so it rests above the expand — but it is still present (not dropped).
+    let p = planned("MATCH (a:Person)-[:KNOWS]->(b:Admin) RETURN b");
+    let explain = p.explain();
+    let filter_line = explain
+        .lines()
+        .position(|l| l.trim_start().starts_with("Filter"))
+        .expect("a filter for the destination label is present");
+    let expand_line = explain.lines().position(|l| l.contains("Expand")).unwrap();
+    assert!(filter_line < expand_line, "explain:\n{explain}");
+}
+
+#[test]
+fn multi_pattern_match_is_rejected_not_silently_dropped() {
+    // FINDING: comma-separated patterns previously kept only the last pattern,
+    // leaving a RETURN referencing an unbound variable. Reject explicitly.
+    let ast = parse("MATCH (a:Person), (b:Company) RETURN a, b").unwrap();
+    match plan(&ast) {
+        Err(PlanError::Unsupported { reason }) => {
+            assert!(reason.contains("multi-pattern"), "reason was: {reason}");
+        }
+        other => panic!("expected Unsupported, got {other:?}"),
+    }
+}
+
+#[test]
+fn var_length_relationship_is_rejected_not_collapsed() {
+    // FINDING: `*1..6` previously collapsed to a single hop, silently
+    // under-returning and mis-sizing the OOE byte estimate.
+    let ast = parse("MATCH (a:Person)-[:KNOWS*1..6]->(b) RETURN b").unwrap();
+    match plan(&ast) {
+        Err(PlanError::Unsupported { reason }) => {
+            assert!(reason.contains("variable-length"), "reason was: {reason}");
+        }
+        other => panic!("expected Unsupported, got {other:?}"),
+    }
+}
+
+#[test]
+fn anonymous_nodes_get_distinct_names_no_self_loop() {
+    // FINDING: anon nodes keyed on labels made `()-[:R]->()` a self-loop
+    // (from == to). Each anonymous node must bind a distinct variable.
+    let p = planned("MATCH (a:Person)-[:KNOWS]->()-[:KNOWS]->(c) RETURN c");
+    fn expands<'a>(op: &'a Operator, out: &mut Vec<(&'a str, &'a str)>) {
+        if let Operator::Expand { from, to, .. } = op {
+            out.push((from.as_str(), to.as_str()));
+        }
+        for c in op.children() {
+            expands(c, out);
+        }
+    }
+    let mut e = Vec::new();
+    expands(&p.root, &mut e);
+    assert_eq!(e.len(), 2, "explain:\n{}", p.explain());
+    for (from, to) in &e {
+        assert_ne!(
+            from,
+            to,
+            "expand must not self-loop; explain:\n{}",
+            p.explain()
+        );
+    }
+    // The two expands chain through the (distinct) anonymous node: one expand's
+    // destination is the other's source. (`expands` walks root-first, so the
+    // outermost — last-built — expand is e[0].)
+    assert_eq!(
+        e[1].1, e[0].0,
+        "the chain must thread through the anon node; expands: {e:?}"
+    );
+    // The shared variable is the synthetic anon name, distinct from a and c.
+    assert!(e[1].1.starts_with("__anon_"), "expands: {e:?}");
+}
+
+#[test]
+fn named_edge_property_map_lowers_to_filter() {
+    // FINDING: `[r:KNOWS {since: 2020}]` previously dropped the {since} filter.
+    let p = planned("MATCH (a:Person)-[r:KNOWS {since: 2020}]->(b) RETURN b");
+    let preds = all_filter_predicates(&p.root);
+    let has_edge_filter = preds.iter().any(|e| match e {
+        crate::cypher::ast::Expr::Binary { op, lhs, .. } => {
+            *op == BinaryOp::Equal
+                && matches!(lhs.as_ref(), crate::cypher::ast::Expr::Property { base, key }
+                    if matches!(base.as_ref(), crate::cypher::ast::Expr::Variable(v) if v == "r")
+                        && key == "since")
+        }
+        _ => false,
+    });
+    assert!(
+        has_edge_filter,
+        "edge property r.since must survive as a filter; explain:\n{}",
+        p.explain()
+    );
+}
+
+#[test]
+fn anonymous_edge_property_map_is_rejected_not_dropped() {
+    // An inline property map on an *unnamed* relationship cannot be referenced
+    // by a filter; reject rather than silently drop it.
+    let ast = parse("MATCH (a:Person)-[:KNOWS {since: 2020}]->(b) RETURN b").unwrap();
+    match plan(&ast) {
+        Err(PlanError::Unsupported { reason }) => {
+            assert!(reason.contains("unnamed relationship"), "reason: {reason}");
+        }
+        other => panic!("expected Unsupported, got {other:?}"),
+    }
+}
+
+#[test]
+fn optional_match_continues_from_a_bound_variable() {
+    // `OPTIONAL MATCH (a)-[:R]->(b)` after `MATCH (a:Person)`: the optional
+    // subtree's leading `(a)` is already bound and must NOT emit a second scan
+    // nor raise UnboundVariable for `a`.
+    let p = planned("MATCH (a:Person) OPTIONAL MATCH (a)-[:KNOWS]->(b) RETURN a, b");
+    // Exactly one LabelScan (for the required `a`); the optional side reuses it.
+    assert_eq!(
+        p.explain().matches("LabelScan").count(),
+        1,
+        "explain:\n{}",
+        p.explain()
+    );
+}
+
+#[test]
+fn unbound_variable_error_is_constructible_with_a_clear_message() {
+    // FINDING: PlanError::UnboundVariable was declared + documented but never
+    // constructed. It is now the defensive invariant guard on lower_expand's
+    // source (lower.rs: `if !self.bound.contains(from)`). In single-pattern
+    // lowering the source is always threaded from a bound variable, so the guard
+    // is defence-in-depth that becomes load-bearing once cross-pattern / WITH-
+    // scope joins land; this asserts the variant and its operator-facing message.
+    let err = PlanError::UnboundVariable {
+        variable: "ghost".to_string(),
+    };
+    assert_eq!(
+        format!("{err}"),
+        "variable `ghost` is not bound at this point"
+    );
+}
+
+#[test]
+fn has_labels_filter_anchors_on_scan_for_start_node_is_not_redundant() {
+    // The *start* node's labels are on the LabelScan, NOT also re-emitted as a
+    // redundant __has_labels filter (that would double the work).
+    let p = planned("MATCH (n:Person) RETURN n");
+    let preds = all_filter_predicates(&p.root);
+    assert!(
+        preds.is_empty(),
+        "start-node labels belong on the scan, not a filter; preds: {preds:?}"
+    );
+}
+
 // --- helpers ----------------------------------------------------------------
 
 /// Find the first Filter predicate in the tree (depth-first), for assertions.
@@ -451,4 +633,19 @@ fn find_filter_predicate(op: &Operator) -> Option<crate::cypher::ast::Expr> {
         return Some(predicate.clone());
     }
     op.children().into_iter().find_map(find_filter_predicate)
+}
+
+/// Collect every Filter predicate in the tree (depth-first).
+fn all_filter_predicates(op: &Operator) -> Vec<crate::cypher::ast::Expr> {
+    let mut out = Vec::new();
+    fn walk(op: &Operator, out: &mut Vec<crate::cypher::ast::Expr>) {
+        if let Operator::Filter { predicate, .. } = op {
+            out.push(predicate.clone());
+        }
+        for c in op.children() {
+            walk(c, out);
+        }
+    }
+    walk(op, &mut out);
+    out
 }

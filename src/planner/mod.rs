@@ -35,7 +35,7 @@ pub mod pushdown;
 mod tests;
 
 pub use error::{PlanError, PlanResult};
-pub use plan::{Estimates, LogicalPlan, Operator, ProjectionColumn, SortKey};
+pub use plan::{Estimates, HAS_LABELS_FN, LogicalPlan, Operator, ProjectionColumn, SortKey};
 pub use pushdown::push_down_filters;
 
 use crate::cypher::ast::Query;
@@ -45,8 +45,12 @@ use crate::cypher::ast::Query;
 ///
 /// # Errors
 ///
-/// Returns a [`PlanError`] if the query is empty, references an unbound
-/// variable, or uses a clause shape the read-query planner cannot lower.
+/// Returns a [`PlanError`] if the query is empty
+/// ([`EmptyQuery`](PlanError::EmptyQuery)), uses a shape not yet lowered
+/// ([`Unsupported`](PlanError::Unsupported): multi-pattern `MATCH`,
+/// variable-length relationships, or an inline property map on an unnamed
+/// relationship — rejected explicitly, never silently mis-planned), or
+/// references an unbound expand source ([`UnboundVariable`](PlanError::UnboundVariable)).
 ///
 /// # Examples
 ///

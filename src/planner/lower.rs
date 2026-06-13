@@ -7,6 +7,7 @@
 //! [`push_down`](super::pushdown) pass.
 
 use std::collections::BTreeSet;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::cypher::ast::{
     Clause, Expr, MatchClause, NodePattern, PathPattern, ProjectionClause, ProjectionItem, Query,
@@ -15,7 +16,7 @@ use crate::cypher::ast::{
 use crate::model::PropertyValue;
 
 use super::error::{PlanError, PlanResult};
-use super::plan::{Estimates, LogicalPlan, Operator, ProjectionColumn, SortKey};
+use super::plan::{Estimates, HAS_LABELS_FN, LogicalPlan, Operator, ProjectionColumn, SortKey};
 use super::pushdown::push_down_filters;
 
 /// Lower a parsed read-query AST into a logical plan, applying filter
@@ -23,8 +24,14 @@ use super::pushdown::push_down_filters;
 ///
 /// # Errors
 ///
-/// Returns a [`PlanError`] if the query is empty, references an unbound
-/// variable, or uses a clause shape the read-query planner cannot lower.
+/// Returns a [`PlanError`]:
+/// - [`EmptyQuery`](PlanError::EmptyQuery) — no clauses, or nothing to plan.
+/// - [`Unsupported`](PlanError::Unsupported) — a shape not yet lowered
+///   (multi-pattern `MATCH`, variable-length relationships, an inline property
+///   map on an unnamed relationship). These are rejected explicitly rather than
+///   silently mis-planned.
+/// - [`UnboundVariable`](PlanError::UnboundVariable) — the defensive invariant
+///   guard on an expand source (reachable once cross-pattern joins land).
 pub fn lower(query: &Query) -> PlanResult<LogicalPlan> {
     if query.clauses.is_empty() {
         return Err(PlanError::EmptyQuery);
@@ -39,6 +46,12 @@ pub fn lower(query: &Query) -> PlanResult<LogicalPlan> {
     let root = push_down_filters(root);
     Ok(LogicalPlan::new(root))
 }
+
+/// Process-wide counter making every anonymous node's synthetic variable name
+/// unique. Two anonymous nodes in one pattern (`()-[:R]->()`) must NOT share a
+/// name, or the chained expand would self-loop (`from == to`) and corrupt the
+/// plan. A monotonic counter guarantees distinctness across the whole process.
+static ANON_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Running lowering state: the operator built so far plus whether it is still
 /// the fresh single-row [`Empty`](Operator::Empty) leaf (so the first scanned
@@ -69,17 +82,35 @@ impl LoweringState {
         }
     }
 
-    /// Lower a `MATCH` / `OPTIONAL MATCH`. The patterns build a chain of
-    /// scans/expands; the inline property maps and the `WHERE` predicate are
-    /// emitted as filters stacked on top (the push-down pass relocates them).
+    /// Lower a `MATCH` / `OPTIONAL MATCH`. The single path pattern builds a
+    /// chain of scans/expands; the inline property maps and the `WHERE`
+    /// predicate are emitted as filters stacked on top (the push-down pass
+    /// relocates them).
+    ///
+    /// Multi-pattern (comma-separated) `MATCH` is a join we do not yet lower:
+    /// rather than silently dropping all but one pattern (a wrong-results bug),
+    /// it raises [`PlanError::Unsupported`]. A dedicated join operator is a
+    /// follow-up (see the module-level scope note).
     fn lower_match(&mut self, m: &MatchClause) -> PlanResult<()> {
+        if m.patterns.len() != 1 {
+            return Err(PlanError::Unsupported {
+                reason: "comma-separated multi-pattern MATCH (cross-pattern join) \
+                         is not yet lowered"
+                    .to_string(),
+            });
+        }
+        let pattern = &m.patterns[0];
+
         if m.optional {
             // OPTIONAL MATCH: build the pattern as an independent subtree over a
             // fresh Empty leaf, then left-outer-apply it onto the running plan.
-            let mut sub = LoweringState::default();
-            for pattern in &m.patterns {
-                sub.lower_pattern(pattern)?;
-            }
+            // The optional subtree starts from the variables the required side
+            // already bound, so its leading node may reference a bound variable.
+            let mut sub = LoweringState {
+                bound: self.bound.clone(),
+                ..LoweringState::default()
+            };
+            sub.lower_pattern(pattern)?;
             if let Some(pred) = &m.where_clause {
                 sub.push_filters(pred);
             }
@@ -93,57 +124,73 @@ impl LoweringState {
             return Ok(());
         }
 
-        for pattern in &m.patterns {
-            self.lower_pattern(pattern)?;
-        }
+        self.lower_pattern(pattern)?;
         if let Some(pred) = &m.where_clause {
             self.push_filters(pred);
         }
         Ok(())
     }
 
-    /// Lower one comma-separated path pattern into scans + expands.
+    /// Lower one path pattern into scans + expands.
     fn lower_pattern(&mut self, pattern: &PathPattern) -> PlanResult<()> {
-        self.lower_start_node(&pattern.start);
-        let mut prev_var = node_var(&pattern.start);
+        let start_var = self.lower_start_node(&pattern.start);
+        let mut prev_var = start_var;
         for step in &pattern.steps {
+            // Variable-length relationships (`*1..6`) expand to a frontier the
+            // executor walks; lowering them to a fixed operator chain would
+            // silently under-count hops (and mis-size the OOE byte estimate).
+            // Until var-length expansion is modelled, reject explicitly rather
+            // than collapse to a single hop.
+            if step.relationship.var_length.is_some() {
+                return Err(PlanError::Unsupported {
+                    reason: "variable-length relationship (`*min..max`) expansion \
+                             is not yet lowered"
+                        .to_string(),
+                });
+            }
             let to_var = node_var(&step.node);
-            self.lower_expand(&prev_var, &step.relationship, &to_var);
-            self.lower_node_constraints(&step.node);
+            self.lower_expand(&prev_var, &step.relationship, &to_var)?;
+            self.lower_node_constraints(&step.node, &to_var);
             prev_var = to_var;
         }
         Ok(())
     }
 
-    /// Emit the scan for a pattern's starting node. If `current` is still the
-    /// fresh `Empty`, the scan becomes the new leaf; otherwise it is a cartesian
-    /// product / multi-pattern join — modelled here as a fresh scan replacing
-    /// the leaf only when fresh, else stacked (the executor performs the join).
-    fn lower_start_node(&mut self, node: &NodePattern) {
+    /// Emit the scan for a pattern's starting node, returning the variable it
+    /// binds. If the node references a variable already bound (the leading node
+    /// of an `OPTIONAL MATCH` continuation), no new scan is emitted — the
+    /// running operator already produces it.
+    fn lower_start_node(&mut self, node: &NodePattern) -> String {
         let var = node_var(node);
-        let scan = scan_for(&var, &node.labels);
-        if self.fresh {
-            self.current = scan;
-            self.fresh = false;
-        } else if !self.bound.contains(&var) {
-            // A new, previously-unbound start node in a later pattern: the
-            // executor joins it with the running rows (cartesian unless a
-            // shared variable links them). We stack the scan's bindings; the
-            // join itself is the executor's concern (T-0019).
-            // Replace current with a structure that retains both: model as
-            // Expand-less — keep current and register the new scan's variable so
-            // later expands resolve. For now, wrap as an Optional-free join by
-            // keeping current and noting the binding; a dedicated Join operator
-            // is a follow-up (the read surface here is single-pattern dominant).
-            self.current = scan;
-            self.fresh = false;
+        if self.bound.contains(&var) && !self.fresh {
+            // Continuation from an already-bound variable (e.g. the `(a)` in
+            // `OPTIONAL MATCH (a)-[:R]->(b)` where `a` came from the required
+            // side). Keep the running operator; just apply any new constraints.
+            self.lower_node_constraints(node, &var);
+            return var;
         }
-        self.bound.insert(var);
-        self.lower_node_constraints(node);
+        let scan = scan_for(&var, &node.labels);
+        self.current = scan;
+        self.fresh = false;
+        self.bound.insert(var.clone());
+        // The start node's labels are on the scan; only its inline property map
+        // needs a filter (labels are not re-emitted as a redundant filter).
+        self.lower_property_map(node, &var);
+        var
     }
 
     /// Emit an expand from `from` to `to` along the relationship pattern.
-    fn lower_expand(&mut self, from: &str, rel: &RelPattern, to: &str) {
+    ///
+    /// # Errors
+    ///
+    /// [`PlanError::UnboundVariable`] if `from` is not bound by the operator
+    /// built so far (a dangling expand source — e.g. a cross-pattern reference).
+    fn lower_expand(&mut self, from: &str, rel: &RelPattern, to: &str) -> PlanResult<()> {
+        if !self.bound.contains(from) {
+            return Err(PlanError::UnboundVariable {
+                variable: from.to_string(),
+            });
+        }
         self.current = Operator::Expand {
             input: Box::new(std::mem::replace(&mut self.current, Operator::Empty)),
             from: from.to_string(),
@@ -157,19 +204,40 @@ impl LoweringState {
         if let Some(rv) = &rel.variable {
             self.bound.insert(rv.clone());
         }
+        // An edge-property map (`[r {since: 2020}]`) is a predicate on the
+        // relationship; emit it so it is not silently dropped. It references the
+        // rel variable, so it rests above this expand.
+        if let (Some(rv), Some(props)) = (&rel.variable, &rel.properties) {
+            for (key, value_expr) in props {
+                self.stack_filter(property_equals(rv, key, value_expr.clone()));
+            }
+        } else if rel.properties.is_some() {
+            // An inline edge-property map on an anonymous relationship cannot be
+            // referenced by a filter; reject rather than drop it.
+            return Err(PlanError::Unsupported {
+                reason: "inline property map on an unnamed relationship is not \
+                         yet lowered (name the relationship to filter on it)"
+                    .to_string(),
+            });
+        }
+        Ok(())
     }
 
-    /// Lower a node pattern's label set and inline property map into filters
-    /// (the label set is already on the scan; the inline `{k: v}` map becomes
-    /// equality predicates that push down to the scan).
-    fn lower_node_constraints(&mut self, node: &NodePattern) {
-        let Some(var) = node.variable.as_deref() else {
-            return;
-        };
+    /// Lower a non-start node's full constraint set: its labels (as a label-test
+    /// filter — the start node already gets a LabelScan, but a *destination*
+    /// node's labels must not be dropped) and its inline property map.
+    fn lower_node_constraints(&mut self, node: &NodePattern, var: &str) {
+        if !node.labels.is_empty() {
+            self.stack_filter(has_labels(var, &node.labels));
+        }
+        self.lower_property_map(node, var);
+    }
+
+    /// Lower a node's inline `{k: v}` property map into equality filters.
+    fn lower_property_map(&mut self, node: &NodePattern, var: &str) {
         if let Some(props) = &node.properties {
             for (key, value_expr) in props {
-                let predicate = property_equals(var, key, value_expr.clone());
-                self.stack_filter(predicate);
+                self.stack_filter(property_equals(var, key, value_expr.clone()));
             }
         }
     }
@@ -275,14 +343,37 @@ impl LoweringState {
     }
 }
 
-/// The variable a node pattern binds, synthesising a stable anonymous name when
-/// the pattern is unnamed (`()` / `(:Label)`), so expands always have a source.
+/// The variable a node pattern binds, synthesising a **unique** anonymous name
+/// when the pattern is unnamed (`()` / `(:Label)`), so expands always have a
+/// distinct source and destination.
+///
+/// The name must be unique per occurrence: keying on labels alone (the old
+/// behaviour) made `()-[:R]->()` lower to `Expand (__anon)-[:R]->(__anon)` —
+/// a self-loop where `from == to` — corrupting the headline multi-hop plan. A
+/// monotonic counter guarantees distinctness.
 fn node_var(node: &NodePattern) -> String {
     node.variable.clone().unwrap_or_else(|| {
-        // Anonymous nodes get a deterministic synthetic name keyed by labels so
-        // repeated lowering is stable within one pattern build.
-        format!("__anon_{}", node.labels.join("_"))
+        let n = ANON_COUNTER.fetch_add(1, Ordering::Relaxed);
+        format!("__anon_{n}")
     })
+}
+
+/// Build the label-test predicate for a node's `:Label` set. Lowered as a
+/// synthetic function call [`HAS_LABELS_FN`] over the node variable and one
+/// string literal per required label; the executor recognises this name. This
+/// keeps a destination node's labels in the plan (they would otherwise be
+/// silently dropped) and lets push-down anchor them like any other predicate.
+fn has_labels(var: &str, labels: &[String]) -> Expr {
+    let mut args = Vec::with_capacity(labels.len() + 1);
+    args.push(Expr::Variable(var.to_string()));
+    for label in labels {
+        args.push(Expr::Literal(PropertyValue::String(label.clone())));
+    }
+    Expr::FunctionCall {
+        name: HAS_LABELS_FN.to_string(),
+        distinct: false,
+        args,
+    }
 }
 
 /// Build the leaf scan for a node: [`LabelScan`](Operator::LabelScan) when

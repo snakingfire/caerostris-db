@@ -27,6 +27,19 @@
 
 use crate::cypher::ast::{Direction, Expr};
 
+/// The reserved function name used in a [`Filter`](Operator::Filter) predicate
+/// to test that a node carries a set of labels.
+///
+/// A node-label restriction (`(b:Person)`) on a node that is *not* the
+/// pattern's scan anchor cannot be a `LabelScan` (the rows already exist); it
+/// must be a filter. openCypher's expression grammar has no native label-test
+/// node, so the planner lowers it to a synthetic call
+/// `__has_labels(var, "Label1", "Label2", …)`. The executor (T-0019) and the
+/// out-of-envelope estimator (T-0015) recognise this name; treating it as an
+/// ordinary user function would be a bug. The double-underscore prefix keeps it
+/// out of the user function namespace.
+pub const HAS_LABELS_FN: &str = "__has_labels";
+
 /// A complete logical plan: the root operator. Rows flow from the leaves up to
 /// the root.
 #[derive(Debug, Clone, PartialEq)]
