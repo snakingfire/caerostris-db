@@ -1,4 +1,8 @@
-# caerostris-db
+<p align="center">
+  <img src="docs/assets/caerostris-logo.png" alt="caerostris-db logo" width="200">
+</p>
+
+<h1 align="center">caerostris-db</h1>
 
 A graph database engine, written from the ground up to run on **commodity
 durable object storage** (e.g. S3), taking inspiration from systems like

@@ -578,3 +578,8 @@ done:~33 main GREEN (8e6f016). Working tree confirmed ON MAIN (demo runnable + p
 ## STATUS — T+4:10 (storage landing; polished demo building; main green, tree protected)
 done:~34 main GREEN (a874ead). Working tree ON MAIN ✓ (demo protected). 5/5 lanes. **T-0008 adjacency edge writer+reader LANDED** (storage layer materializing → Cat 2 up). T-DEMO2 polished MinIO demo building (125 lines, S3 backend + demo-minio.sh ETA ~15-20m; in-memory polish fallback). Storage writers reinforce the persist-to-S3 story for the demo.
 ~50m to deadline. No GATE sliding (Cat3=78/Cat10=82/Cat11=65). No P0.
+
+## STATUS — T+4:15 (storage layer landing fast; main green; demo building)
+done:40 main GREEN (52a3f54 — `    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s`). Working tree ON MAIN ✓ (demo protected). 5/5 lanes. Recent lands: **T-0009 manifest/stats/version-resolution**, T-0008 edge writer (T-0007 node writer next) → Cat 2 storage layer materializing; BUG-0015/0019/0021 (Cat4/5/12). T-DEMO2 polished MinIO demo building (165 lines, ETA soon).
+NOTE: a 'cargo build RED' this tick was TRANSIENT — caught a source file mid-write during a concurrent land merge; re-ran clean = GREEN. (Lesson: re-confirm before P0-ing on build during active merges.)
+~45m to deadline. No real GATE sliding.
