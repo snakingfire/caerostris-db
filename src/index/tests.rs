@@ -192,6 +192,14 @@ fn selectivity_is_clamped_to_unit_interval() {
 }
 
 #[test]
+fn least_selective_is_one_and_never_usable() {
+    let s = Selectivity::least_selective();
+    assert!((s.fraction() - 1.0).abs() < f64::EPSILON);
+    // Not usable even at a wide-open threshold just below 1.0.
+    assert!(!s.is_at_least_as_selective_as(0.999));
+}
+
+#[test]
 fn selectivity_threshold_comparison() {
     let selective = Selectivity::from_fraction(1, 100);
     let unselective = Selectivity::from_fraction(90, 100);
@@ -380,8 +388,97 @@ mod equality_only {
         let facade: &dyn PropertyIndex = &idx;
         let query = IndexQuery::Range(KeyRange::all());
         assert_eq!(facade.probe(&query), Err(IndexError::RangeUnsupported));
-        // And selectivity does not panic — it reports a non-selective estimate.
-        assert!(!facade.selectivity(&query).is_at_least_as_selective_as(0.5));
+        // And selectivity does not panic — it reports the least-selective estimate
+        // (1.0), so the planner never deems the index usable for this range query.
+        let sel = facade.selectivity(&query);
+        assert!((sel.fraction() - 1.0).abs() < f64::EPSILON);
+        assert!(!sel.is_at_least_as_selective_as(0.5));
+    }
+
+    /// Build a non-empty equality-only index of `count` distinct entries.
+    fn nonempty_equality_index(count: u64) -> EqualityIndex<OrderedKey, NodeId> {
+        let mut idx: EqualityIndex<OrderedKey, NodeId> = EqualityIndex::new();
+        for i in 0..count {
+            idx.insert(pv(&format!("k{i}")), node(i));
+        }
+        idx
+    }
+
+    // --- BUG-0020 regression ------------------------------------------------
+    //
+    // On a *non-empty* equality-only index, a range query must NOT be reported as
+    // selective. The old code returned `from_fraction(0, total)` == 0.0 (the MOST
+    // selective value), so a selectivity-driven planner would choose the index and
+    // then `probe` would error. The empty-index regression test masked this because
+    // `from_fraction(0, 0)` returns 1.0. These assert the non-empty case directly.
+
+    #[test]
+    fn bug_0020_range_selectivity_on_nonempty_equality_only_index_is_least_selective() {
+        // 100 entries, equality-only. The old impl reported fraction == 0.0.
+        let idx = nonempty_equality_index(100);
+        assert!(!idx.is_empty(), "precondition: the index is non-empty");
+        let facade: &dyn PropertyIndex = &idx;
+        let query = IndexQuery::Range(KeyRange::all());
+
+        let sel = facade.selectivity(&query);
+        // Must be the least-selective value 1.0, NOT 0.0 (most selective).
+        assert!(
+            (sel.fraction() - 1.0).abs() < f64::EPSILON,
+            "range selectivity on an equality-only index must be least-selective 1.0, got {}",
+            sel.fraction()
+        );
+    }
+
+    #[test]
+    fn bug_0020_planner_never_picks_an_unservable_range_index() {
+        // The contradiction the bug describes: selectivity says "use it" while probe
+        // errors. With the fix, `is_at_least_as_selective_as` is false for ANY sane
+        // threshold, so the planner never selects this index for a range query —
+        // hence the unservable probe is never reached.
+        let idx = nonempty_equality_index(100);
+        let facade: &dyn PropertyIndex = &idx;
+        let query = IndexQuery::Range(KeyRange::all());
+
+        // The planner's own usability test must reject the index across the whole
+        // open interval of thresholds a planner could plausibly use.
+        for threshold in [0.0, 0.1, 0.25, 0.5, 0.75, 0.99] {
+            assert!(
+                !facade
+                    .selectivity(&query)
+                    .is_at_least_as_selective_as(threshold),
+                "range query must not be deemed usable at threshold {threshold}"
+            );
+        }
+
+        // And the underlying probe genuinely cannot serve the query — proving the
+        // selectivity gate is what keeps the planner away from the error path.
+        assert_eq!(facade.probe(&query), Err(IndexError::RangeUnsupported));
+
+        // Cross-check via the planner-shaped helper used elsewhere in these tests:
+        // a thresholded selectivity check + probe must NOT route to the index.
+        assert_eq!(
+            choose_seed_set(facade, &query, 0.5),
+            None,
+            "the planner must fall back to a scan, never probe the unservable index"
+        );
+    }
+
+    #[test]
+    fn bug_0020_range_on_ordered_index_is_unaffected() {
+        // Guard against over-correction: a real ordered (B-tree-like) index must
+        // still report a meaningful selectivity for a range query it CAN serve.
+        let idx = text_index(&[("a", 1), ("b", 2), ("c", 3), ("d", 4)]);
+        let facade: &dyn PropertyIndex = &idx;
+        // [a, c) matches a, b → 2 of 4 → 0.5.
+        let query = IndexQuery::Range(KeyRange::half_open(qv("a"), qv("c")));
+        let sel = facade.selectivity(&query);
+        assert!(
+            (sel.fraction() - 0.5).abs() < f64::EPSILON,
+            "ordered-index range selectivity should be 2/4 = 0.5, got {}",
+            sel.fraction()
+        );
+        // And it remains servable.
+        assert_eq!(facade.probe(&query).unwrap(), vec![node(1), node(2)]);
     }
 }
 

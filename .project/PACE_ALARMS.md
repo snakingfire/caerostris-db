@@ -553,16 +553,21 @@ done:27 main GREEN (d320f93). Cleared a stray ci.yml half-merge (reset --merge).
 PRIORITY PIVOT (hackathon demo in ~2h): dispatched a focused implementer to build a RUNNABLE end-to-end demo (insert → MATCH → return) — minimal in-memory executor on the landed lexer/parser + data model, a `caero` CLI + scripts/demo.sh + docs/DEMO.md, verified working before land. This is the submission deliverable; outranks rubric breadth.
 Lanes keep building storage/python/cache breadth in parallel. ~1h44m to deadline.
 
+## STATUS — T+3:45 (main green, done 30; demo build in flight)
+done:30 ready:10 in_review:2 backlog:33. MAIN GREEN (d73b867) — no P0. SPIKE-0003 storage-format ADR 0008 fully ratified (7 falsification attacks survived) → storage cascade OPEN (T-0007/0008/0009/0010 = Cat 2/1 + Cat-4 executor layer). 5/5 lanes building it.
+DEMO (priority): focused build of runnable insert→MATCH→return CLI + scripts/demo.sh + docs/DEMO.md in flight (~5min in, ETA ~30-45min, will be verified-working before land). T-0018 planner in_review.
+~1h39m to deadline. GATEs strong (Cat3=78, Cat10~82, Cat11=65); overall ~34 climbing.
+
 ## STATUS — T+3:50 (main green; demo build progressing)
 done:30 ready:9 in_review:2 backlog:33. MAIN GREEN (feef7ea) — no P0. 5/5 lanes building the storage cascade (T-0007/0008/0009/0010, now open). T-0018 planner in_review.
 DEMO (priority): focused build progressing well (112 lines, ~10min, building the in-memory MATCH executor + caero CLI + scripts/demo.sh in its worktree; not landed yet, ETA ~20-30min). Will be verified-runnable before land.
 ~1h34m to deadline. GATEs strong (Cat3=78, Cat10~82, Cat11=65); overall ~34. No sliding.
 
-## STATUS — T+3:55 (✅ DEMO LANDED + VERIFIED WORKING)
-done:31 main GREEN. **DEMO LANDED (merge 61ffdac) and VERIFIED by pace-marshal** — `./scripts/demo.sh` inserts (:Person Alice/Bob)+KNOWS, runs `MATCH (p:Person {name:'Alice'}) RETURN p` → returns Alice, and `MATCH (a:Person)-[:KNOWS]->(b) RETURN a,b` → returns the pair. 248 tests pass. Files: src/demo/{store,executor,mod}.rs, src/bin/caero.rs, scripts/demo.sh, docs/DEMO.md. The hackathon deliverable is READY.
+## STATUS — T+3:55 (DEMO LANDED + VERIFIED WORKING)
+done:31 main GREEN. **DEMO LANDED (merge 61ffdac) and VERIFIED by pace-marshal** — `./scripts/demo.sh` inserts (:Person Alice/Bob)+KNOWS, runs `MATCH (p:Person {name:'Alice'}) RETURN p` -> returns Alice, and `MATCH (a:Person)-[:KNOWS]->(b) RETURN a,b` -> returns the pair. 248 tests pass. Files: src/demo/{store,executor,mod}.rs, src/bin/caero.rs, scripts/demo.sh, docs/DEMO.md. The hackathon deliverable is READY.
 Also landed: T-0004 dashboard, BUG-0010 ADR-hygiene guards. Storage cascade building (T-0007/0008). 5/5 lanes. ~1h29m to deadline.
 NOTE: restored main worktree to main (a T-0008 lane had transiently checked out in main again — recurring; demo unaffected, on main).
 
 ## STATUS — T+4:01 (human-testing window; building the POLISHED judge demo)
-done:33 main GREEN (ec47614), working tree ON MAIN (demo runnable + protected). 5/5 lanes. TRACKED REQUEST: polished MinIO-backed wow demo for the 1-min judge video (empty bucket → insert → objects appear → MATCH returns → complex queries). Filed T-DEMO2; dispatched a focused builder (a8120ba) to build the missing S3 ObjectStore backend + persist path + polished scripts/demo-minio.sh, fallback = polish the in-memory demo. Storage writers T-0007/0008 building in parallel.
+done:33 main GREEN (ec47614), working tree ON MAIN (demo runnable + protected). 5/5 lanes. TRACKED REQUEST: polished MinIO-backed wow demo for the 1-min judge video (empty bucket -> insert -> objects appear -> MATCH returns -> complex queries). Filed T-DEMO2; dispatched a focused builder (a8120ba) to build the missing S3 ObjectStore backend + persist path + polished scripts/demo-minio.sh, fallback = polish the in-memory demo. Storage writers T-0007/0008 building in parallel.
 Every tick now also VERIFIES the working tree stays on main (protects the demo from the recurring checkout-in-main race). ~59m to deadline.

@@ -10,7 +10,7 @@ deps: [BUG-0008]
 rubric_refs: [12]
 estimate: S
 created: T0+3:18
-updated: T0+3:30
+updated: T0+4:08
 ---
 
 ## Context
@@ -62,3 +62,16 @@ which is the more conservative behaviour the module otherwise upholds.
   cap fails closed (conservative `false`), boundary pinned by tests, format+tests
   re-run green. Two non-blocking notes recorded in PR.md. Still needs premortem-analyst
   sign-off before landing.
+- T0+4:08 — premortem-analyst **approve** on the same branch
+  (`work/BUG-0015-spdx-depth-cap`, worktree `wf_e9fceb87-27c-42`, HEAD 8d5ce5a).
+  Worked the corruption/SLA/concurrency/error/operational/security lenses: change
+  is confined to pure build-time license-parsing logic, so the P0 incident classes
+  (ACID, latency-theorem, split-brain, data loss) are structurally unreachable; the
+  one behaviour change is fail-loud `false`, never fail-open onto a copyleft license.
+  Re-ran `cargo test --lib licenses` (28/28) and `./format_code.sh` (exit 0); zero
+  dependency changes. Both review-gate boxes now checked in PR.md — ready to land.
+  Two non-blocking notes: (1) a future *generated* manifest over-nesting >64 levels
+  would fail loud (acceptable); (2) **duplicate work** — a second lane built an
+  equivalent fix on `work/BUG-0015-spdx-is-permissive-recursive-descent-parser-has-no`
+  (worktree `wf_156e2b80-bb6-50`). Integrator should land **one** (recommend this
+  `spdx-depth-cap` branch) and drop the other.

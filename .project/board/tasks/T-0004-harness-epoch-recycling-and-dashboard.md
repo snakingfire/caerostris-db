@@ -72,6 +72,20 @@ This task has no deps — it is ready from T0. The epoch hand-off format should 
   releases its claim — the rival's PR is the one to review/land. This lane's branch
   is left intact as a fallback artifact should the rival PR stall (T-0004 has a long
   history of stalling at this stage); if so, it can be picked up and landed cleanly.
+- **T+3:45 — integrator: BLOCKED — review gate not cleared.** Adversarial reviewer
+  verdict is `changes_requested` (T+3:30) — blocking finding: `stop.sh` silently
+  orphans checkpoint commits on detached HEAD (the `-z "$BRANCH"` guard on
+  `symbolic-ref` empty output causes commits on detached HEAD, which land on a
+  dangling commit with no branch ref, effectively lost — contradicts the
+  "nothing is lost" durability promise). Premortem analyst has not signed off.
+  Both review-gate checkboxes in `PR.md` are unchecked. Cannot land per protocol.
+  Author (implementer) must: (1) fix `stop.sh` to detect main explicitly using
+  `rev-parse --abbrev-ref HEAD` and refuse on detached HEAD (fall through to the
+  WARNING path, not commit); (2) add regression test for detached-HEAD path;
+  (3) re-run `./format_code.sh` + `cargo nextest run`; (4) re-request review
+  (review-gate checkboxes reset to unchecked until both reviewers re-approve).
+  The branch `work/T-0004-epoch-recycle-dash-stop-h` in worktree
+  `.claude/worktrees/wf_fe688db0-093-7` is preserved for the author to continue.
 - **T+4:10 — integrator: Landed in commit 1c5c118 at T+4:10.** Reland of
   `work/T-0004-mainspring-epoch-recycling-board-pace-dashboard`; rebased onto
   `61ffdac`, additive board conflict resolved (timestamp union), `./format_code.sh`

@@ -357,6 +357,16 @@ impl Selectivity {
         Self(f.clamp(0.0, 1.0))
     }
 
+    /// The least-selective estimate (`1.0`): the index is expected to match
+    /// every entry, so the planner will never prefer it over a full scan. Used
+    /// for queries an index **cannot serve at all** (e.g. a range query against
+    /// an equality-only index): reporting them as least-selective keeps the
+    /// planner from ever choosing — and then failing to `probe` — them.
+    #[must_use]
+    pub fn least_selective() -> Self {
+        Self(1.0)
+    }
+
     /// The raw fraction in `[0.0, 1.0]`.
     #[must_use]
     pub fn fraction(self) -> f64 {
@@ -430,13 +440,25 @@ where
         let total = self.entry_count();
         let matched = match query {
             IndexQuery::Equals(v) => self.lookup(&OrderedKey(v.clone())).len(),
+            // An index that cannot order its keys cannot *serve* a range query at
+            // all, so it must never be reported as a usable plan for one. Report
+            // the LEAST-selective value (1.0) — recall lower = more selective — so
+            // the planner's `is_at_least_as_selective_as(threshold)` test fails for
+            // every threshold and the index is never chosen for a range. Gating on
+            // the advertised capability is what fixes BUG-0020: the old
+            // `from_fraction(0, total)` was 0.0 (the *most* selective value) on a
+            // non-empty index, which made the planner pick an index whose `probe`
+            // then errors with `IndexError::RangeUnsupported`.
+            IndexQuery::Range(_) if !self.capabilities().supports_range => {
+                return Selectivity::least_selective();
+            }
             IndexQuery::Range(range) => match self.range_scan(&ordered_range(range)) {
                 Ok(hits) => hits.len(),
-                // An index that cannot range-scan matches nothing for a range
-                // query; the planner sees a 0-match (non-selective) estimate and
-                // falls back to a scan, while `probe` surfaces the error
-                // explicitly rather than silently returning no rows.
-                Err(_) => return Selectivity::from_fraction(0, total),
+                // Capabilities advertised range support yet the scan still
+                // declined: still treat it as unusable (least-selective) rather
+                // than misreporting it as maximally selective. `probe` surfaces
+                // the error explicitly if this query is ever reached.
+                Err(_) => return Selectivity::least_selective(),
             },
         };
         Selectivity::from_fraction(matched, total)

@@ -2,9 +2,9 @@
 id: BUG-0020
 title: Range selectivity on a non-empty equality-only index reports 0.0 (most selective), then probe errors
 type: bug
-status: ready
+status: in_review
 priority: P2
-assignee:
+assignee: implementer-wf_e9fceb87-27c-38
 epic: EPIC-005
 deps: []
 rubric_refs: [5, 3]
@@ -61,6 +61,36 @@ stub today), so P2; fix before T-0024.
 
 ## Notes / log
 - T+3:40 filed by adversarial-reviewer during T-0022 re-review. Pairs with BUG-0019.
+- T+3:58 implementer-wf_e9fceb87-27c-38: fixed TDD-first on `work/BUG-0020-range-selectivity-equality-only-index`
+  (branch off latest main `feef7ea`). `selectivity` now gates the `Range` arm on
+  `capabilities().supports_range` and reports least-selective `1.0` when a range
+  query cannot be served; added `Selectivity::least_selective()`; corrected the
+  inverted comment. RED→GREEN regression tests on a NON-EMPTY equality-only index.
+  Full workspace suite 296/296 green; `./format_code.sh` green. PR.md filled;
+  status -> in_review. Dispatching adversarial-reviewer + premortem-analyst.
+- T+4:02 adversarial-reviewer: **APPROVE** (verdict in PR.md). Independently
+  reproduced RED→GREEN (reverted prod arm → 2 regression tests fail "got 0" /
+  "usable at threshold 0", over-correction guard stays green → restored). Verified
+  `cargo build --lib`, `clippy --lib --all-features -D warnings`, `cargo test --lib`
+  (202 pass) all clean. Attacks landed: none — symmetric Equals gap (no, lookup is
+  mandatory), prefix-bypass (no, prefix=Range, gated), latency/ACID/security (not
+  engaged / strictly safer). Reviewer checkbox ticked. Non-blocking notes: stale
+  base (board-file deltas vs current main are NOT this branch's; land.sh rebases
+  first — integrator confirm clean rebase); threshold-1.0 edge documented for the
+  T-0024 planner author. Awaiting premortem-analyst sign-off before landing.
+- T+4:02 premortem-analyst: **APPROVE** (verdict in PR.md). No blocking failure
+  modes. Corruption/concurrency provably impossible (pure in-memory `&self`
+  estimator — no write/commit/manifest/lease/snapshot path). SLA: strictly more
+  conservative, zero S3 round-trips / bytes-read delta — protects Cat. 3. The
+  Cat. 4 / Cat. 5 incident this bug would have caused (planner picks an
+  unservable range index → probe errors, or silently returns no rows) is closed
+  at the source and proven by `bug_0020_planner_never_picks_an_unservable_range_index`
+  against the `choose_seed_set` helper. Re-verified locally: `cargo test --lib`
+  202 pass, `index::` 37 pass, `clippy --lib -D warnings` clean, `./format_code.sh`
+  exit 0; Cargo.toml/lock untouched (no dep/license risk). Non-blocking: duplicate
+  parallel branch `...-on-a-non-empty-equality-only-ind` (drop the loser); STALE-BASE
+  (land.sh rebases — integrator confirm clean rebase); threshold-1.0 edge for the
+  T-0024 planner author. Both review-gate sign-offs now APPROVE — ready to land.
 - T+4:04 premortem-analyst: APPROVE on PR `work/BUG-0020-range-selectivity-on-a-non-empty-equality-only-ind`
   (worktree `wf_156e2b80-bb6-46/.worktrees/BUG-0020`). Verified locally: build +
   clippy `-D warnings` + fmt clean, 202/202 lib tests (37/37 `index::`). Pure
