@@ -2,7 +2,7 @@
 id: BUG-0023
 title: unicode-ident license (Unicode-3.0 conjunct) missing from deny.toml allow-list and misrecorded in manifest
 type: bug
-status: in_progress
+status: in_review
 priority: P2
 assignee: implementer-wf_156e2b80-bb6-48
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+3:42
-updated: T0+3:50
+updated: T0+3:55
 ---
 
 ## Context
@@ -65,3 +65,12 @@ allow. License-gate records must be exact (cf. BUG-0008, BUG-0014).
   `unicode-ident 1.0.24` real license `(MIT OR Apache-2.0) AND Unicode-3.0` vs.
   manifest `MIT OR Apache-2.0` and absent `Unicode-3.0` in `deny.toml`. Pre-existing
   on `main` (T-0002 era); not introduced by T-0030.
+- **T0+3:55 — implementer-wf_156e2b80-bb6-48** TDD-first fix. Branch
+  `work/BUG-0023-unicode-3-0-deny-manifest`, PR worktree `.worktrees/BUG-0023`.
+  Confirmed the gap was REAL: `cargo deny check licenses` (v0.19.8) FAILS on the
+  pre-fix root allow-list (`error[rejected]: license is not explicitly allowed` —
+  `Unicode-3.0`, `unicode-ident v1.0.24`); passes (`licenses ok`) after adding
+  `Unicode-3.0`. Corrected manifest SPDX, documented Unicode-3.0 (+Zlib) in
+  guardrails §5, recorded Decision 0034. Spot-check: `unicode-ident` is the only
+  crate in either lockfile with an `AND`-conjunct real license. 233/233 tests green;
+  2 new regression tests. Set `in_review`.
