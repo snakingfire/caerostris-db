@@ -24,10 +24,12 @@
 //! platform. There is **no** dependency on the `rand` crate (whose stream is not
 //! stable across versions) precisely so the committed sample stays reproducible.
 
+pub mod cli;
 mod generator;
 pub mod io;
 mod rng;
 
+pub use cli::{GenerateArgs, parse_args};
 pub use generator::{EdgeIter, GenConfig, Generator, NodeIter};
 pub use io::{GenStats, GraphRecord, read_records, write_jsonl};
 pub use rng::SplitMix64;
