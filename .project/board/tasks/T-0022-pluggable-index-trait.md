@@ -2,15 +2,15 @@
 id: T-0022
 title: Define pluggable secondary-index trait (insert/delete/lookup/range)
 type: task
-status: ready
+status: in_progress
 priority: P2
-assignee:
+assignee: implementer-wf_6a2f8faf-da3-8
 epic: EPIC-005
 deps: [T-0006]
 rubric_refs: [5]
 estimate: S
 created: T0+0:20
-updated: T0+0:20
+updated: T+3:05
 ---
 
 ## Context
