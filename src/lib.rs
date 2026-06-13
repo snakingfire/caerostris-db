@@ -11,6 +11,7 @@
 //! |--------|---------|
 //! | [`engine`] | Graph engine core (stub — lands after SPIKE-0003) |
 //! | [`licenses`] | License-manifest hygiene (Cat. 12) |
+//! | [`model`] | Logical property-graph data model (Node, Edge, PropertyValue, Schema) |
 //! | [`planner`] | openCypher query planner (stub — lands in EPIC-002) |
 //! | [`query`] | Query execution surfaces (side-effect accounting) |
 //! | [`storage`] | Object-store abstraction + in-memory backend |
@@ -19,6 +20,7 @@
 
 pub mod engine;
 pub mod licenses;
+pub mod model;
 pub mod planner;
 pub mod query;
 pub mod storage;

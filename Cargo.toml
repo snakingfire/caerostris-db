@@ -22,5 +22,12 @@ keywords = ["database", "graph", "object-storage", "s3"]
 categories = ["database-implementations"]
 
 [dependencies]
+# Serde derive for the logical graph model (T-0006): downstream storage/query
+# layers serialise these types in tests without depending on the on-object
+# byte format. License-clean (MIT OR Apache-2.0; already recorded in the license
+# manifest via the tck-runner) and already resolved in Cargo.lock.
+serde.workspace = true
 
 [dev-dependencies]
+# JSON round-trip assertions for the model's serde derives (T-0006 tests only).
+serde_json.workspace = true
