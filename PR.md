@@ -87,7 +87,7 @@ half-working PRs — so it ships as one.
 
 ## Review gate
 
-- [ ] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
+- [x] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
 - [ ] premortem-analyst sign-off (see docs/process/adversarial-review-loops.md)
 - [ ] `./format_code.sh` green
 - [ ] `cargo nextest run` green (or `cargo test` outside Nix shell)
@@ -95,3 +95,79 @@ half-working PRs — so it ships as one.
 - [ ] board item updated to `in_review`
 
 <!-- Reviewers: append your verdict block below this line per adversarial-review-loops.md -->
+
+## Adversarial-reviewer verdict
+
+verdict: approve
+
+blocking_findings: []
+
+non_blocking_notes:
+  - "[DETERMINISM] The PR.md headline 'byte-identical output on every platform,
+    forever' is true for the default config and the committed sample
+    (zipf_exponent = 1.0) but is technically overstated for *non-unit* exponents.
+    Verified: `(rank+1).powf(1.0)` returns its argument exactly for all 2M ranks
+    tested, so the unit-exponent CDF — and therefore the only fixture pinned by a
+    byte-for-byte test — is IEEE-exact and cross-platform-stable. For
+    `--zipf != 1.0`, `f64::powf` routes to the platform libm `pow`, which is not
+    bit-guaranteed across libm implementations; the cumulative prefix sums and
+    `partition_point` target selection could then differ by a rank on a different
+    platform. No committed artifact uses a non-unit exponent, so nothing in-repo
+    breaks. Consider tightening the doc wording (or replacing `powf` with an
+    integer-exponent fast path for the common case) in a follow-up — not blocking."
+  - "[32-BIT] `Vec::with_capacity(n as usize)` and the Fisher–Yates `(i+1) as u64`
+    cast would diverge on a 32-bit target only for graphs > 2^32 nodes — far
+    outside any realistic test/bench size and outside the 64-bit target box. Noted
+    for completeness; not blocking."
+  - "[DOC NIT] PR.md test-evidence says 'No `#[allow]`s added', but the diff adds
+    7 narrowly-scoped, justified numeric-cast allows (precision-loss / truncation /
+    wrap on f64<->int conversions). They are correct and local — none suppress a
+    correctness lint — but the claim should read 'no blanket allows; 7 scoped
+    cast-lint allows'."
+  - "[REBASE] Branch is behind `main` (merge-base cf70365 vs main a5ea4b5); `main.rs`
+    was a near-empty stub and is now a CLI dispatcher, so a competing CLI-entry PR
+    could conflict at land time. The module is otherwise self-contained
+    (src/dataset/, lib.rs, Cargo.toml, tests/, docs/). Integrator's land.sh handles
+    rebase conflicts; not a review blocker."
+
+attacks_attempted_and_survived:
+  - "PRNG determinism: SplitMix64 is pure wrapping u64 arithmetic; `below()` uses a
+    u128 multiply-shift; `unit_f64()` is integer-shift / power-of-two division —
+    all IEEE-exact and platform-independent. Golden-value KAT test pins the stream.
+    Could not make identical seeds diverge."
+  - "Power-law CDF reproducibility: tried to bust the committed-sample byte-exact
+    test via `powf` non-determinism. Survived — the sample uses exponent 1.0 and
+    `powf(1.0)` is exact (empirically 0/2M ranks differ from the argument)."
+  - "Empty / single-node / divide-by-zero: `edges()` asserts a non-empty node set
+    when edges>0, so `sample()` never sees an empty CDF (`total()>0`);
+    `rank.min(len-1)` guards the partition_point==len boundary; 1-node graphs
+    terminate (bounded re-roll + modulo fallback) and are tested. No panic path
+    reachable for valid configs."
+  - "Float round-trip bit-exactness: weights quantised to 6 decimals; the byte-for-
+    byte committed-sample test and a 500-node/1200-edge round-trip test both pass,
+    confirming serde_json's shortest-float writer round-trips the quantised values.
+    Could not produce a drifting weight within the tested space."
+  - "Self-loop / range safety: every edge source/target verified < node_count by
+    `edges_are_directed_typed_and_in_range`; `no_self_loops_when_multiple_nodes`
+    holds. Could not produce an out-of-range or (multi-node) self-loop edge."
+  - "Security / guardrails: no `unsafe`; no new dependency (serde_json promoted
+    dev→normal, already MIT OR Apache-2.0 in docs/licenses/manifest.toml and
+    Cargo.lock); no secrets; only a 6 KB *generated* fixture committed; `/data/`
+    and `/datasets/` gitignored; synthetic (non-PII) text. Nothing to revoke."
+  - "Build/test/lint verified locally in the worktree: `cargo build` clean;
+    `cargo test` 153 lib + 3 dataset_sample integration + other suites all green
+    (0 failures); `cargo clippy --workspace --all-targets --all-features -D
+    warnings` clean; `cargo fmt --all --check` clean; format_code.sh's
+    formal/latency-sim sub-workspace lint is unaffected by this diff."
+
+rationale: >
+  I constructed determinism-busting (cross-platform powf, casts), boundary
+  (empty/1-node/divide-by-zero), float-round-trip, range/self-loop, and
+  open-source-guardrail attacks; every one either failed or lands only outside
+  the stated use (non-unit exponent / >2^32-node / 32-bit), which no committed
+  artifact exercises. The change is self-contained, dependency-free, fully
+  tested, lint/format clean, and license-clean, and meets every acceptance
+  criterion on the board item. The residual items are documentation-wording and
+  far-future-scale observations, not blocking findings. Approve.
+
+signed: adversarial-reviewer  T+3:30

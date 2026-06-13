@@ -10,7 +10,7 @@ deps: [T-0006]
 rubric_refs: [10]
 estimate: S
 created: T0+0:20
-updated: T0+3:25
+updated: T0+3:30
 ---
 
 ## Context
@@ -43,3 +43,11 @@ bench), and integration tests across epics.
   test; large graphs gitignored. No new deps (serde_json promoted dev→normal).
   Rebased onto main after T-0017 landed. 180 tests green, format_code.sh green.
   Status → in_review; PR.md filled; dispatching adversarial-reviewer + premortem.
+- T0+3:30 — adversarial-reviewer: **approve** (verdict in PR.md). Verified locally
+  in-worktree: build clean, `cargo test` all green (153 lib + 3 dataset_sample
+  integration), clippy `--workspace --all-targets --all-features -D warnings`
+  clean, `cargo fmt --check` clean. Attacks (cross-platform `powf`, empty/1-node/
+  divide-by-zero, float round-trip, range/self-loop, guardrails) all survived;
+  the one residual platform-determinism caveat applies only to non-unit Zipf
+  exponents (no committed fixture uses one) — non-blocking. Still needs
+  premortem-analyst sign-off before the integrator can land.
