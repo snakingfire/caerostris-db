@@ -447,3 +447,14 @@ Cleaned orphaned worktrees (down to main only). Relaunched 3 lanes: lane1 `wf_5e
 The reason no code was landing: `Workflow({name:"mainspring"})` resolves a CACHED registry copy of the orchestrator (v1, broken per-agent claim, no claim.sh/unblock.sh/land-routing). EVERY relaunch since launch ran that stale v1 — none of the committed fixes (claim.sh, unblock.sh, in_review→land) ever executed. On-disk .claude/workflows/mainspring.js was correct v3, but `name` never read it.
 
 FIX: relaunch via scriptPath (reads disk directly). Stopped all v2 lanes; relaunched 3 via scriptPath="/Users/.../.claude/workflows/mainspring.js": lane1 wf_86b0c2e8-f29, lane2 wf_94c471c3-447, lane3 wf_f36e3f02-1c4. Cron replaced 670ebfac→b09b7588 — now relaunches via scriptPath (CRITICAL: name= would re-break it). Still behind ~20 on pace; this is the unblock that lets the real orchestrator finally run — watch for Merge work/ commits + cascade now.
+
+---
+
+## STATUS — T+2:03 (v3 PROVEN — first autonomous merge landed; still deep RED on pace)
+
+**Wallclock:** 2026-06-13T20:27Z. No STOP (deadline 23:24Z).
+**PROOF OF LIFE:** `c3f54c0 Merge work/BUG-0007` landed — the v3 reland path rebased a conflict-blocked PR onto main and merged it. The correct orchestrator (via scriptPath) LANDS. src 4→5, tests 1→2, done 9→10, blocked 2→1.
+**Pace:** still deep RED — grader T+2:00 overall 16 vs ~42 expected (−26). One merge in 13 min is far too slow to recover; honest T+4:00 zone is 35–55, not 90.
+**Pool:** 3 v3 lanes alive (wf_86b0c2e8 / wf_94c471c3 / wf_f36e3f02). Held at 3 — lanes are WORK-starved not lane-starved (ready=9 < 3×roundCap=18). Scaling lanes won't help until SPIKE-0002 ratifies and the 46-task backlog cascades. SPIKE-0002 is claimed + ratifying.
+**Env:** healthy; no stale land-lock; unblock.sh found nothing new (cascade still gated on SPIKE-0002/0003).
+**HARD LINE — next tick (~T+2:08):** the foundational critical-path tasks T-0000 (env), T-0001 (skeleton), T-0002 (TCK harness) must be landing. If they're still not on main, HAND-LAND them directly (T-0000→T-0001→T-0002), resolving src/lib.rs conflicts by hand — they gate the entire query/storage chain and the swarm has not landed them in 2h.
