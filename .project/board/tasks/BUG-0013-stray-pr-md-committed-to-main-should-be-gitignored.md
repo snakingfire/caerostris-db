@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: 2026-06-13T20:45:00Z
-updated: 2026-06-13T21:39:00Z
+updated: 2026-06-13T21:42:00Z
 ---
 
 ## Context
@@ -62,3 +62,14 @@ on `main` remains until this bug lands.
   history-rewrite. Two non-blocking notes (provenance imprecision re `f67868b`; test
   skip-path hardening) recorded in PR.md. adversarial-reviewer box ticked. Awaits
   premortem-analyst.
+- 2026-06-13T21:42:00Z (premortem-analyst): **APPROVE**. Ran all six pre-mortem
+  lenses; no blocking findings. The only real incident path — landing this silently
+  reverting newer `main` state (BUG-0008 `in_review`, PACE_ALARMS T+3:10/T+3:15) —
+  disproved via a dry-run `git merge --no-commit --no-ff` onto main's tip:
+  "Automatic merge went well", BUG-0008 stays `in_review`, both PACE entries survive,
+  BUG-0013 fix intact (branch and `main` touch disjoint files; the two-dot `git diff
+  main` "reverts" are display noise, not the merge result). Rebase also clean (exit 0).
+  Verified untracking PR.md does not break `land.sh` (reads on-disk `$PR_FILE`), the
+  `/PR.md` ignore is root-anchored, and no dep/secret/data surface. Lenses 1–3
+  (corruption/SLA/split-brain) unreachable — diff is `.gitignore` + a test + a board
+  file + untrack. premortem-analyst box ticked; both review-gate sign-offs now present.
