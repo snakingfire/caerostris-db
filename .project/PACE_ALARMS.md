@@ -5,6 +5,61 @@
 
 ---
 
+## ALARM — T+01:21 (AMBER→RED watch — last grade 13, checkpoint ~20 at T+1:00 missed)
+
+**Level:** AMBER (escalating toward RED if no new grade shows ≥20 this cycle)
+**Wallclock:** 2026-06-13T19:45:13Z (T+01:21)
+**Expected score at T+1:00 (19:24Z):** ~20
+**Last known actual score:** 13 (T+0:37 grade, rubric-T+00-37.md)
+**Delta:** -7 points vs. T+1:00 checkpoint → **BEHIND PACE** (≥5 point gap = AMBER→RED threshold)
+
+**Condition:** The T+1:00 checkpoint (~20) required landed code: storage writer/reader
+roundtrip, ACID commit happy-path, first hourly release. As of T+1:21:
+- `src/lib.rs` has landed code (QueryStatistics surface, BUG-0006 merged at T+~47min)
+- T-0002 (TCK harness) is **in_review** in its worktree — NOT yet merged to main
+- SPIKE-0002 (commit protocol + TLA+) is **in_review** in its worktree — NOT yet merged
+- SPIKE-0005 is **in_review** — NOT yet merged
+- BUG-0007 and T-0039 are **blocked** (rebase conflicts on src/lib.rs)
+- T-0000 (env hardening), T-0004 (epoch recycling) still **ready/unclaimed** on file board
+- **Zero storage/ACID/TCK code on main yet** — Cat 1/2/4 still at floor values
+- Cat 4 (TCK, weight 12) still 0 — T-0002 in worktree, not merged
+
+**Bottlenecks identified:**
+1. **Review→Land pipeline choked:** SPIKE-0002, T-0002, SPIKE-0005 all in_review and not
+   landing. The integrator must be dispatched to clear this queue immediately. This is the
+   highest-leverage single action — landing T-0002 alone lifts Cat 4 (w12) off floor 0.
+2. **BUG-0007 + T-0039 rebase conflicts:** Both blocked on src/lib.rs conflicts. These need
+   a worker to rebase-resolve, re-run format_code.sh + tests, re-request review.
+3. **T-0000 unclaimed:** Still ready, still blocking the entire implementation tree
+   (T-0001 crate skeleton, all storage tasks). Must be claimed and completed this epoch.
+4. **Hourly release:** T0+1:00 passed; no release cut yet. Cat 12 requires ≥1/hour.
+   T-0039 blocked, but a manual tag can be cut directly.
+
+**Immediate actions required for this epoch:**
+1. Dispatch **integrator** to land SPIKE-0002 + T-0002 + SPIKE-0005 (all signed-off in review).
+2. Dispatch **implementer** to T-0000 (env hardening — unblocks entire crate tree).
+3. Dispatch **implementer** to rebase-resolve BUG-0007 and T-0039 conflicts.
+4. After T-0002 lands: dispatch **implementer** to T-0001 (crate skeleton) and
+   **test-author** to T-0005 (coverage CI) — these are now or nearly unblocked.
+5. After SPIKE-0002 lands: SPIKE-0003 and SPIKE-0004 become ready (if SPIKE-0001 also lands).
+
+**Board grooming actions this tick:**
+- No unblocks possible yet: SPIKE-0003 deps on SPIKE-0001 (in_review, not done).
+  SPIKE-0004 deps on SPIKE-0001 (in_review, not done). Cannot flip to ready.
+- T-0001, T-0006, T-0017, T-0030 all gate on T-0000 (ready but unclaimed) — correct.
+- In-review items (SPIKE-0001, SPIKE-0002, SPIKE-0005) are not stalled per se; T-0002
+  was in_review as of latest commit. Nudge integrator to land all three.
+
+**Score projection:** If T-0002 + SPIKE-0002 land this cycle:
+- Cat 4: 0→10+ (TCK harness wired, first pass-rate count)
+- Cat 11: 20→35+ (TLA+ model on main)
+- Overall: 13→~22 — would RECOVER the T+1:00 checkpoint retroactively.
+
+**Escalation trigger:** If overall score at next grade (T+1:40 checkpoint: ~35) is < 25,
+escalate to RED P0 and cut scope to Cat 1/2/3/4/7/10/11 only.
+
+---
+
 ## STATUS — T+00:01 (GREEN — setup phase)
 
 **Level:** GREEN
