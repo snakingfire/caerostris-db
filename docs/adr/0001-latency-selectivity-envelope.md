@@ -2,7 +2,9 @@
 
 ## Status
 
-`proposed`
+`accepted` — ratified by steering quorum 2-of-2 (`steering-formal-methods` secondary,
+T+~01:28; `steering-perf-sla` primary, T+~01:58). Ratified-with-conditions; conditions
+F1/F2/PS-1/PS-2 bound to dependent tasks T-0015, T-0016, SPIKE-0003, SPIKE-0004 (see Sign-off).
 
 ## Date / T+ marker
 
@@ -853,9 +855,141 @@ Reproduction of the arithmetic is in decision `0015-formal-methods-spike-0001-ra
   binding findings on K_min·L_p99, r≤1, both-bandwidth-cases, benchmark validity) and
   **every** one of those findings is incorporated in this committed ADR. To keep the
   record formally clean, `steering-perf-sla` is requested to append a counter-signature
-  to *this committed ADR* (not just the pre-launch decision). **Until that second
-  signature lands, this ADR remains `proposed` and SPIKE-0001 stays `in_review`; the
-  dependent implementation tasks (T-0014/15/16) do NOT flip to `ready` yet.** This is
-  the honest application of the two-signature quorum rule — my sign-off is one of two.
+  to *this committed ADR* (not just the pre-launch decision).
 
-  _(awaiting: steering-perf-sla counter-signature on the committed ADR)_
+  _(counter-signature appended below; quorum now complete.)_
+
+#### Round 2 — steering-perf-sla (primary sign-off, design-falsification pass), T+~01:58
+
+`steering-perf-sla` ran an **independent** re-derivation of every load-bearing figure
+(deterministic Python, no reuse of the ADR's numbers except as the claim under test) and
+four targeted falsification attacks specific to the Cat. 3 mandate (benchmark-profile
+coherence, worst-case in-envelope query, F2 realized-latency protection, hidden-serial-phase).
+Decision record: `.project/decisions/0017-perf-sla-spike-0001-ratification.md`.
+
+**Verdict: ratified-with-conditions (primary).** The latency theorem closes. No escalation.
+
+**Independent arithmetic — matches the ADR and decision 0015 on every load-bearing figure:**
+
+| Claim | perf-sla re-derived | Match |
+|-------|---------------------|:-----:|
+| K_min (r=1) = 8 | 8 | ✓ |
+| T_lat = 8·50 ms·1.10 = 440 ms | 440 ms | ✓ |
+| usable (1 s) = 460 ms | 460 ms | ✓ |
+| B_max 1 Gbps = 57.5 MB | 57.50 MB | ✓ |
+| B_max 50 Mbps = 2.88 MB | 2.875 MB | ✓ |
+| Boundary T_query both cases = 1.000 s | 1.0000 s (exact) | ✓ |
+| 1 Gbps seed bound 224,473; s ≈ 2.2×10⁻⁴ | 224,473; 2.245×10⁻⁴ | ✓ |
+| s_max 50 Mbps ≈ 1.1×10⁻⁵ | 1.109×10⁻⁵ | ✓ |
+| F1 α-corrected OOE-4: 102 ms / 216 ms | 102.27 ms / 215.91 ms | ✓ |
+| F2 super-hub busts (1e5→6.4 MB, 1e6→64 MB) | confirmed | ✓ |
+
+(The §2.2 seed-set inline table — 11,112 / 10,634 / 10,033 / 5,234 — reproduces to within
+~0.2 % using a slightly different `bytes_manifest` rounding in the inline subtraction;
+these counts are **not** load-bearing because at 50 Mbps the binding constraint is the
+latency floor, not the seed count, and the order of magnitude (~10⁴ seeds) and the
+conclusion are identical. Non-blocking note PS-3 below.)
+
+**Falsification attacks (all survived):**
+
+- **A1 — benchmark↔cost-model coherence.** The cold-start-benchmark-protocol ADR pins the
+  Cat. 3 measured bars at `nominal-s3` (20 ms) → P99 ≤ 1 s and `slow-s3` (50 ms) → P99 ≤ 2 s.
+  `slow-s3`'s 50 ms is **exactly** this ADR's cost-model design-point L_p99; under the α-aware
+  floor it leaves usable=460 ms (B_max 50 Mbps = 2.88 MB) at the 1 s target and 1460 ms
+  (9.12 MB) at the 2 s ceiling — both feasible. The analytical design point and the empirical
+  ceiling profile are mutually consistent; a passing benchmark at these profiles is valid
+  evidence for *this* envelope, not a warm/lucky artifact.
+- **A2 — worst-case in-envelope query.** A query at full design-point B_max closes at exactly
+  1.000 s at 50 Mbps (the boundary), 0.563 s at 1 Gbps, and is well inside the 2 s ceiling.
+- **A3 — F2 super-hub realized latency (Cat. 3 angle).** Early-abort is a *partial read of an
+  in-flight GET* (no extra round-trip) and the running byte/LIMIT counter holds total bytes
+  ≤ B_max ⇒ transfer ≤ B_max/W regardless of which node the bytes came from. Realized latency
+  is therefore unaffected; F2 is genuinely a **detection-only** (estimator-optimism) concern,
+  exactly as formal-methods classified it. Confirmed from the perf/SLA side.
+
+**Concurring conditions (I adopt formal-methods' F1/F2 as binding — they are my Cat. 3
+detection mandate):**
+- **F1** — α-corrected OOE-4 thresholds **102 ms (1 s) / 216 ms (2 s)**. This is squarely the
+  out-of-envelope-detection part of my mandate; I confirm the numbers and bind it to **T-0015**.
+- **F2** — estimator must size adjacency bytes from a hard per-GET byte cap (early-abort) or the
+  per-rel-type **max** degree, not p99; conservative-reject super-hub frontiers. Bound to
+  **SPIKE-0004** (maintain max-degree) + **T-0015** (estimator) + **SPIKE-0003** (early-abort as
+  a hard per-GET byte/row cap).
+
+**New conditions raised by this primary pass:**
+- **PS-1 (condition on SPIKE-0003) — the K_min=8 phase count must not silently become 9.** The
+  cost model enumerates exactly 8 serial phases (manifest, index probe, 6 hop-adjacency reads).
+  The **final-row node-property fetch** for the surviving LIMIT-10 rows is implicitly assumed to
+  be free (co-located with adjacency, or fetched within phase 8's window). If the ratified
+  storage format places filterable/returnable node properties such that they require a *separate
+  serial round-trip after* hop 6, K_min becomes 9 and the α-aware floor rises to 495 ms. The
+  envelope **still closes at K=9** (50 Mbps B_max ≈ 2.53 MB, still > 0), but the ADR's headline
+  B_max numbers and OOE-2/OOE-4 thresholds are derived at K=8. **Condition:** SPIKE-0003 must
+  either (a) co-locate the filter/return properties with the hop-6 adjacency read (or the
+  index-probe payload) so K stays 8, or (b) explicitly declare K_min=9 and SPIKE-0001's B_max /
+  OOE thresholds are re-pinned at K=9 before T-0015/T-0016 use them. This is a storage-format
+  *measurability* condition, not a re-derivation of the theorem.
+- **PS-2 (condition on the Cat. 3 benchmark, T-0016) — cache-off is non-negotiable evidence.**
+  The measured-SLA evidence for this envelope MUST come from a run satisfying the
+  cold-start-benchmark-protocol ADR (cache explicitly off, fresh state per sample, named
+  profile, N ≥ 200). A green obtained with the cache enabled, or under loopback/fast-s3,
+  is **not** acceptable Cat. 3 evidence for this envelope and is a reject at benchmark-review
+  time. (This is already the benchmark ADR's grader rule; restated here as a hard condition
+  binding T-0016 to *this* envelope so the two ADRs cannot drift apart.)
+
+**Non-blocking notes:**
+- **PS-3** — §2.2's inline seed-set table carries a ~0.2 % rounding wobble vs. an exact
+  re-derivation (different `bytes_manifest` subtraction order). Cosmetic; the counts are not
+  load-bearing. Docs-curator may tidy when convenient; not a ratification blocker.
+- **PS-4** — this ADR (the *envelope/cost-model* artifact) does not itself state
+  cache-independence as a first-class property; the cold-start framing (Phase 1: "cold start
+  has no cached version") and the entirely-from-S3 byte/latency accounting make it structurally
+  cache-independent, and the benchmark ADR enforces it empirically. A one-line explicit
+  statement in §3 would make the non-negotiable self-evident in the proof artifact. Non-blocking.
+- **PS-5** — ADR-0001 numbering collision is already filed (BUG-0010 / formal-methods F3);
+  no new action.
+
+**Why ratified-with-conditions, not reject (perf-sla):** I attempted to break the envelope on
+the four axes my mandate owns — benchmark validity, both-bandwidth coverage (50 Mbps is the
+binding case and it closes), worst-case selectivity/byte budget, and hidden serial latency —
+and it survived all four. F1/F2/PS-1/PS-2 tighten *detection*, *measurement*, and the
+*phase-count assumption*; none moves the feasible region or the central inequality. All four
+conditions land naturally on downstream tasks that already own them (T-0015, T-0016,
+SPIKE-0003, SPIKE-0004). Per pace doctrine (Cat. 3 and Cat. 11 are GATEs, weight 14+6, and the
+run is behind at T+~01:58), ratify-and-unblock is correct; re-spinning the ADR text to absorb
+PS-1/PS-4 would hold the whole dependent queue for no change to the proven feasible region.
+
+### Steering ratification
+
+**steering-perf-sla — RATIFIED-WITH-CONDITIONS (primary sign-off) — T+~01:58**
+
+- **Verdict:** ratified-with-conditions (primary owner of the latency-envelope parameters
+  per the steering-committee.md owner table).
+- **Rationale:** The cost model's central inequality closes under the stated design-point
+  parameters (r=1 ⇒ K_min=8, L_p99=50 ms, M_max=8 ⇒ α=1.10, T_compute=100 ms) at both 1 Gbps
+  and the binding 50 Mbps case; I independently re-derived every load-bearing figure and they
+  match. The serial latency floor (SPIKE-0006), the intra-phase max-of-M term (BUG-0004 /
+  decision 0005), the tail-fan-out estimator inputs (decision 0009), and my own decision-0010
+  findings (K_min·L_p99 floor, r≤1, both-bandwidth coverage, benchmark validity) are all
+  correctly folded in. The benchmark-protocol ADR's profiles cohere with this cost model. The
+  out-of-envelope detection is O(plan-size), runs before any object-store access, and handles
+  the five conditions explicitly — satisfying the "detect-before-execute, never silently miss"
+  requirement of the commander's intent.
+- **Conditions (binding on dependent tasks, not on this ADR's ratification):**
+  1. **F1** → T-0015: implement the α-corrected OOE-4 thresholds (102 ms / 216 ms).
+  2. **F2** → SPIKE-0004 (maintain per-rel-type max out-degree) + T-0015 (max-degree-based byte
+     safety bound; conservative super-hub reject) + SPIKE-0003 (early-abort as a hard per-GET
+     byte/row cap).
+  3. **PS-1** → SPIKE-0003: co-locate filter/return node properties with the hop-6 adjacency
+     read (or index-probe payload) so K_min stays 8; OR explicitly declare K_min=9 and re-pin
+     SPIKE-0001's B_max / OOE thresholds at K=9 before T-0015/T-0016 consume them.
+  4. **PS-2** → T-0016: Cat. 3 measured evidence for this envelope MUST satisfy the
+     cold-start-benchmark-protocol ADR (cache explicitly off, fresh state per sample, named
+     profile nominal-s3/slow-s3, N ≥ 200). Cache-on / loopback / fast-s3 results are not
+     acceptable evidence and are a reject at benchmark review.
+- **Quorum:** `steering-perf-sla` (primary, this signature) + `steering-formal-methods`
+  (secondary, T+~01:28 above) = **2-of-2 owner signatures on the committed ADR. Quorum
+  complete.** ADR status → `accepted`; SPIKE-0001 → `done`; dependent implementation tasks
+  (T-0014, T-0015, T-0016) become eligible to flip `ready` (SPIKE-0006 already `done`);
+  SPIKE-0003 (in_progress) and SPIKE-0004 proceed against the Part 5 constraints with conditions
+  F1/F2/PS-1 attached.

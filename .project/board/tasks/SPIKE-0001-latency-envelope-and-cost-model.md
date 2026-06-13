@@ -2,7 +2,7 @@
 id: SPIKE-0001
 title: Define latency selectivity-envelope and analytical cost model
 type: spike
-status: in_review
+status: done
 priority: P0
 assignee: researcher
 epic: EPIC-003
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [3, 11]
 estimate: M
 created: T0
-updated: 2026-06-13T19:52:00Z
+updated: 2026-06-13T21:58:00Z
 ---
 
 ## Context
@@ -84,3 +84,27 @@ Output feeds directly into SPIKE-0003 (storage format spec must serve B_max) and
     second signature: ADR → `accepted`; this item → `done`; planner/integrator flips
     T-0014, T-0015, T-0016 → `ready` (SPIKE-0006 already `done`); SPIKE-0003 (in_progress) and
     SPIKE-0004 proceed with conditions F1/F2 attached.
+
+- **T+~01:58 (2026-06-13T21:58:00Z) steering-perf-sla — RATIFIED-WITH-CONDITIONS (PRIMARY sign-off):**
+  - Decision: `.project/decisions/0017-perf-sla-spike-0001-ratification.md`.
+  - Counter-signature appended to the ADR Sign-off section (Round 2). **Quorum now 2-of-2
+    complete** (perf-sla primary + formal-methods secondary).
+  - **ADR `docs/adr/0001-latency-selectivity-envelope.md` → `accepted`. This item → `done`.**
+  - Independently re-derived every load-bearing figure (B_max both bandwidths, T_lat=440 ms,
+    boundary T_query=1.000 s both cases, seed/s_max bounds, F1 thresholds 102/216 ms, F2
+    super-hub busts) — all match the ADR and decision 0015. Ran 4 falsification attacks
+    (benchmark↔cost-model coherence, worst-case in-envelope query, F2 realized-latency,
+    hidden-serial-phase) — all survived. The latency theorem closes; no escalation.
+  - **Conditions bound to dependent tasks (not blocking this ratification):**
+    - **F1** → T-0015: α-corrected OOE-4 thresholds 102 ms (1 s) / 216 ms (2 s).
+    - **F2** → SPIKE-0004 (per-rel-type max out-degree) + T-0015 (max-degree byte bound,
+      super-hub reject) + SPIKE-0003 (early-abort as hard per-GET byte/row cap).
+    - **PS-1** → SPIKE-0003: co-locate filter/return node properties with hop-6 adjacency to
+      keep K_min=8, OR declare K_min=9 and re-pin SPIKE-0001's B_max / OOE thresholds before
+      T-0015/T-0016 consume them.
+    - **PS-2** → T-0016: Cat. 3 measured evidence MUST be cache-OFF, fresh-state-per-sample,
+      named profile (nominal-s3/slow-s3), N ≥ 200 per the cold-start-benchmark-protocol ADR;
+      cache-on/loopback/fast-s3 results are a reject.
+  - **Unblocks:** T-0014, T-0015, T-0016 eligible to flip `ready` (planner/integrator next
+    grooming pass); SPIKE-0003 (in_progress) and SPIKE-0004 proceed against Part 5 constraints
+    with F1/F2/PS-1 attached.
