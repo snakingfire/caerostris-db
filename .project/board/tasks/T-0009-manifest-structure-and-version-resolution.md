@@ -10,7 +10,7 @@ deps: [SPIKE-0002, SPIKE-0003, SPIKE-0004]
 rubric_refs: [1, 2, 3]
 estimate: M
 created: T0+0:20
-updated: T0+3:58
+updated: T+4:15
 ---
 
 ## Context
@@ -47,3 +47,7 @@ block is the bridge to EPIC-003's planner detection (SPIKE-0004 / decision 0009)
   durability-barrier enumeration (SPIKE-0005 C3). The "integration on the real
   S3 mock" half (no S3 `ObjectStore` adapter exists yet) is split out to
   **T-0048** so this could land now without a new S3-client dependency.
+- **T+4:15 (integrator):** Landed in commit 52a3f54. format_code.sh green;
+  343/343 tests pass in worktree. Additive board-file conflict resolved
+  (status: done). Branch work/T-0009-manifest-and-version-resolution
+  merged --no-ff into main.
