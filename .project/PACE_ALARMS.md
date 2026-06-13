@@ -404,3 +404,13 @@ The continuous 3-lane swarm is the active model. Highest-leverage dispatch for t
 **Hard line:** if T-0002 does not land on main by **T+1:40 (20:04Z)**, escalate to RED P0 — Cat 4 (weight 12, GATE) at floor 0 is an existential gap that compounds with every passing minute.
 
 **Watch:** more parallel branches ⇒ more src/lib.rs land-conflicts; mitigated by land-lock + integrator rebase. If conflict-thrash dominates, reduce lanes to 2.
+
+---
+
+## PARALLELISM FIXED — T+1:37 (claims now atomic & disjoint; relaunched 3 lanes)
+
+Diagnosed the multi-lane failure: lanes were TRIPLICATING work (all 3 ratifying SPIKE-0001/0002; T-0004 built 3×) because the per-agent `mkdir` self-claim never ran (claims dir empty; worktree-isolated agents can't reach main's FS). Stopped all 3 lanes.
+
+Fix committed: `scripts/board/claim.sh` (atomic, lock-serialized, main-worktree via git-common-dir) — concurrent lanes get DISJOINT batches; release frees a batch; stale claims (>30min) self-GC. Verified laneA/laneB claim non-overlapping P0-first sets. `mainspring.js` v3: orient releases prior claims → claims a disjoint batch via the script → processes → repeats. Work agents no longer self-claim.
+
+Cleaned orphaned worktrees (down to main only). Relaunched 3 lanes: lane1 `wf_5ea74b89-683`, lane2 `wf_d44011fb-4d5`, lane3 `wf_2def35c9-c9f` (roundCap 6). Cron `366ea28f` maintains the 3-lane pool. Expect: lane1 ratifies SPIKE-0001/0002/0005 (unblocks the 47-task cascade) while lanes 2/3 take distinct code; then all 3 fill as the backlog opens. Watch claims: `scripts/board/claim.sh list`.
