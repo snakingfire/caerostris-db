@@ -2,7 +2,7 @@
 id: BUG-0026
 title: .ncol encode/decode of nested List/Map recurses unbounded — deep nesting aborts the process (SIGABRT), not fail-closed
 type: bug
-status: in_review
+status: done
 priority: P1
 assignee: implementer-wf_3215ee4a-fcf-27
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: [T-0007]
 rubric_refs: [2, 1, 10]
 estimate: S
 created: T0+~3:58
-updated: T0+~4:45
+updated: T0+~4:50
 ---
 
 ## Context
@@ -103,3 +103,7 @@ self-contained robustness/DoS gap in the value codec shared by writer and reader
   out-of-scope siblings (BUG-0030 `.adj`, BUG-0031 width-DoS), and a flag to the
   integrator that two competing BUG-0026 branches exist — land exactly one. Both
   review-gate boxes now ticked; clear to land.
+- **T0+~4:50 — integrator.** Landed in commit 824e01c4cd827c93f1f8a4d551068afb7fefdc85 on main.
+  Verified: both sign-offs ticked in PR.md; `./format_code.sh` exit 0; `cargo nextest run` 464
+  passed 0 failed (1 leaky, pre-existing); `cargo build` clean after merge.
+  Branch `work/BUG-0026-ncol-encode-decode-of-nested-list-map-recurses-unb` merged --no-ff.
