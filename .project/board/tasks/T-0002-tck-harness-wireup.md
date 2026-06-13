@@ -2,15 +2,15 @@
 id: T-0002
 title: Wire openCypher TCK Gherkin runner and report live pass-rate
 type: task
-status: in_progress
+status: done
 priority: P0
-assignee: implementer-wf_d44011fb-4d5-6
+assignee: integrator
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 estimate: M
 created: T0
-updated: T0+1:40
+updated: T+2:30
 ---
 
 ## Context
@@ -46,3 +46,4 @@ At T0 the engine has no openCypher implementation, so the expected initial resul
 The engine adapter in this task is intentionally minimal (a stub that returns `pending` for every query). The language implementation comes in EPIC-002 stories that plug into this harness. Keep the harness/adapter interface clean so language implementors can fill it in independently.
 
 - BUG-0007 (T+0:54): the pass-rate definition and suite pin are now fixed in code at `src/tck.rs` (`caerostris_db::tck`). The harness MUST consume `tck::pass_rate` / `tck::TckSummary` / `tck::verify_suite_size` rather than computing its own rate, so the Cat. 4 GATE metric stays non-gameable. Pinned tag `1.0.0-M23`, 1615 scenarios, 220 feature files — see `.project/decisions/0008-tck-passrate-definition-and-pinning.md`.
+- Landed in commit e69e754 at T+2:30. Branch: work/T-0002-tck-runner. 122 tests pass (72 main-crate + 50 tck-runner). Live pass-rate: 0.0000 (0/1602 pending, 0 fail, 1 parse_error). Report: .project/reports/tck-T+02-30.md. Cat. 4 GATE is now instrumented — score rises as EPIC-002 Cypher features land.
