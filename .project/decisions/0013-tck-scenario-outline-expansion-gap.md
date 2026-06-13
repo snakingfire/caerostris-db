@@ -5,8 +5,10 @@
 - **Status:** **RESOLVED** by BUG-0009 (expansion landed). See the resolution
   note at the foot of this file.
 - **Rubric:** Cat. 4 (openCypher/TCK), Cat. 10 (tests/coverage)
-- **Relates to:** Decision 0008 (pass-rate definition + pinning), BUG-0007,
-  BUG-0008 (Literals6 parse gap), BUG-0009 (outline expansion).
+- **Relates to:** Decision 0008 (pass-rate definition + pinning),
+  Decision 0034 (pin reconciliation), BUG-0007, BUG-0018 (Literals6 parse gap —
+  previously mis-cited here as "BUG-0008", an unrelated SPDX license bug),
+  BUG-0009 (outline expansion).
 
 ## Context
 
@@ -29,7 +31,7 @@ Empirical composition of the pinned `2024.3` corpus (verified by
 | **official scenarios** (once each) | **1615** |
 | `Examples` data rows            |  2541 |
 | **fully-expanded** (plain + example rows) | **3880** |
-| BUG-0008 unparseable (`Literals6`) | 13 (in `parse_errors`) |
+| BUG-0018 unparseable (`Literals6`) | 13 (in `parse_errors`) |
 | **harness `total`** (1615 − 13)  | **1602** |
 
 ## Finding (BUG-0009)
@@ -54,8 +56,8 @@ is `pending`, so `0/1602 = 0.0` is internally consistent and honest. The defect
 - **Defer outline expansion** to BUG-0009 (P1), to land before/with the first
   real engine in EPIC-002 — expanding outlines now, with no engine to run the
   variants, would only inflate a `pending` denominator without adding signal.
-- **Name the gap honestly and guard it now** (parity with how BUG-0008/Literals6
-  is documented):
+- **Name the gap honestly and guard it now** (parity with how the BUG-0018
+  Literals6 parse gap is documented):
   - The vendored-corpus integration test
     `outline_expansion_gap_is_named_and_guarded` pins `PLAIN_SCENARIOS = 1339`,
     `SCENARIO_OUTLINES = 276`, `EXAMPLES_DATA_ROWS = 2541`, the official `1615`,
@@ -115,7 +117,7 @@ authoritative parser figures at tag `2024.3`:
 | `Scenario Outline:` definitions            |   276 |
 | **expanded outline cases** (parser)        |  2558 |
 | **harness `total`** (1326 + 2558)          |  **3884** |
-| BUG-0008 unparseable (`Literals6`)         | 13 (in `parse_errors`) |
+| BUG-0018 unparseable (`Literals6`)         | 13 (in `parse_errors`) |
 
 The guard `tck-runner/tests/vendored_corpus.rs::outline_expansion_total_is_reconciled`
 now pins the **expanded** denominator (3884), re-derives the composition from the

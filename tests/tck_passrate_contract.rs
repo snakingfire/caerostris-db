@@ -11,7 +11,10 @@
 //! 4. A guard rejects a loaded scenario count that differs from the pinned total
 //!    (catches silent suite shrinkage).
 //!
-//! See `.project/decisions/0008-tck-passrate-definition-and-pinning.md`.
+//! See `.project/decisions/0008-tck-passrate-definition-and-pinning.md` (the
+//! pass-rate *definition*) and
+//! `.project/decisions/0034-tck-pin-reconciliation-2024-3-canonical.md` (the
+//! canonical pin: vendored `2024.3` / `677cbaf`, denominator `3884`).
 
 use caerostris_db::tck;
 
@@ -54,31 +57,52 @@ fn summary_total_sums_the_three_buckets() {
     assert!((s.pass_rate() - (10.0 / 60.0)).abs() < f64::EPSILON);
 }
 
+// The canonical pin is the vendored `2024.3` corpus (Decision 0034 reconciling
+// the stale `1.0.0-M23` spec pin against the corpus actually vendored, run, and
+// graded). The denominator is the *expanded* executable test-case count (3884,
+// per BUG-0009 / Decision 0013), which is what the live `tck-runner` reports as
+// `total`. `1615` is retained only as the scenario-*definition* count.
 #[test]
 fn pinned_tag_and_count_are_recorded() {
-    assert_eq!(tck::PINNED_TCK_TAG, "1.0.0-M23");
+    assert_eq!(tck::PINNED_TCK_TAG, "2024.3");
     assert_eq!(
         tck::PINNED_TCK_COMMIT,
-        "007895aff5f33097d67b2e48a0a2babd6bd18590"
+        "677cbafabb8c3c5eed458fd3b1ec0daec8d67d23"
     );
     assert_eq!(tck::PINNED_TCK_FEATURE_FILES, 220);
-    assert_eq!(tck::PINNED_TCK_SCENARIOS, 1615);
+    // The grader's denominator: the expanded executable test-case count.
+    assert_eq!(tck::PINNED_TCK_SCENARIOS, 3884);
+    // Traceability: the once-each scenario-definition count at the pinned tag.
+    assert_eq!(tck::PINNED_TCK_SCENARIO_DEFINITIONS, 1615);
 }
 
 #[test]
 fn machine_readable_summary_emits_tag_and_total() {
     let json = tck::TckSummary::new(0, tck::PINNED_TCK_SCENARIOS, 0).to_json();
     // The grader and the suite-shrinkage check both depend on these fields.
-    assert!(json.contains("\"tck_tag\":\"1.0.0-M23\""), "json: {json}");
+    assert!(json.contains("\"tck_tag\":\"2024.3\""), "json: {json}");
     assert!(
-        json.contains("\"tck_commit\":\"007895aff5f33097d67b2e48a0a2babd6bd18590\""),
+        json.contains("\"tck_commit\":\"677cbafabb8c3c5eed458fd3b1ec0daec8d67d23\""),
         "json: {json}"
     );
-    assert!(json.contains("\"total\":1615"), "json: {json}");
+    assert!(json.contains("\"total\":3884"), "json: {json}");
     assert!(json.contains("\"pass\":0"), "json: {json}");
-    assert!(json.contains("\"pending\":1615"), "json: {json}");
+    assert!(json.contains("\"pending\":3884"), "json: {json}");
     assert!(json.contains("\"fail\":0"), "json: {json}");
     assert!(json.contains("\"pass_rate\":0"), "json: {json}");
+}
+
+#[test]
+fn pinned_total_matches_the_live_harness_denominator() {
+    // The whole point of Decision 0034: the contract module's pinned `total`
+    // equals the expanded denominator the live `tck-runner` harness reports
+    // (parseable-plain 1326 + expanded-outline 2558 = 3884). The two pins agree.
+    // Compile-time invariants so a drift in either constant fails to compile.
+    const {
+        assert!(tck::PINNED_TCK_SCENARIOS == 1326 + 2558);
+        // Definitions + the 13 unparseable Literals6 scenarios = the official 1615.
+        assert!(tck::PINNED_TCK_SCENARIO_DEFINITIONS == 1615);
+    }
 }
 
 #[test]

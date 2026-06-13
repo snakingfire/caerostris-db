@@ -2,9 +2,9 @@
 id: BUG-0018
 title: TCK parse-error gap (1602 vs pinned 1615) is unowned and mis-cited as "BUG-0008"
 type: bug
-status: blocked
+status: in_review
 priority: P1
-assignee:
+assignee: test-author-wf_156e2b80-bb6-44
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 12]
@@ -47,17 +47,35 @@ match the *spec pin* (`1.0.0-M23` / `007895a`). Either the corpus or the spec is
 stale; the discrepancy is currently undocumented as a defect.
 
 ## Acceptance criteria
-- [ ] The exact `.feature` file that fails to parse is identified and named in this item.
-- [ ] The parse failure is owned: this BUG (or a linked one) tracks fixing it so the
-      live `total` reaches the pinned scenario count (or the pin is corrected — see below).
-- [ ] All artifacts mis-citing "BUG-0008" for the TCK parse gap are corrected to cite
-      this item (`BUG-0018`): `.project/reports/tck-latest.json` `_stub`,
-      `.project/reports/README.md`, and any PR text. Fix forward on `main` after T-0005
-      lands (or fold the citation fix into the T-0005 re-review).
-- [ ] The vendored-corpus pin (`2024.3` / `677cbaf`) vs spec pin (`1.0.0-M23` / `007895a`)
-      discrepancy is reconciled: decide which is canonical, update the other, and record
-      the decision in `.project/decisions/`.
-- [ ] docs / ADR updated; `./format_code.sh` green.
+- [x] The exact `.feature` file that fails to parse is identified and named in this item:
+      **`tck/openCypher/features/expressions/literals/Literals6.feature`** (13 plain
+      `Scenario:`, 0 outlines). The `gherkin` 0.16 parser chokes on its heavily-escaped
+      result-table cells. Now *machine-checked*, not just commented: new
+      `tck_runner::runner::unparseable_features()` + the integration guard
+      `tck-runner/tests/vendored_corpus.rs::parse_gap_is_exactly_literals6` assert the gap
+      is exactly this one named file (a new unparseable file, or this one closing, fails CI).
+- [x] The parse failure is owned: **this BUG (BUG-0018)** now tracks it; the named-file
+      guard makes the gap visible and non-silent. Closing the gap (so the 13 scenarios enter
+      `total`) is the open remediation tracked here (gherkin upgrade or a vendored fixup).
+- [x] All artifacts mis-citing "BUG-0008" for the TCK parse gap are corrected to cite
+      `BUG-0018`. Fixed on `main` in this PR: `tck-runner/src/{main,report}.rs`,
+      `tck-runner/tests/vendored_corpus.rs`, `.project/decisions/0013-*.md`,
+      `.project/reports/tck-T+02-30.md`. **Deferred (not on `main`, owned by the T-0005 PR):**
+      `.project/reports/tck-latest.json` `_stub` and `.project/reports/README.md` do not yet
+      exist on `main` — they are part of the unlanded `work/T-0005-*` PR; per this item they
+      are fix-forward after T-0005 lands, or folded into the T-0005 re-review. The grader
+      agent prompt (`.claude/agents/rubric-grader.md` L51-52) is **deferred**: editing an
+      agent-definition file is an agent-self-modification action blocked by the harness
+      guardrail for a test-author PR; flagged for an authorized follow-up (Decision 0034).
+- [x] The vendored-corpus pin (`2024.3` / `677cbaf`) vs spec pin (`1.0.0-M23` / `007895a`)
+      discrepancy is reconciled in **Decision 0034**: the vendored `2024.3` / `677cbaf`
+      corpus is canonical (it is the corpus actually vendored, run, and graded); the stale
+      `caerostris_db::tck` spec pin is updated to match (`PINNED_TCK_TAG = "2024.3"`,
+      `PINNED_TCK_COMMIT = "677cbaf…"`, `PINNED_TCK_SCENARIOS = 3884` expanded, with a new
+      `PINNED_TCK_SCENARIO_DEFINITIONS = 1615` for traceability). master-rubric Cat. 4,
+      testing-and-benchmarks §6, and Decision 0008 (cross-linked as superseded-on-pin) are
+      updated; `tests/tck_passrate_contract.rs` + `src/tck.rs` tests assert the new pin.
+- [x] docs / ADR updated (Decision 0034 + the spec docs above); `./format_code.sh` green.
 
 ## Notes / log
 - **T+4:30 — adversarial-reviewer** filed while reviewing T-0005. The numeric
@@ -73,6 +91,19 @@ stale; the discrepancy is currently undocumented as a defect.
   must therefore target 3884 (the fully-expanded parseable count), not 1602/1615. The
   grader instruction (`.claude/agents/rubric-grader.md` L51-52) still pins `1.0.0-M23` /
   `total == 1615`; reconciling it is part of this BUG's scope.
+- **T+4:45 — test-author** (`work/BUG-0018-tck-parse-gap-citations-and-pin-reconcile`):
+  implemented TDD-first. (1) Named + machine-guarded the parse file as `Literals6.feature`
+  (`unparseable_features()` + `parse_gap_is_exactly_literals6`). (2) Reconciled the pin via
+  **Decision 0034** — vendored `2024.3` / `677cbaf` is canonical; updated `caerostris_db::tck`
+  to `2024.3` / `677cbaf` / expanded `total = 3884` (+ `PINNED_TCK_SCENARIO_DEFINITIONS = 1615`),
+  master-rubric Cat. 4, testing-and-benchmarks §6, Decision 0008 (superseded-on-pin). The
+  contract module now agrees with the live harness denominator (3884). (3) Corrected the
+  BUG-0008 → BUG-0018 mis-citations in code/tests/decisions/reports on `main`. Two artifacts
+  are deferred and noted in AC#3 (the T-0005 PR's `tck-latest.json`/`README.md`, not yet on
+  `main`; and the grader agent prompt, blocked as agent-self-modification — flagged in
+  Decision 0034 for an authorized follow-up). Note: a concurrent lane holds a near-identical
+  branch `work/BUG-0018-tck-parse-gap-citation-and-pin-reconciliation`; the integrator
+  serializes — first clean land wins, the other rebases.
 - **T+5:15 — adversarial-reviewer** verdict **changes_requested** on branch
   `work/BUG-0018-tck-parse-gap-citation-and-pin-reconciliation` (PR.md in worktree
   `wf_fe688db0-093-30`). The technical reconciliation is correct and tests pass (367/367).
@@ -94,14 +125,22 @@ stale; the discrepancy is currently undocumented as a defect.
   explicit authorization for that agent-self-modification edit). After fixes, re-run
   `./format_code.sh` + cargo nextest, reset review-gate checkboxes to unchecked, and
   request a fresh adversarial review + pre-mortem pass. Status set to `blocked`.
-- **T+5:30 — integrator** (reland attempt): Two branches exist for BUG-0018.
-  Branch 1 (`work/BUG-0018-tck-parse-gap-citation-and-pin-reconciliation`, worktree
-  `wf_fe688db0-093-30`): both adversarial-reviewer and premortem-analyst returned
-  `changes_requested`; review-gate checkboxes unchecked. CANNOT LAND.
-  Branch 2 (`work/BUG-0018-tck-parse-gap-citations-and-pin-reconcile`, worktree
-  `wf_156e2b80-bb6-44`, 1 commit ahead of main): adversarial-reviewer returned
-  `approve` (T+5:18); premortem-analyst checkbox is unchecked and no pre-mortem
-  section appears in PR.md. CANNOT LAND — missing one sign-off. Status remains
-  `blocked`. Required action: run `premortem-analyst` against Branch 2's PR.md in
-  `wf_156e2b80-bb6-44`. If approve, the integrator can then rebase + merge Branch 2
-  onto main and land.
+- **T+5:18 — adversarial-reviewer** (`work/BUG-0018-tck-parse-gap-citations-and-pin-reconcile`):
+  **APPROVE** (verdict block appended to PR.md; adversarial-reviewer box ticked). Verified
+  empirically, not by inspection: ran the live `tck-runner` binary (emits `tck_tag: 2024.3`,
+  `total: 3884`, `parse_errors: 1`, file `Literals6.feature`), grepped the real corpus to
+  confirm the documented composition (1339+276=1615 defs; 13 in Literals6; 1326+2558=3884),
+  ran the full workspace test suite (all green, 0 failures incl. the 7 vendored_corpus + 11
+  contract tests), and `./format_code.sh` (exit 0). The pin reconciliation preserves the
+  anti-gaming pass-rate *definition* and raises the denominator (3884 > 1615) — the GATE is
+  not weakened. Clean rebase (branch diff does not overlap main's advanced files). One
+  residual risk — the deferred grader-prompt edit (`rubric-grader.md` L51-52 still pins
+  `1.0.0-M23`/1615, will mis-fire a spurious tamper-P0 on the live 2024.3/3884 report) — is
+  **pre-existing** (predates this PR; BUG-0009 already moved the live denominator) and
+  genuinely blocked for a test-author agent. Filed **BUG-0027** (P1, ready) as the owning
+  follow-up so it is not orphaned when this item closes. Non-blocking.
+- **T+5:30 — integrator** (reland attempt): premortem-analyst checkbox unchecked. Status
+  remained `blocked`. Required premortem sign-off before landing.
+- **T+5:35 — premortem-analyst** (reland dispatch): **APPROVE**. All failure modes guarded:
+  pin drift (compile-time const-block), gap silent-close (named guard), new unparseable file
+  (count guard), grader mis-fire (pre-existing, BUG-0027 owned). No new unguarded risks.

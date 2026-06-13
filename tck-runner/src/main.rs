@@ -8,12 +8,13 @@
 //! ```
 //!
 //! Exit status: `0` when the suite *ran and a report was produced* — `pending`
-//! scenarios and the known parser-coverage gap (BUG-0008) are expected during
-//! the phased ramp and do not fail the run. The runner's job is to *report* the
-//! number; conformance regressions (count drift, new parse errors, any `fail`)
-//! are caught by the test suite (`tests/vendored_corpus.rs`) that CI also runs.
-//! Pass `--strict` to instead exit non-zero on any `fail` or `parse_errors`
-//! (intended for once BUG-0008 is closed and the corpus parses fully).
+//! scenarios and the known parser-coverage gap (BUG-0018, `Literals6.feature`)
+//! are expected during the phased ramp and do not fail the run. The runner's job
+//! is to *report* the number; conformance regressions (count drift, new parse
+//! errors, any `fail`) are caught by the test suite (`tests/vendored_corpus.rs`)
+//! that CI also runs. Pass `--strict` to instead exit non-zero on any `fail` or
+//! `parse_errors` (intended for once BUG-0018 is closed and the corpus parses
+//! fully).
 //! A non-zero exit otherwise means an operational error (corpus unreadable,
 //! output unwritable).
 
@@ -166,7 +167,7 @@ fn main() -> ExitCode {
     }
 
     // The run succeeded: a report was produced. `pending` and the known parser
-    // gap (BUG-0008) are expected during the phased ramp and do not fail the
+    // gap (BUG-0018) are expected during the phased ramp and do not fail the
     // run — conformance regressions are caught by the test suite. Only
     // `--strict` turns fails/parse_errors into a non-zero exit.
     if args.strict && (report.fail > 0 || report.parse_errors > 0) {

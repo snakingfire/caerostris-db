@@ -3,7 +3,8 @@
 //! After a full run the harness emits a JSON object of the shape (counts shown
 //! for the pinned `2024.3` corpus under the stub engine: `total` is the
 //! *expanded* test-case count — Scenario Outlines expanded per `Examples` row,
-//! BUG-0009 — and `parse_errors` is the one BUG-0008 unparseable file):
+//! BUG-0009 — and `parse_errors` is the one BUG-0018 unparseable file,
+//! `Literals6.feature`):
 //!
 //! ```json
 //! {

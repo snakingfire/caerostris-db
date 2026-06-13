@@ -101,6 +101,29 @@ where
     Ok(total)
 }
 
+/// The exact set of vendored `.feature` files the `gherkin` parser cannot read,
+/// sorted for determinism.
+///
+/// This *names* the parse-error gap rather than only counting it
+/// ([`Summary::parse_errors`]): the gap can be reported as a concrete file and a
+/// guard can assert it is exactly the expected file(s) — so neither a *new* file
+/// silently failing to parse nor the known gap silently closing escapes CI.
+///
+/// At the pinned `2024.3` corpus this returns exactly
+/// `[expressions/literals/Literals6.feature]`: the `gherkin` 0.16 parser chokes
+/// on its heavily-escaped result-table cells. That gap is owned by **BUG-0018**
+/// (not BUG-0008, which is an unrelated SPDX license-classification bug).
+pub fn unparseable_features(root: &Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    for path in discover_features(root)? {
+        if Feature::parse_path(&path, GherkinEnv::default()).is_err() {
+            out.push(path);
+        }
+    }
+    out.sort();
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -240,6 +263,34 @@ Feature: Synthetic-Fail
         let summary = run_suite(Path::new("/nonexistent/tck/path"), || PendingEngine).unwrap();
         assert_eq!(summary.total, 0);
         assert_eq!(summary.parse_errors, 0);
+    }
+
+    #[test]
+    fn unparseable_features_names_the_failing_file() {
+        // Two parseable files plus one the gherkin parser cannot read. The
+        // helper must *name* the broken file (not merely count it), so the gap
+        // can be owned and guarded (BUG-0018).
+        let dir = FixtureDir::new("named-parse-err");
+        dir.write("ok/good.feature", PASSING_FEATURE);
+        dir.write("broken/bad.feature", "this is not valid gherkin at all {{{");
+        let unparseable = unparseable_features(&dir.root).unwrap();
+        assert_eq!(unparseable.len(), 1, "exactly one file fails to parse");
+        assert!(
+            unparseable[0].ends_with("broken/bad.feature"),
+            "the named file must be the broken one, got {:?}",
+            unparseable[0]
+        );
+        // Consistency with the counting path: parse_errors == named count.
+        let summary = run_suite(&dir.root, || PendingEngine).unwrap();
+        assert_eq!(summary.parse_errors, unparseable.len());
+    }
+
+    #[test]
+    fn unparseable_features_is_empty_when_all_parse() {
+        let dir = FixtureDir::new("all-parse");
+        dir.write("a.feature", PASSING_FEATURE);
+        dir.write("b.feature", FAILING_FEATURE);
+        assert!(unparseable_features(&dir.root).unwrap().is_empty());
     }
 
     /// A `.feature` whose only assertion is `Then the side effects should be:`.
