@@ -2,7 +2,7 @@
 id: T-0014
 title: Build discrete-event cold-start latency simulation calibrated to S3 distributions
 type: task
-status: in_review
+status: done
 priority: P1
 assignee: implementer-wf_94c471c3-447-13
 epic: EPIC-003
@@ -10,7 +10,7 @@ deps: [SPIKE-0001, SPIKE-0006]
 rubric_refs: [3, 11]
 estimate: M
 created: T0+0:20
-updated: T0+4:10
+updated: T0+4:15
 ---
 
 ## Context
@@ -46,3 +46,8 @@ latency-model evidence; it shares the model with Cat. 3.
   commit; verified it builds, all 17 tests green under nextest, clippy clean,
   `./format_code.sh` green, CLI verdict PASS). Re-opening through the adversarial
   review + pre-mortem gate.
+- **T+4:15 integrator:** Landed in commit `248ef27` at T+~4:15. Both adversarial-reviewer
+  and premortem-analyst approved after a round-1 blocker (sim invisible to CI) was fixed
+  by wiring a `latency-sim` CI job and extending `format_code.sh`. All acceptance criteria
+  met. Headline sim P99 = 889 ms (in-envelope, cache OFF, K=8, L_p99=50 ms, M=8, 20k
+  trials). Cat. 3 / Cat. 11 GATE evidence committed under `formal/latency-sim/`.
