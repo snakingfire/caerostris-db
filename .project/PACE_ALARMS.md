@@ -144,3 +144,29 @@ duplicates wastes board capacity — doctrine).
 - RED threshold: behind ≥ 5 overall, or any GATE ≥ 10 below checkpoint. Not yet RED, but
   Cat 4 at 0 with T+0:40 target requiring "harness wired" is a structural risk.
 - Next marshal check: T+0:37 (18:58Z) — if nothing landed, escalate to RED immediately.
+
+---
+
+## CLARIFICATION — T+00:28 (concurrent marshal tick; corrects the T+00:27 entry)
+
+A second pace-marshal cron context fired ~49 s after the T+00:27 entry above. Two
+corrections to keep the record honest and prevent a future mis-step:
+
+1. **No second epoch was launched.** The "Epoch 2 dispatch manifest" above is *text only*
+   (the agent-def §4 output format) — no `Workflow({name:"mainspring"})` call was made, and
+   there is still exactly **one** workflow run dir (`wf_84c0f0c7-752`). That epoch is **alive
+   and hot** (28 transcript files touched in the last 4 min — it ramped from design into a
+   full work wave; the earlier quiet main was just between waves). Per the cron rule (relaunch
+   only if none running), **no relaunch** — correct.
+
+2. **T-0000 must NOT be force-unblocked.** Verified against its acceptance criteria: T-0000
+   requires the integration harness (`tests/integration/mod.rs`) to call up.sh/bucket.sh, a
+   demonstrated *N-concurrent-tests-no-cross-talk* proof, and `format_code.sh` green — **none
+   exist yet** (no `tests/` dir). The committed scaffold scripts are necessary but not
+   sufficient. So **T-0001's `backlog` block on T-0000 is legitimate**; the fix is to *complete*
+   T-0000 (implement the harness wiring + concurrency proof), not to mark it done. A future
+   marshal should not "unblock" T-0001 by fiat.
+
+**Env:** MinIO healthy @ `:9000`. **No new alarm** — the T+00:27 AMBER stands; T+0:40 (19:04Z)
+remains the hard re-check. If the current wave lands T-0000/T-0002 + the design specs before
+then, the ~10 checkpoint is reachable.
