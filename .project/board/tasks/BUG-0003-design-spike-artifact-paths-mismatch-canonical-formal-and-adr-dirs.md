@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [1, 11, 7]
 estimate: S
 created: 2026-06-13T18:30:19Z
-updated: 2026-06-13T20:05:00Z
+updated: 2026-06-13T20:20:00Z
 ---
 
 ## Context
@@ -75,3 +75,51 @@ categories silently underscore for a pure pathing reason.
   Confirmed: no actionable references to `docs/adrs/` or `docs/formal/` remain in
   board or docs outside of this BUG file and SPIKE-0002's historical note.
   `./format_code.sh` green. Landing commit: see `board:` + `docs:` commits.
+
+## Adversarial Review (post-hoc, on landed commit b14855d)
+
+**Verdict:** approve
+
+**Blocking findings:** none. The GATE-cap mechanism this bug exists to close is
+verified closed: every artifact *commit-target* instruction across `.project/board/`
+now points at a canonical path (`docs/adr/`, `formal/commit-protocol/`,
+`formal/latency-sim/`). The only residual `docs/adrs/`/`docs/formal/` literal hits
+are in this BUG's own description and SPIKE-0002 line 38 (a historical blockquote) —
+both explicitly excepted by AC #2. No `.rs`/`.toml`/`.tla` touched, so format/CI is
+trivially unaffected.
+
+**Non-blocking observations** (follow-up — file a BUG if not swept):
+- Stale cross-references to a non-existent `docs/design/storage-format.md` remain in
+  `T-0007` (line 23), `T-0008` (line 23), and `SPIKE-0007` (line 44, "ADR or
+  `docs/design/`"). These are *pointers*, not commit-targets, so they do NOT re-trigger
+  the grader-cap; but they are the same family of stale-path defect, and this very fix
+  already corrected `docs/design/` → `docs/adr/` in SPIKE-0001, so consistency argued
+  for sweeping them. The storage spec will land at `docs/adr/0003-storage-format.md`
+  (per corrected SPIKE-0003 AC), not `docs/design/`. Implementer friction only.
+- The notes above credit a "SPIKE-0003 AC" edit, but commit b14855d does not touch
+  SPIKE-0003; its AC already read `docs/adr/0003-storage-format.md`. End state correct;
+  the note overstates this commit's scope. Cosmetic.
+- SPIKE-0002 line ~36 cites "decision 0005" for the path correction, but
+  `.project/decisions/0005-*` is the latency-budget decision, not a pathing one. Wrong
+  cross-ref; pre-existing, not introduced here. Cosmetic.
+
+**Attacks attempted and survived:**
+- Wrong-path commit-target still present → grader silently caps Cat. 11 / Cat. 1?
+  SURVIVED: grep of every "committed to" instruction shows all formal/ADR targets are
+  canonical; no commit-target points at `docs/adrs/`/`docs/formal/`.
+- AC #2 grep finds an un-excepted live wrong-path reference? SURVIVED: the two remaining
+  hits (BUG-0003 self, SPIKE-0002 historical blockquote) fall under the AC's stated
+  exceptions.
+- Code/format regression hidden in a "docs-only" change? SURVIVED: name-only diff is
+  three `.md` files; no Rust/TOML/TLA touched.
+- Landed straight to main bypassing the integrator → guardrail breach? SURVIVED: this is
+  a pure board-text fix; task-board-protocol commits board edits directly, and the
+  simulated-PR gate governs code changes. No code landed.
+
+**Rationale:** The change does exactly what BUG-0003 demanded — it repoints the design-spike
+artifact commit-targets to the canonical `docs/adr/` and `formal/` paths, eliminating the
+silent GATE-cap risk on Cat. 1 / Cat. 11, with no code touched. The residual `docs/design/`
+cross-references are a real but lower-severity stale-doc defect outside the literal AC, worth
+a quick follow-up sweep but not a blocker.
+
+**Signed:** adversarial-reviewer  T+(post-ratification, on landed b14855d)

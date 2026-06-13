@@ -2,8 +2,7 @@
 id: SPIKE-0004
 title: Planner out-of-envelope detection needs maintained graph statistics in the manifest
 type: spike
-status: backlog
-priority: P0
+status: readypriority: P0
 assignee:
 epic: EPIC-003
 deps: [SPIKE-0001]

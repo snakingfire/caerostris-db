@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: M
 created: T0
-updated: T0
+updated: T+0:53
 ---
 
 ## Context
@@ -40,3 +40,11 @@ The swarm operates under a per-run agent cap. Without epoch recycling, throughpu
 ## Notes / log
 
 This task has no deps — it is ready from T0. The epoch hand-off format should be lightweight and human-readable (markdown preferred over binary) so any agent can inspect it without special tooling.
+
+- **T+0:53 — pre-mortem: changes_requested.** Worktree `.worktrees/T-0004` exists but
+  branch `work/T-0004` (tip `190fcb4`) is an ancestor of `main` — zero commits, empty
+  diff. `PR.md` is the unfilled stub; none of the 7 acceptance-criteria deliverables
+  (epoch-recycling doc/schema, STOP-sentinel detection+test, `scripts/board/dashboard.sh`+test,
+  CI step) exist. Nothing to review or land. Item is still `status: ready` / unclaimed —
+  worker must claim it (`in_progress` + `assignee`) when work begins. Pre-mortem verdict
+  recorded in `.worktrees/T-0004/PR.md`; premortem sign-off box left unchecked.

@@ -2,8 +2,7 @@
 id: T-0014
 title: Build discrete-event cold-start latency simulation calibrated to S3 distributions
 type: task
-status: backlog
-priority: P1
+status: readypriority: P1
 assignee:
 epic: EPIC-003
 deps: [SPIKE-0001, SPIKE-0006]
