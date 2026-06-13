@@ -11,6 +11,7 @@
 //! |--------|---------|
 //! | [`cypher`] | openCypher front-end: lexer + parser → typed AST (Cat. 4) |
 //! | [`engine`] | Graph engine core (stub — lands after SPIKE-0003) |
+//! | [`index`] | Pluggable secondary-index interface (Cat. 5) |
 //! | [`licenses`] | License-manifest hygiene (Cat. 12) |
 //! | [`model`] | Logical property-graph data model (Node, Edge, PropertyValue, Schema) |
 //! | [`planner`] | openCypher query planner (stub — lands in EPIC-002) |
@@ -21,6 +22,7 @@
 
 pub mod cypher;
 pub mod engine;
+pub mod index;
 pub mod licenses;
 pub mod model;
 pub mod planner;
