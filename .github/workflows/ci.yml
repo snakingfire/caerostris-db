@@ -258,3 +258,37 @@ jobs:
             extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
       - name: Build dev shell and report toolchain
         run: nix develop --impure --command bash -c "rustc --version && cargo --version"
+
+  # Harness hygiene gate (T-0004 / EPIC-010, rubric Cat. 12): smoke-run the
+  # board/pace dashboard, the STOP-sentinel checkpoint, and the epoch hand-off
+  # generator so a regression in the swarm's own machinery fails the build here
+  # rather than during a live recycle. The dashboard is regenerated and uploaded
+  # so agents/humans have an at-a-glance board state per CI run.
+  # See docs/process/epoch-recycling.md.
+  board-dashboard:
+    name: board dashboard + harness scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Regenerate the board/pace dashboard
+        run: |
+          OUT="$(bash scripts/board/dashboard.sh)"
+          echo "dashboard: $OUT"
+          echo '### Board / Pace Dashboard' >> "$GITHUB_STEP_SUMMARY"
+          cat "$OUT" >> "$GITHUB_STEP_SUMMARY"
+      - name: Smoke-run the STOP-sentinel checkpoint (informational)
+        # The checkpoint flags an un-noted in_progress item or a dirty tree; in CI
+        # the tree is clean, so it should pass. `|| true` keeps it informational —
+        # board state is owned by the swarm, not gated by this hygiene job.
+        run: bash scripts/board/checkpoint.sh || true
+      - name: Smoke-run the epoch hand-off generator
+        run: |
+          OUT="$(bash scripts/board/epoch-handoff.sh 0)"
+          echo "hand-off: $OUT"
+          test -s "$OUT"
+      - name: Upload the dashboard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: board-dashboard
+          path: .project/reports/dashboard-*.md
