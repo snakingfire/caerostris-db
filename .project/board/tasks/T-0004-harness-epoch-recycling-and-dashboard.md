@@ -2,7 +2,7 @@
 id: T-0004
 title: Mainspring epoch-recycling, board/pace dashboard, and STOP-sentinel handling
 type: task
-status: in_progress
+status: in_review
 priority: P0
 assignee: implementer-wf_fe688db0-093-7
 epic: EPIC-010
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: M
 created: T0
-updated: T+3:10
+updated: T+3:22
 ---
 
 ## Context
@@ -48,3 +48,15 @@ This task has no deps — it is ready from T0. The epoch hand-off format should 
   CI step) exist. Nothing to review or land. Item is still `status: ready` / unclaimed —
   worker must claim it (`in_progress` + `assignee`) when work begins. Pre-mortem verdict
   recorded in `.worktrees/T-0004/PR.md`; premortem sign-off box left unchecked.
+
+- **T+3:22 — implementer-wf_fe688db0-093-7: in_review.** Branch
+  `work/T-0004-epoch-recycle-dash-stop-h` (off main `494a9e7`). All 7 acceptance
+  criteria met TDD-first: `scripts/board/dashboard.sh` (status/epic counts, pace
+  metric, latest rubric, blockers; <1s; read-only; CI-wired);
+  `scripts/epoch/handoff.sh` + `resume.sh` (epoch hand-off to
+  `.project/epochs/epoch-<N>.md` — markdown + JSON schema; done items excluded so
+  no duplicate execution); `scripts/epoch/stop.sh` (raises `.project/STOP`, clean
+  checkpoint, idempotent); `docs/process/epoch-recycling.md`. Guarded by 14 tests
+  in `tests/harness_infra.rs` (full suite 137 passed). `./format_code.sh` green.
+  Filed BUG-0016 (pre-existing: PR.md tracked on main). PR.md in worktree. Awaiting
+  adversarial-review + pre-mortem.
