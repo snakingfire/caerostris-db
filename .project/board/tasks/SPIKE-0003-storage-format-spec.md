@@ -2,15 +2,15 @@
 id: SPIKE-0003
 title: Specify on-object storage format layout
 type: spike
-status: backlog
+status: in_progress
 priority: P0
-assignee:
+assignee: steering-storage
 epic: EPIC-001
 deps: [SPIKE-0001]
 rubric_refs: [2]
 estimate: M
 created: T0
-updated: T0
+updated: 2026-06-13T19:40:00Z
 ---
 
 ## Context
@@ -31,7 +31,7 @@ Steering sign-off: **steering-storage** must approve the format spec before T-00
 
 ## Acceptance criteria
 
-- [ ] Format spec committed to `docs/design/storage-format.md` (or an ADR in `docs/adrs/`): describes all object types (manifest, node-property column objects, adjacency-list objects, index objects), their naming conventions, internal binary layout (field order, encoding, alignment), and the range-read access pattern for a representative query.
+- [ ] Format spec committed to `docs/adr/` (e.g. `docs/adr/0003-storage-format.md`): describes all object types (manifest, node-property column objects, adjacency-list objects, index objects), their naming conventions, internal binary layout (field order, encoding, alignment), and the range-read access pattern for a representative query.
 - [ ] Byte-budget analysis in the spec: shows that for the in-envelope selectivity from SPIKE-0001, a 6-hop query reads ≤ B_max total bytes across ≤ K phases given the chosen partition sizes.
 - [ ] Versioning and GC strategy specified: manifest structure, how a reader pins a version, how GC identifies and deletes unreferenced objects safely.
 - [ ] Schema evolution strategy documented: how new property columns are added without rewriting existing data objects.
