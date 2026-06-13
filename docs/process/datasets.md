@@ -39,7 +39,7 @@
 | 10 | LDBC SNB generated (sf10) | ~30M nodes / ~176M edges | social benchmark | Apache 2.0 (generator) | same as above |
 | 11 | LDBC SNB generated (sf100) | ~300M nodes / ~1.7B edges | social benchmark | Apache 2.0 (generator) | same as above |
 | 12 | LDBC SNB generated (sf1000) | ~3B nodes / ~17B edges | social benchmark | Apache 2.0 (generator) | same as above |
-| 13 | Synthetic generator (custom) | up to 10B+ edges | configurable | n/a (authored here) | `tools/synth-gen/` (to be built) |
+| 13 | Synthetic generator (custom) | configurable (default 1M nodes / 10M edges) | configurable, power-law | n/a (authored here, generated) | `src/dataset/` + `caerostris-db generate-dataset` (T-0035) |
 
 ### License verification requirement
 
@@ -73,14 +73,75 @@ No single static download reaches this size conveniently. The canonical path is:
    ~17B edges. This exceeds the target and produces the data in a structured
    schema the engine can ingest. The generator is run once, outputs to local disk,
    and is then bulk-ingested.
-2. **Custom synthetic generator** (`tools/synth-gen/`): for configurable degree
+2. **Custom synthetic generator** (`src/dataset/`, exposed as the
+   `caerostris-db generate-dataset` subcommand): for configurable degree
    distributions, property cardinalities, and graph shapes that stress specific
    parts of the engine (e.g. high-degree hubs for the 6-hop worst case). This
-   generator is written in Rust as part of the project.
+   generator is written in Rust as part of the project — see
+   [the synthetic generator section below](#the-synthetic-graph-generator-t-0035).
 
 Small datasets (fixtures 0–5) are for **correctness** — fast to ingest, easy to
 verify results by hand. Large and generated datasets (6–12) are for **scale + latency
 validation** and for proving the selectivity-envelope SLA (Cat. 3 / R7).
+
+---
+
+## The synthetic graph generator (T-0035)
+
+A built-in, **license-clean** graph generator (`src/dataset/`, rubric Cat. 10).
+A *generated* graph carries **no external licence and no PII** — it is produced
+from a seed, not downloaded — so it sidesteps the redistribution restrictions on
+the third-party datasets above (the `dataset-scout` license-verification step
+does not apply: there is no source licence to verify). It is the safest source
+of a representative, scalable graph for benches and integration tests.
+
+### What it produces
+
+- **Configurable size** — default **1M nodes / 10M edges** (the headline
+  target); any size via flags.
+- **Labels + text properties** — nodes carry one or two labels and the text
+  properties `name`, `bio`, `country` plus an integer `age`; edges are
+  **directed, typed** (`KNOWS`, `FOLLOWS`, `WORKS_AT`, `LOCATED_IN`, `TAGGED`)
+  with `weight` / `rank` properties.
+- **Power-law in-degree with super-nodes** — targets are drawn by rank-Zipf
+  sampling, so a few hubs absorb a large share of edges. This exercises the
+  tail fan-out case the latency envelope must handle (SPIKE-0004). The
+  `--zipf` exponent dials tail heaviness.
+- **Deterministic given a seed** — identical `--seed` + size ⇒ byte-identical
+  output on every platform (a vendored SplitMix64 PRNG; no `rand` dependency,
+  whose stream is not stable across versions). Generation uses `O(node_count)`
+  memory (the edge stream is constant-memory), so 10M edges generate in seconds
+  with a few MB of RAM.
+
+### Generating
+
+```bash
+# Headline 1M nodes / 10M edges to a (gitignored) data file:
+mkdir -p data/synth
+cargo run --release -- generate-dataset --out data/synth/headline.jsonl
+# (defaults: --nodes 1000000 --edges 10000000 --seed 0 --zipf 1.0)
+
+# A smaller, heavier-tailed graph to stdout (pipe into anything):
+cargo run --release -- generate-dataset \
+  --nodes 100000 --edges 1000000 --seed 7 --zipf 1.3
+```
+
+The output is **JSONL** (one self-describing JSON record per line: a `meta`
+header, then `node` records, then `edge` records) — a portable form that round-
+trips the logical model exactly and streams on both write and read. It is the
+interchange format until the on-object storage writers (SPIKE-0003) land; the
+same generator can then feed those writers directly. Load it back with
+`caerostris_db::dataset::read_records`.
+
+### Licence note
+
+The generator is authored in this repository (MIT, like the rest of the crate).
+**Generated graphs are synthetic** and carry **no third-party rights, no
+external licence, and no PII** — they may be regenerated, published as
+statistics, or shared freely. Large generated graphs are **not committed**
+(they land under `data/`, which is gitignored, and are regenerated from a seed);
+only a tiny (~6 KB) sample, `tests/fixtures/sample_graph.jsonl`, is committed,
+and an integration test pins it to the generator so it can never silently drift.
 
 ---
 

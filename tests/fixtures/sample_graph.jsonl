@@ -1,0 +1,33 @@
+{"record":"meta","node_count":12,"edge_count":20,"seed":0}
+{"record":"node","node":{"id":0,"labels":["Person"],"properties":{"age":{"type":"integer","value":88},"bio":{"type":"string","value":"A diligent writer (#0)."},"country":{"type":"string","value":"Japan"},"name":{"type":"string","value":"Person-0"}}}}
+{"record":"node","node":{"id":1,"labels":["Person"],"properties":{"age":{"type":"integer","value":36},"bio":{"type":"string","value":"A quiet builder (#1)."},"country":{"type":"string","value":"Japan"},"name":{"type":"string","value":"Person-1"}}}}
+{"record":"node","node":{"id":2,"labels":["Topic"],"properties":{"age":{"type":"integer","value":29},"bio":{"type":"string","value":"A diligent builder (#2)."},"country":{"type":"string","value":"Kenya"},"name":{"type":"string","value":"Topic-2"}}}}
+{"record":"node","node":{"id":3,"labels":["Person"],"properties":{"age":{"type":"integer","value":86},"bio":{"type":"string","value":"A bold traveller (#3)."},"country":{"type":"string","value":"Sweden"},"name":{"type":"string","value":"Person-3"}}}}
+{"record":"node","node":{"id":4,"labels":["Product"],"properties":{"age":{"type":"integer","value":76},"bio":{"type":"string","value":"A diligent builder (#4)."},"country":{"type":"string","value":"Japan"},"name":{"type":"string","value":"Product-4"}}}}
+{"record":"node","node":{"id":5,"labels":["Product"],"properties":{"age":{"type":"integer","value":73},"bio":{"type":"string","value":"A curious builder (#5)."},"country":{"type":"string","value":"Canada"},"name":{"type":"string","value":"Product-5"}}}}
+{"record":"node","node":{"id":6,"labels":["Person"],"properties":{"age":{"type":"integer","value":29},"bio":{"type":"string","value":"A diligent gardener (#6)."},"country":{"type":"string","value":"Sweden"},"name":{"type":"string","value":"Person-6"}}}}
+{"record":"node","node":{"id":7,"labels":["Company","Topic"],"properties":{"age":{"type":"integer","value":59},"bio":{"type":"string","value":"A quiet writer (#7)."},"country":{"type":"string","value":"India"},"name":{"type":"string","value":"Topic-7"}}}}
+{"record":"node","node":{"id":8,"labels":["Company"],"properties":{"age":{"type":"integer","value":27},"bio":{"type":"string","value":"A steady writer (#8)."},"country":{"type":"string","value":"Chile"},"name":{"type":"string","value":"Company-8"}}}}
+{"record":"node","node":{"id":9,"labels":["Person"],"properties":{"age":{"type":"integer","value":26},"bio":{"type":"string","value":"A wry writer (#9)."},"country":{"type":"string","value":"Canada"},"name":{"type":"string","value":"Person-9"}}}}
+{"record":"node","node":{"id":10,"labels":["Company","Place"],"properties":{"age":{"type":"integer","value":35},"bio":{"type":"string","value":"A steady traveller (#10)."},"country":{"type":"string","value":"Norway"},"name":{"type":"string","value":"Place-10"}}}}
+{"record":"node","node":{"id":11,"labels":["Company"],"properties":{"age":{"type":"integer","value":53},"bio":{"type":"string","value":"A steady gardener (#11)."},"country":{"type":"string","value":"Brazil"},"name":{"type":"string","value":"Company-11"}}}}
+{"record":"edge","edge":{"id":0,"rel_type":"TAGGED","source":11,"target":6,"properties":{"rank":{"type":"integer","value":3},"weight":{"type":"float","value":0.650547}}}}
+{"record":"edge","edge":{"id":1,"rel_type":"KNOWS","source":4,"target":1,"properties":{"rank":{"type":"integer","value":4},"weight":{"type":"float","value":0.802701}}}}
+{"record":"edge","edge":{"id":2,"rel_type":"KNOWS","source":6,"target":1,"properties":{"rank":{"type":"integer","value":3},"weight":{"type":"float","value":0.132995}}}}
+{"record":"edge","edge":{"id":3,"rel_type":"WORKS_AT","source":0,"target":9,"properties":{"rank":{"type":"integer","value":2},"weight":{"type":"float","value":0.436326}}}}
+{"record":"edge","edge":{"id":4,"rel_type":"LOCATED_IN","source":6,"target":8,"properties":{"rank":{"type":"integer","value":3},"weight":{"type":"float","value":0.062689}}}}
+{"record":"edge","edge":{"id":5,"rel_type":"WORKS_AT","source":1,"target":8,"properties":{"rank":{"type":"integer","value":2},"weight":{"type":"float","value":0.976288}}}}
+{"record":"edge","edge":{"id":6,"rel_type":"WORKS_AT","source":3,"target":8,"properties":{"rank":{"type":"integer","value":3},"weight":{"type":"float","value":0.196343}}}}
+{"record":"edge","edge":{"id":7,"rel_type":"LOCATED_IN","source":0,"target":6,"properties":{"rank":{"type":"integer","value":3},"weight":{"type":"float","value":0.323025}}}}
+{"record":"edge","edge":{"id":8,"rel_type":"FOLLOWS","source":4,"target":9,"properties":{"rank":{"type":"integer","value":4},"weight":{"type":"float","value":0.686835}}}}
+{"record":"edge","edge":{"id":9,"rel_type":"LOCATED_IN","source":0,"target":3,"properties":{"rank":{"type":"integer","value":1},"weight":{"type":"float","value":0.422274}}}}
+{"record":"edge","edge":{"id":10,"rel_type":"LOCATED_IN","source":4,"target":6,"properties":{"rank":{"type":"integer","value":2},"weight":{"type":"float","value":0.319073}}}}
+{"record":"edge","edge":{"id":11,"rel_type":"FOLLOWS","source":2,"target":6,"properties":{"rank":{"type":"integer","value":3},"weight":{"type":"float","value":0.028671}}}}
+{"record":"edge","edge":{"id":12,"rel_type":"LOCATED_IN","source":0,"target":11,"properties":{"rank":{"type":"integer","value":3},"weight":{"type":"float","value":0.951049}}}}
+{"record":"edge","edge":{"id":13,"rel_type":"WORKS_AT","source":7,"target":6,"properties":{"rank":{"type":"integer","value":2},"weight":{"type":"float","value":0.324675}}}}
+{"record":"edge","edge":{"id":14,"rel_type":"LOCATED_IN","source":10,"target":6,"properties":{"rank":{"type":"integer","value":4},"weight":{"type":"float","value":0.267831}}}}
+{"record":"edge","edge":{"id":15,"rel_type":"FOLLOWS","source":9,"target":6,"properties":{"rank":{"type":"integer","value":3},"weight":{"type":"float","value":0.813371}}}}
+{"record":"edge","edge":{"id":16,"rel_type":"KNOWS","source":7,"target":10,"properties":{"rank":{"type":"integer","value":2},"weight":{"type":"float","value":0.574531}}}}
+{"record":"edge","edge":{"id":17,"rel_type":"KNOWS","source":5,"target":8,"properties":{"rank":{"type":"integer","value":5},"weight":{"type":"float","value":0.460959}}}}
+{"record":"edge","edge":{"id":18,"rel_type":"FOLLOWS","source":4,"target":6,"properties":{"rank":{"type":"integer","value":2},"weight":{"type":"float","value":0.860791}}}}
+{"record":"edge","edge":{"id":19,"rel_type":"KNOWS","source":6,"target":0,"properties":{"rank":{"type":"integer","value":4},"weight":{"type":"float","value":0.488559}}}}
