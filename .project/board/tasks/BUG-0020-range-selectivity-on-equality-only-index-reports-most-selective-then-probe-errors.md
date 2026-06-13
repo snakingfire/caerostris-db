@@ -2,15 +2,15 @@
 id: BUG-0020
 title: Range selectivity on a non-empty equality-only index reports 0.0 (most selective), then probe errors
 type: bug
-status: in_review
+status: done
 priority: P2
-assignee: implementer-wf_e9fceb87-27c-38
+assignee: integrator
 epic: EPIC-005
 deps: []
 rubric_refs: [5, 3]
 estimate: S
 created: T+3:40
-updated: T+4:04
+updated: T+4:12
 ---
 
 ## Context
@@ -101,3 +101,9 @@ stub today), so P2; fix before T-0024.
   and re-run the other's regression tests post-rebase; (2) a DUPLICATE BUG-0020 PR
   exists (`work/BUG-0020-range-selectivity-equality-only-index`, `wf_e9fceb87-27c-38`,
   both gates already ticked) — land one, `dropped` the loser, do not double-close.
+- T+4:12 integrator: Landed in commit 063d2ce at T+4:12. Branch
+  `work/BUG-0020-range-selectivity-equality-only-index` from worktree
+  `wf_e9fceb87-27c-38`. Both review gates confirmed [x]. format_code.sh green.
+  296/296 nextest tests passed. Additive merge conflict in board/PACE files resolved
+  (union strategy). cargo build green post-merge. Duplicate branch
+  `work/BUG-0020-range-selectivity-on-a-non-empty-equality-only-ind` should be dropped.
