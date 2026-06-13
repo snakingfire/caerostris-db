@@ -2,7 +2,7 @@
 id: BUG-0010
 title: ADR numbering collision — two ADRs share 0001 (latency-envelope and cold-start-benchmark-protocol)
 type: bug
-status: in_review
+status: done
 priority: P2
 assignee: docs-memory-curator
 epic: EPIC-010
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: 2026-06-13T19:52:00Z
-updated: 2026-06-13T21:54:00Z
+updated: 2026-06-13T22:10:00Z
 ---
 
 ## Context
@@ -60,7 +60,6 @@ decisions, reports, and board items.)
   (3) rebase onto main keeping BOTH `pub mod query;` and `pub mod tck;` sorted,
   (4) re-run ./format_code.sh + cargo nextest run green,
   (5) re-request integrator landing. Branch: work/BUG-0010-adr-numbering-collision-two-adrs-share-0001-latenc. Worktree: .worktrees/BUG-0010.
-<<<<<<< HEAD
 - 2026-06-13T21:05Z `implementer-wf_f36e3f02`: re-implemented from a FRESH base on the
   LATEST main (the prior `…-latenc` branch was far behind main — its diff would have
   deleted now-landed files such as `src/tck.rs`, so it was abandoned rather than rebased).
@@ -94,3 +93,9 @@ decisions, reports, and board items.)
   fmt clean. Recommended path: rebase onto current `main` (resolve to main's landed text) so the diff
   collapses to a test-only PR adding just those two guards. fmt + clippy + `--test repo_hygiene`
   (11 passed) verified green at tip.
+- 2026-06-13T22:10Z `integrator`: Landed in commit 954da0c at T+~3:51. Rebase onto main in
+  isolated worktree `/tmp/bug0010-rebase`; resolved additive doc-text conflicts (board item,
+  SPIKE-0007, envelope ADR F3 note) by keeping main's landed text as authoritative; branch's
+  new value (2 ADR guard tests in `tests/repo_hygiene.rs`) merged cleanly. `./format_code.sh`
+  green; 233/233 tests pass including `adr_numbers_are_unique` and `adr_markdown_links_are_not_dangling`.
+  Merged `work/BUG-0010-renumber-cold-start-benchmark-adr` --no-ff into main; pushed; branch deleted.
