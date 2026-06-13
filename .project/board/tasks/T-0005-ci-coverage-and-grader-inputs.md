@@ -2,15 +2,15 @@
 id: T-0005
 title: Add cargo-llvm-cov coverage reporting and ensure CI emits grader-readable outputs
 type: task
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: implementer-wf_84c0f0c7-752-17
 epic: EPIC-009
 deps: []
 rubric_refs: [10, 12]
 estimate: S
 created: T0
-updated: T0
+updated: T+0:33
 ---
 
 ## Context
