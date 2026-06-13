@@ -28,6 +28,7 @@
 
 pub mod adjacency;
 pub mod cache;
+pub mod counting;
 pub mod manifest;
 pub mod memory;
 pub mod ncol;
@@ -37,6 +38,7 @@ pub use adjacency::{
     StorageFormatError,
 };
 pub use cache::{CacheConfig, CacheStats, CachingStore, DiskCacheConfig, EvictionPolicy};
+pub use counting::CountingStore;
 pub use memory::MemoryStore;
 
 /// Errors returned by [`ObjectStore`] operations.
