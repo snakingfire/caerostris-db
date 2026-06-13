@@ -42,3 +42,12 @@ Steering sign-off: **steering-storage** must approve the format spec before T-00
 ## Notes / log
 
 Status is `backlog` pending SPIKE-0001 ratification. Once SPIKE-0001 is done, this task should be flipped to `ready` by the planner-decomposer. The implementation counterpart is T-0001 (crate skeleton + object-store abstraction).
+
+- **T+0:06 (steering-storage):** This spec must discharge the storage-domain
+  falsification constraints in `SPIKE-0008` (filed during the intent/rubric
+  ratification pass) — specifically **F1** (early-abort partial adjacency reads /
+  adjacency chunking so the binding 50 Mbps case is feasible) and the storage side
+  of **F2** (name + verify the conditional-PUT primitive used for the manifest
+  swap) and **F3** (safe-GC-vs-reader policy: retention grace window / TTL'd pins).
+  `steering-storage` will not ratify this spec until F1/F2/F3 are explicitly
+  addressed. See `.project/decisions/0001-storage-domain-ratification-findings.md`.
