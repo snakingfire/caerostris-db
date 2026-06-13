@@ -48,7 +48,6 @@ This task has no deps — it is ready from T0. The epoch hand-off format should 
   CI step) exist. Nothing to review or land. Item is still `status: ready` / unclaimed —
   worker must claim it (`in_progress` + `assignee`) when work begins. Pre-mortem verdict
   recorded in `.worktrees/T-0004/PR.md`; premortem sign-off box left unchecked.
-
 - **T+3:22 — implementer-wf_fe688db0-093-7: in_review.** Branch
   `work/T-0004-epoch-recycle-dash-stop-h` (off main `494a9e7`). All 7 acceptance
   criteria met TDD-first: `scripts/board/dashboard.sh` (status/epic counts, pace
@@ -60,3 +59,16 @@ This task has no deps — it is ready from T0. The epoch hand-off format should 
   in `tests/harness_infra.rs` (full suite 137 passed). `./format_code.sh` green.
   Filed BUG-0016 (pre-existing: PR.md tracked on main). PR.md in worktree. Awaiting
   adversarial-review + pre-mortem.
+- **T+3:25 — implementer-wf_6a2f8faf-da3-2: YIELDING (duplicate).** This lane was
+  also dispatched on T-0004 and built an equivalent, green, additive implementation
+  on branch `work/T-0004-mainspring-epoch-recycling-board-pace-dashboard`
+  (`scripts/board/dashboard.sh` + `checkpoint.sh` + `epoch-handoff.sh`,
+  `.project/epochs/README.md`, `docs/process/epoch-recycling.md`, 28 tests across
+  `tests/harness_{dashboard,checkpoint,epoch_handoff,ci_wiring}.rs`; 151/151 green;
+  `./format_code.sh` green; rebased on latest main). On rebase this lane discovered
+  `wf_fe688db0-093-7` already owns the active `in_review` slot (committed to main
+  first, T+3:22) with the same deliverables. Per the board protocol ("loser picks
+  another") and to avoid duplicate review/land churn, this lane **stands down** and
+  releases its claim — the rival's PR is the one to review/land. This lane's branch
+  is left intact as a fallback artifact should the rival PR stall (T-0004 has a long
+  history of stalling at this stage); if so, it can be picked up and landed cleanly.
