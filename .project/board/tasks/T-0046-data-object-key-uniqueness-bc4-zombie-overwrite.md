@@ -2,8 +2,7 @@
 id: T-0046
 title: Discharge Constraint 4 / DA-1 (BC-4) — per-write-attempt-unique data-object keys + TLA+ model refinement
 type: task
-status: backlog
-priority: P0
+status: readypriority: P0
 assignee:
 epic: EPIC-004
 deps: [SPIKE-0002]

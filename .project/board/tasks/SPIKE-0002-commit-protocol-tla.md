@@ -2,7 +2,7 @@
 id: SPIKE-0002
 title: Design S3 commit protocol and TLA+ model for atomicity + isolation
 type: spike
-status: in_review
+status: done
 priority: P0
 assignee: formal-prover
 epic: EPIC-004
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [1, 11]
 estimate: M
 created: T0
-updated: 2026-06-13T19:35:00Z
+updated: 2026-06-13T (T0+~3:10)
 ---
 
 ## Context
@@ -42,7 +42,7 @@ Steering sign-off: **steering-distributed-acid** and **steering-formal-methods**
 - [x] TLA+ module committed to `formal/commit-protocol/` (`commit_protocol.tla`): state machine for writer commit, concurrent reader, lease FSM, and GC; invariants for atomicity, snapshot isolation, and fencing (restated per steering finding as **at-most-one-commit-per-manifest-version**, not bare `writer_count<=1`) defined as TLA+ INVARIANT clauses.
 - [x] Apalache model-check run documented: command line, model size, and result recorded in `formal/results/commit_protocol_check.txt` and the ADR. Apalache is not yet in the Nix shell; the spec is syntactically validated and the check planned + scripted (T-0038 runs it on the implemented protocol).
 - [x] Document committed and cross-referenced from EPIC-004 and EPIC-001.
-- [ ] Steering-ratification record committed: both steering-distributed-acid and steering-formal-methods sign-off recorded in `.project/decisions/` (ratification REQUESTED in decision 0012; status stays `in_review` until both sign off via the design-falsification loop).
+- [x] Steering-ratification record committed: **steering-distributed-acid (PRIMARY) RATIFIED-WITH-CONDITIONS in decision 0026** (this closes the design gate). `steering-storage` (secondary) APPROVE in decision 0027. `steering-formal-methods` (PRIMARY, Cat. 11) v2 re-confirm requested in decision 0028 — required for commit-path *implementation readiness*, not for the SPIKE-0002 design gate. (History: ratification requested 0013; FM-1 CHANGES_REQUESTED 0024; DA-1/BC-4 obligation 0023; v2 fix re-submitted 0028.)
 - [x] No implementation Rust code required — design + model only.
 
 ## Pre-ratification falsification scenarios this design must survive (from decisions 0001/0004)
@@ -69,3 +69,24 @@ Output feeds EPIC-004 (Rust implementation of the commit protocol) and EPIC-006 
   **Stays `in_review` until steering-distributed-acid + steering-formal-methods
   ratify** (design-falsification Loop A); EPIC-001/EPIC-004 commit-path tasks
   stay `backlog` until then. Apalache-on-implementation is T-0038.
+- **T0+~2:30 (formal-prover):** DA-1/BC-4 fix authored (BUG-0012 + T-0046 in one
+  PR): model v2 keys objects `ObjId(v,w,a,k)`; adds `ZombieLateWrite`,
+  `OrphansNeverReferenced` + `NoOverwriteOfReferenced`, and two non-vacuity probes;
+  ADR §1 content-addressed data keys, §2 step 1 data-write precondition, §6 rule 4
+  manifest-reference-set orphan test. Re-confirm requested (decision 0028).
+- **T0+~3:10 (steering-distributed-acid, PRIMARY):** **RATIFIED-WITH-CONDITIONS
+  (decision 0026).** Ran an independent Loop-A re-falsification on the v2 model +
+  ADR (attacks A1 atomicity/crash-at-every-phase, A2 DA-1 torn read, A3 lingering
+  writerObjs, A4 split-brain, A5 lease-renewal clock-skew, A6 attach-mode
+  transitions, A7 content-dedup↔GC). DA-1/BC-4 is discharged in substance; no torn
+  commit, no split-brain, no unsafe attach transition survives. ADR → `accepted`;
+  SPIKE-0002 → **`done`**. Conditions C1–C4 (executed TLC re-check at T-0038; the
+  two-concurrent `PUT If-None-Match:*` mock-fidelity test; the zombie-late-PUT
+  integration test; model-sync) are **commit-path implementation land-gates**, not
+  design blockers. The artifacts (ADR 0002 + `formal/commit-protocol/` + results +
+  decisions 0013/0026/0027/0028) are brought to `main` with this land (the stale
+  `work/BUG-0012-*` branch was NOT merged wholesale — it forked from an old
+  merge-base and would have deleted much landed work; only the SPIKE-0002 design
+  artifacts were cherry-picked). `steering-formal-methods` v2 re-confirm (decision
+  0028) is still required before commit-path tasks (T-0010/T-0026/T-0012) flip to
+  `ready`; the prove-before-code gate stays enforced for implementation.

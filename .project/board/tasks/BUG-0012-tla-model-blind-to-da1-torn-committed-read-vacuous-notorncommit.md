@@ -2,7 +2,7 @@
 id: BUG-0012
 title: TLA+ commit-protocol model is blind to the DA-1 torn-committed-read (NoTornCommit is vacuous over version-scoped ObjId)
 type: bug
-status: in_review
+status: done
 priority: P0
 assignee: formal-prover
 epic: EPIC-004
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [11, 1]
 estimate: S
 created: T+~2:00
-updated: 2026-06-13T23:40:00Z
+updated: 2026-06-13T (T0+~3:10)
 ---
 
 ## Context
@@ -77,9 +77,13 @@ Cat. 11 ratification of SPIKE-0002.
       → Done in THIS PR: ADR §1 (content-addressed data keys), §2 step 1
       (data-write precondition), §6 rule 4 (orphan = not in any live manifest's
       reference set). T-0046's ADR criteria are discharged here.
-- [ ] `steering-formal-methods` (primary, Cat. 11) + `steering-distributed-acid`
-      (primary, Cat. 1/7) re-confirm via the design-falsification loop.
-      → Re-confirm REQUESTED in decision 0025 (Loop A re-entry). Pending.
+- [x] `steering-distributed-acid` (primary, Cat. 1/7) re-confirmed via the
+      design-falsification loop: **decision 0026, RATIFIED-WITH-CONDITIONS** — the
+      v2 model faithfully represents the DA-1 attack (distinct attempt-scoped ids;
+      explicit `ZombieLateWrite`; `OrphansNeverReferenced` + `NoOverwriteOfReferenced`
+      model-checked; probes refuted). `steering-formal-methods` (primary, Cat. 11)
+      v2 re-confirm still requested (decision 0028) — required for commit-path
+      implementation readiness; the model-fidelity defect this bug names is fixed.
 
 ## Notes / log
 
