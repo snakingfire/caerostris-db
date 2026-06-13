@@ -78,3 +78,16 @@ stub today), so P2; fix before T-0024.
   base (board-file deltas vs current main are NOT this branch's; land.sh rebases
   first — integrator confirm clean rebase); threshold-1.0 edge documented for the
   T-0024 planner author. Awaiting premortem-analyst sign-off before landing.
+- T+4:02 premortem-analyst: **APPROVE** (verdict in PR.md). No blocking failure
+  modes. Corruption/concurrency provably impossible (pure in-memory `&self`
+  estimator — no write/commit/manifest/lease/snapshot path). SLA: strictly more
+  conservative, zero S3 round-trips / bytes-read delta — protects Cat. 3. The
+  Cat. 4 / Cat. 5 incident this bug would have caused (planner picks an
+  unservable range index → probe errors, or silently returns no rows) is closed
+  at the source and proven by `bug_0020_planner_never_picks_an_unservable_range_index`
+  against the `choose_seed_set` helper. Re-verified locally: `cargo test --lib`
+  202 pass, `index::` 37 pass, `clippy --lib -D warnings` clean, `./format_code.sh`
+  exit 0; Cargo.toml/lock untouched (no dep/license risk). Non-blocking: duplicate
+  parallel branch `...-on-a-non-empty-equality-only-ind` (drop the loser); STALE-BASE
+  (land.sh rebases — integrator confirm clean rebase); threshold-1.0 edge for the
+  T-0024 planner author. Both review-gate sign-offs now APPROVE — ready to land.
