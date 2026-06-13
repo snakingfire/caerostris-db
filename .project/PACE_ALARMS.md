@@ -82,3 +82,65 @@
   Highest-ROI single move: wire T-0002 → Cat 4 (weight 12) leaves floor 0.
 
 **Action:** No P0 yet. Hard re-check at T+0:40 (19:04Z) against the ~10 checkpoint.
+
+---
+
+## ALARM — T+00:27 (AMBER — approaching T+0:40 checkpoint with zero landed artifacts)
+
+**Level:** AMBER (P1, escalates to RED P0 if nothing lands in next 12 min)
+**Wallclock:** 2026-06-13T18:51:08Z (T+00:27)
+**T+0:40 checkpoint in:** ~12 min (19:04Z)
+**Expected overall at T+0:40:** ~10
+**Actual overall (last grade T+00:22):** 6
+**Condition:** Zero code and zero committed specs have landed at T+00:27. The T+0:40
+  checkpoint requires: (a) latency-envelope spec committed (`docs/specs/latency-envelope.md`),
+  (b) commit-protocol TLA+ drafted (`formal/`), (c) storage-format spec drafted, (d) TCK
+  harness wired (`tests/tck/`), (e) crate skeleton building. At the current rate, the ~10
+  target is AMBER — only achievable if the design spikes complete and the skeleton/harness
+  land in the next 12 min. If Cat 4 (TCK, weight 12) stays at 0 because T-0002 remains
+  unclaimed, the T+0:40 checkpoint will be missed even if design spikes land.
+
+**Critical blockers identified:**
+1. **T-0000** (env provisioning, P0) — READY, unclaimed. T-0001 (crate skeleton) stays
+   `backlog` until T-0000 is `done`. This is the single highest-leverage unblock.
+2. **T-0002** (TCK harness, P0) — READY, unclaimed, design-independent. Wiring this alone
+   moves Cat 4 from 0 to counting. Must land this epoch.
+3. **SPIKE-0001** (latency envelope, P0) — READY, unclaimed. Must produce
+   `docs/specs/latency-envelope.md` before SPIKE-0003 (storage format) can start.
+4. **SPIKE-0002** (commit-protocol TLA+, P0) — READY, unclaimed. Must produce
+   `formal/commit.tla` draft before Cat 11 escapes floor.
+5. **SPIKE-0005/0006** (pre-ratification constraints, latency floor, P0) — READY, unclaimed.
+   These are small (S) and unblock SPIKE-0001 accuracy; dispatch immediately.
+
+**Immediate actions taken:**
+- Epoch 2 dispatch manifest below (Epoch 1 ran for T+27 min; dispatching now regardless
+  of completion state to sustain throughput — mainspring doctrine: keep pipeline full).
+
+**Epoch 2 — T+00:27 dispatch manifest:**
+Dispatching up to 8 ready tasks, highest rubric weight first:
+
+1. T-0000 — Self-provision env and guarantee parallel-safe isolation (Cat 10/12, P0) → implementer
+2. T-0002 — Wire openCypher TCK Gherkin runner (Cat 4/10, P0) → test-author
+3. SPIKE-0001 — Define latency envelope + cost model → `docs/specs/latency-envelope.md` (Cat 3/11, P0) → researcher
+4. SPIKE-0002 — Design S3 commit protocol + TLA+ → `formal/commit.tla` draft (Cat 1/11, P0) → formal-prover
+5. SPIKE-0005 — Commit-protocol pre-ratification constraints (CAS/fencing, S) (Cat 1/7/11, P0) → researcher
+6. SPIKE-0006 — Pin L_p99 and per-hop round-trip bound (S) (Cat 3/11, P0) → researcher
+7. SPIKE-0007 — Cold-start benchmark measurement protocol (S) (Cat 3/10, P0) → researcher
+8. SPIKE-0008 — Storage falsification constraints (S) (Cat 2/3/1, P0) → researcher
+
+BUG-0003 (artifact paths, S) and BUG-0004 (byte-budget formula, M) are folded into
+SPIKE-0001/0002 work streams — the researchers resolving those spikes should address the
+bugs inline.
+
+**Escalation trigger:** if by T+0:40 (19:04Z) no code has landed and Cat 4 is still 0,
+this becomes **RED P0** — dispatch dedicated implementer to T-0002 immediately regardless
+of all other work.
+
+**Board actions taken:** None (all items already READY; no new tasks needed; filing
+duplicates wastes board capacity — doctrine).
+
+**Score delta to alarm thresholds:**
+- AMBER threshold: actual < expected + 5 → current gap ~4 (AMBER).
+- RED threshold: behind ≥ 5 overall, or any GATE ≥ 10 below checkpoint. Not yet RED, but
+  Cat 4 at 0 with T+0:40 target requiring "harness wired" is a structural risk.
+- Next marshal check: T+0:37 (18:58Z) — if nothing landed, escalate to RED immediately.
