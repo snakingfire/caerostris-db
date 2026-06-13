@@ -100,8 +100,8 @@ exists yet to benchmark; this artifact does not require it.
 
 ## Review gate
 
-- [ ] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
-- [ ] premortem-analyst sign-off (see docs/process/adversarial-review-loops.md)
+- [x] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
+- [x] premortem-analyst sign-off (see docs/process/adversarial-review-loops.md)
 - [x] `./format_code.sh` green
 - [x] `cargo nextest run --manifest-path formal/latency-sim/Cargo.toml` green (17 tests)
 - [x] coverage not regressed (new crate fully unit+integration tested; engine crate untouched)
@@ -388,3 +388,197 @@ so `./format_code.sh` is actually green — this artifact is a strong approve.
 > also now covers the sub-workspace so local pre-commit matches CI. The `main.rs`
 > doc comment now reads "invoked via `--manifest-path` in the `latency-sim` CI job"
 > — the false claim is corrected. The GATE proof is now wired and live.
+
+## Adversarial Review — Round 2 (re-review of fix commit `6da4c1d`)
+
+**Verdict:** approve
+
+The single round-1 blocking finding ([CLAIM/CORRECTNESS]: the GATE proof was
+invisible to CI and `main.rs`/`README.md`/`PR.md` claimed a CI integration that
+did not exist) is **fully addressed**. I re-derived the fix end-to-end rather than
+taking the author response on trust, and I attacked the new diff for fresh
+blockers. None landed.
+
+**Blocking findings:** none.
+
+**Verification of the fix (each round-1 task confirmed):**
+
+- *CI wiring is real and runs the right commands.* `.github/workflows/ci.yml`
+  L62–84 adds a dedicated `latency-sim` job that runs, against the sub-workspace
+  via `--manifest-path formal/latency-sim/Cargo.toml`:
+  `cargo fmt … --all --check` (L78), `cargo clippy … --all-targets -- -D warnings`
+  (L80), `cargo test … --all-features` (L82), and the SLA-assertion binary
+  `cargo run … --release -- --trials 20000 --seed 1` (L84). These are the exact
+  commands the README documents and the premortem/round-1 finding prescribed. The
+  job has its own toolchain install (rustfmt + clippy) and a scoped
+  `Swatinem/rust-cache` keyed to `formal/latency-sim`. It is a top-level job under
+  `jobs:`, so GitHub Actions will schedule it on every push/PR — it is not gated
+  behind or skipped by the other jobs.
+- *I ran all four CI commands in the worktree.* fmt `--check` → clean; clippy
+  `-D warnings` → Finished, no warnings; `cargo test … --all-features` → 17 passed
+  (10 unit + 7 integration), 0 failed; the SLA-assertion `cargo run … --trials
+  20000 --seed 1` → `VERDICT: PASS`, **exit code 0**. The default no-arg
+  invocation the README also documents → `VERDICT: PASS`, exit 0. The proof is
+  genuinely live, not merely declared live.
+- *`format_code.sh` now covers the sub-workspace.* L12–13 add
+  `cargo fmt --manifest-path formal/latency-sim/Cargo.toml --all` and
+  `cargo clippy --manifest-path formal/latency-sim/Cargo.toml --all-targets --
+  -D warnings`, with an accurate comment explaining why (separate `[workspace]`,
+  invisible to the root cargo commands). The root commands were also made explicit
+  (`--manifest-path Cargo.toml`), which is harmless and slightly clearer. Local
+  pre-commit now matches CI.
+- *The `main.rs` doc comment no longer makes a false claim.* The old generic
+  "doubles as a CI check" now reads "doubles as a CI check, invoked via
+  `--manifest-path` in the `latency-sim` CI job (`.github/workflows/ci.yml`)" and
+  the run example is relabelled "Run locally:" — accurate as wired. The README's
+  "it runs in CI with no network" (L15) and "doubles as a CI check" (L23) were the
+  false-as-wired statements in round 1; the new CI job makes both statements
+  **true**, so they no longer constitute a misrepresentation.
+- *Core simulation artifact is unchanged.* `git diff 06fa762 6da4c1d --
+  formal/latency-sim/{src,Cargo.toml,tests}` touches only the `main.rs` doc
+  comment (5 lines, doc only); `lib.rs`, `Cargo.toml`, and `tests/envelope.rs` are
+  byte-for-byte identical to the round-1 artifact I already verified correct. The
+  fix introduces no model, RNG, or assertion change.
+
+**Attacks attempted on the new diff and survived (mandatory):**
+
+- *Does the new `latency-sim` job double-cover or collide with the root `test`
+  job's `cargo fmt --all` / `clippy --all-targets`?* No. `formal/latency-sim/
+  Cargo.toml` L24 declares its own empty `[workspace]` table, a hard workspace
+  boundary; and on real `main` the root `Cargo.toml` is a `[workspace]` with an
+  explicit `members = ["tck-runner"]` list that does not include the sim. So the
+  root commands exclude `caerostris-latency-sim` entirely and the dedicated job is
+  the sole gate for it — no overlap, no conflict, no gap.
+- *Could the SLA-assertion step pass spuriously (exit 0 while an in-envelope query
+  actually busts)?* No. The CLI exits non-zero on any in-envelope SLA failure or
+  any failure of an OOE case to bust; I observed the slow-deployment row correctly
+  reporting `meets 1 s target: NO / meets 2 s ceiling: YES` while the overall
+  verdict is PASS — i.e. the bust cases bust and the in-envelope cases pass, which
+  is exactly the intended gating. The headline P99 stability (≈889 ms, 111 ms
+  margin) was re-confirmed in round 1 and the artifact is unchanged.
+- *Did the doc-only `main.rs` edit break the build or fmt?* No — fmt `--check` and
+  clippy `-D warnings` both clean on the sub-workspace; the change is inside a
+  `//!` block.
+- *New dependency / license / secret introduced by the CI or format changes?* No.
+  The CI job uses only already-pinned, permissive actions
+  (`actions/checkout@v4`, `dtolnay/rust-toolchain@stable`,
+  `Swatinem/rust-cache@v2`) already present elsewhere in this workflow; the sim
+  crate remains zero-dependency, `publish = false`, `#![forbid(unsafe_code)]`. No
+  secrets.
+
+**Non-blocking observations (carried forward for the integrator / follow-up):**
+
+- [LANDING/STALE-BASE] The branch is now **19 commits behind `main`** (was 14 in
+  round 1) and shares merge-base `105cf9b`. Run from this *nested* worktree, the
+  root `cargo fmt --all` can fail with "current package believes it's in a
+  workspace when it's not" because cargo walks up to the parent checkout's root
+  `Cargo.toml`; and the branch's stale-base root `Cargo.toml` predates main's
+  `[workspace]`/`tck-runner` addition. As established in round 1, this is a
+  worktree-nesting + stale-base artifact, **not** a defect in the deliverable.
+  **Integrator must rebase onto current `main` before landing** (round 1 verified
+  the rebase is clean — the branch never touches the root `Cargo.toml` or the bits
+  `main` changed; the only conflict is in `PR.md`, trivial). After rebase,
+  `./format_code.sh` is green and the sim crate is correctly excluded from the
+  engine workspace. The `- [x] ./format_code.sh green` checkbox is reproducible
+  only post-rebase. This does not block the adversarial sign-off — it is an
+  integration mechanic, and the sim crate itself is fmt-clean/clippy-clean via
+  `--manifest-path` (both exit 0, re-verified this round).
+- [DISPLAY] (unchanged from round 1) The CLI prints "tolerance 15%" on the
+  `|sim-analytic|` line for all four scenarios; the slow-deployment row reads
+  17.86% and is not gated on it. Non-load-bearing (the 15% is test-asserted only
+  for the in-envelope cases; the CLI gates on `meets_target`/`meets_ceiling`).
+  Tidy when convenient.
+- [DOC] `EPIC-003`'s `- [ ] ./format_code.sh green; no clippy warnings in
+  simulation code` checkbox can now be checked truthfully once this lands.
+
+**Rationale:** The round-1 blocker is closed in the correct (wire-it) direction
+rather than by weakening the claim: a dedicated CI job now runs fmt, clippy, the
+full test suite, and the exit-coded SLA-assertion binary against the sub-workspace,
+`format_code.sh` mirrors it locally, and the `main.rs`/README CI claims are now
+true as wired. I re-ran every CI command (all green, SLA assertion exit 0) and
+confirmed the core artifact — already verified correct in round 1 — is unchanged
+but for a doc comment. The only open item is the integrator rebase onto current
+`main`, which round 1 proved clean and which is an integration mechanic, not an
+adversarial blocker. Approving.
+
+**Signed:** adversarial-reviewer  T+~04:10
+
+## Pre-mortem Analysis — Re-review (round 2)
+
+**Verdict:** approve
+
+The single blocking finding from round 1 ([OPERATIONAL/DRIFT] — the GATE proof was
+invisible to CI and the PR/README/main.rs claimed CI coverage it did not have) is
+**fully addressed** by commit `6da4c1d`. I re-ran the working backwards loop and
+re-attacked the fix; no P0 failure mode applies and no new failure mode was
+introduced.
+
+**Blocking finding from round 1 — now closed:**
+
+- [OPERATIONAL/DRIFT] *"GATE evidence silently rots while CI stays green."*
+  **Closed.** `.github/workflows/ci.yml` now carries a dedicated top-level
+  `latency-sim` job (lines 65–84) that runs, against the sub-workspace via
+  `--manifest-path formal/latency-sim/Cargo.toml`: `cargo fmt --all --check`,
+  `cargo clippy --all-targets -- -D warnings`, `cargo test --all-features`, and the
+  CLI SLA assertion `cargo run --release -- --trials 20000 --seed 1` (which exits
+  non-zero on any envelope SLA bust). The workflow-global trigger
+  (`on: {push: [main], pull_request:}`, lines 3–6) covers this job, and it is a
+  top-level job, so it is a required check on every PR and every push to `main`. If
+  the sim breaks, its SLA assertion regresses, or a future edition/MSRV bump
+  desyncs it, CI now goes **red** — the proof can no longer silently rot. The prior
+  `grep -rn latency-sim .github/` → no-hits gap is closed (now 8 hits). I verified
+  the wiring is not a false-green by running all four CI steps locally with the
+  exact commands: fmt clean, clippy `-D warnings` rc=0, 17 tests pass (10 unit + 7
+  integration), CLI prints `VERDICT: PASS` and exits 0; the out-of-envelope and
+  slow-deployment scenarios still correctly bust (so the assertion is a real gate,
+  not a tautology).
+
+**Mitigations verified in the fix:**
+
+- *Local pre-commit drift:* closed. `format_code.sh` now lints the sub-workspace
+  explicitly (`cargo fmt --manifest-path formal/latency-sim/Cargo.toml --all` +
+  `cargo clippy --manifest-path ... -- -D warnings`, lines 12–13), so drift is
+  caught locally before CI. `set -e` is preserved and the engine-crate lines run
+  first, so an engine failure still aborts first — the added lines cannot mask an
+  engine regression.
+- *False-documentation sub-finding (raised by adversarial-reviewer):* closed via
+  mitigation path (a). The README claims "it runs in CI with no network" (L15) and
+  "this binary doubles as a CI check" (L23) are now **true as wired** rather than
+  false, because the `latency-sim` job exists and invokes exactly those commands.
+  `main.rs` was additionally tightened to name the specific job
+  (`.github/workflows/ci.yml`).
+- *No new failure mode from the fix:* verified. The diff since round 1 touches only
+  `ci.yml`, `format_code.sh`, a `main.rs` doc comment, and `PR.md` — **zero**
+  simulation/engine logic changed. The sim's behaviour is byte-identical (HEAD
+  reproduces the documented 889 ms in-envelope / 1544 ms slow-deployment figures and
+  PASS verdict). No data path, concurrency, S3 protocol, or dependency was touched,
+  so no corruption / ACID / split-brain / silent-SLA surface is exposed. License
+  hygiene unchanged (still zero external deps; CI additions use pinned,
+  permissively-licensed standard GitHub Actions already present in the workflow).
+
+**Failure modes — non-blocking (carried forward, still accepted):**
+
+- [SLA/CALIBRATION] In-envelope headline busts 1 s if the deployed S3 GET P99 is the
+  worse calibration distribution (P99=100 ms) rather than the 50 ms design point.
+  Accepted: this is the model honestly showing a *conditional* result; the
+  deployment-time guard is OOE-4 in ADR-0001 and the measured half is tracked as
+  T-0016. Watch T-0016 close it against the mock.
+- [DISPLAY] CLI prints "tolerance 15%" on all four `|sim-analytic|` lines, but the
+  slow-deployment row reads 17.86%. Non-load-bearing (the 15% is test-asserted only
+  for the in-envelope cases; the CLI gates on `meets_target`/`meets_ceiling`). Tidy
+  when convenient.
+- [LANDING/STALE-BASE] (from adversarial-reviewer) Integrator must rebase onto
+  current `main` before landing so `./format_code.sh` is reproducibly green; the
+  rebase is clean (conflicts only in PR.md). This is an integrator instruction, not
+  a pre-mortem blocker.
+
+**Rationale:** The round-1 blocker was the only thing standing between this GATE
+artifact and approval, and it is now mitigated in the diff: the proof is wired into
+CI as a required, top-level job whose four steps I re-ran and confirmed green, the
+local pre-commit path matches CI, and the previously-false CI-coverage documentation
+is now accurate. The fix changes no simulation logic, so the sound, honest,
+cache-independent, license-clean model the round-1 review validated is unchanged and
+introduces no new corruption / SLA / concurrency / security failure mode. The proof
+is now a *live* proof. Approve.
+
+**Signed:** premortem-analyst  T+~04:05
