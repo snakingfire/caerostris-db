@@ -27,6 +27,7 @@
 
 pub mod adjacency;
 pub mod cache;
+pub mod manifest;
 pub mod memory;
 
 pub use adjacency::{

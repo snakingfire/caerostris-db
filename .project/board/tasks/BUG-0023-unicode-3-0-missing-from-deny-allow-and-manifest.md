@@ -2,7 +2,7 @@
 id: BUG-0023
 title: unicode-ident license (Unicode-3.0 conjunct) missing from deny.toml allow-list and misrecorded in manifest
 type: bug
-status: in_review
+status: done
 priority: P2
 assignee: implementer-wf_156e2b80-bb6-48
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+3:42
-updated: T0+3:55
+updated: T0+4:00
 ---
 
 ## Context
@@ -74,3 +74,6 @@ allow. License-gate records must be exact (cf. BUG-0008, BUG-0014).
   guardrails §5, recorded Decision 0034. Spot-check: `unicode-ident` is the only
   crate in either lockfile with an `AND`-conjunct real license. 233/233 tests green;
   2 new regression tests. Set `in_review`.
+- **T0+4:00 — integrator** Reland: rebased branch onto main (clean rebase, no
+  conflict); `./format_code.sh` exit 0; `cargo nextest run` 306/306 passed;
+  merged --no-ff into main. Landed in commit a874eadfb4e71d4bfb97a46d9ab27ed7439bfe4d.
