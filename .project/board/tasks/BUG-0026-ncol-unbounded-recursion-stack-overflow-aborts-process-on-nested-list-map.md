@@ -10,7 +10,7 @@ deps: [T-0007]
 rubric_refs: [2, 1, 10]
 estimate: S
 created: T0+~3:58
-updated: T0+~4:40
+updated: T0+~4:45
 ---
 
 ## Context
@@ -88,3 +88,18 @@ self-contained robustness/DoS gap in the value codec shared by writer and reader
   (a width/allocation DoS in the same reader, pre-existing on `main`) filed as
   **BUG-0031** — not blocking BUG-0026. Awaiting premortem-analyst sign-off
   before the integrator lands.
+- **T0+~4:45 — premortem-analyst: APPROVE.** Ran the pre-mortem assuming a
+  poisoned `.ncol` object took down a read-serving server in prod. Independently
+  re-verified the mitigation (not on the author's word): `cargo test --lib
+  storage::ncol` = 25 passed incl. the 100k-deep hostile-stream test returning a
+  typed error with **no SIGABRT**; grep-confirmed `decode_column →
+  decode_value(.., 0)` is the sole value-materializing reader path (no bypass);
+  `cargo nextest run` = 464 passed / 0 skipped; `clippy --all-targets -D warnings`
+  = exit 0; `./format_code.sh` = exit 0. No P0 failure mode left unmitigated:
+  wire format byte-identical for in-bound values (no corruption/migration risk),
+  zero ACID/latency/concurrency surface, writer fails closed before any write (no
+  orphaned-object window). Non-blocking notes recorded in `PR.md`: the over-strict
+  64-bound tradeoff (documented, strictly safer than SIGABRT), the owned
+  out-of-scope siblings (BUG-0030 `.adj`, BUG-0031 width-DoS), and a flag to the
+  integrator that two competing BUG-0026 branches exist — land exactly one. Both
+  review-gate boxes now ticked; clear to land.
