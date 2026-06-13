@@ -22,13 +22,160 @@
 # Format (parsed by src/licenses.rs — keep keys on their own lines):
 #
 #   [[dependency]]
-#   name    = "<crate name as in Cargo.lock>"
+#   name = "<crate name as in Cargo.lock>"
 #   version = "<resolved version>"
-#   spdx    = "<SPDX expression, e.g. MIT OR Apache-2.0>"
-#   note    = "<one line: why it is permissive / why we use it>"
+#   spdx = "<SPDX expression, e.g. MIT OR Apache-2.0>"
+#   note = "<one line: why it is permissive / why we use it>"
 #
-# Status: the engine currently has ZERO third-party runtime dependencies. As the
-# storage/query/transaction layers land, their dependencies get recorded here.
-# The empty state below is intentional and passes the check.
+# Dependencies introduced by the tck-runner crate (T-0002).
+# All are standard permissive crates widely used in the Rust ecosystem.
 
-# (no third-party dependencies yet)
+[[dependency]]
+name = "gherkin"
+version = "0.16.0"
+spdx = "MIT OR Apache-2.0"
+note = "Gherkin (BDD) feature-file parser; dual-licensed permissive."
+
+[[dependency]]
+name = "heck"
+version = "0.5.0"
+spdx = "MIT OR Apache-2.0"
+note = "Case-conversion utilities; dual-licensed permissive."
+
+[[dependency]]
+name = "itoa"
+version = "1.0.18"
+spdx = "MIT OR Apache-2.0"
+note = "Fast integer-to-string conversion; dual-licensed permissive."
+
+[[dependency]]
+name = "memchr"
+version = "2.8.2"
+spdx = "Unlicense OR MIT"
+note = "Fast byte-search primitives; dual-licensed permissive."
+
+[[dependency]]
+name = "peg"
+version = "0.6.3"
+spdx = "MIT"
+note = "PEG parser macro; MIT licensed."
+
+[[dependency]]
+name = "peg-macros"
+version = "0.6.3"
+spdx = "MIT"
+note = "Procedural macro component of peg; MIT licensed."
+
+[[dependency]]
+name = "peg-runtime"
+version = "0.6.3"
+spdx = "MIT"
+note = "Runtime component of peg; MIT licensed."
+
+[[dependency]]
+name = "proc-macro2"
+version = "1.0.106"
+spdx = "MIT OR Apache-2.0"
+note = "Proc-macro token stream; dual-licensed permissive."
+
+[[dependency]]
+name = "quote"
+version = "1.0.45"
+spdx = "MIT OR Apache-2.0"
+note = "Quasi-quoting macro helper; dual-licensed permissive."
+
+[[dependency]]
+name = "serde"
+version = "1.0.228"
+spdx = "MIT OR Apache-2.0"
+note = "Serialization/deserialization framework; dual-licensed permissive."
+
+[[dependency]]
+name = "serde_core"
+version = "1.0.228"
+spdx = "MIT OR Apache-2.0"
+note = "Core serde traits; dual-licensed permissive."
+
+[[dependency]]
+name = "serde_derive"
+version = "1.0.228"
+spdx = "MIT OR Apache-2.0"
+note = "Derive macros for serde; dual-licensed permissive."
+
+[[dependency]]
+name = "serde_json"
+version = "1.0.150"
+spdx = "MIT OR Apache-2.0"
+note = "JSON serialization; dual-licensed permissive."
+
+[[dependency]]
+name = "smawk"
+version = "0.3.2"
+spdx = "MIT"
+note = "SMAWK algorithm for matrix searching; MIT licensed."
+
+[[dependency]]
+name = "syn"
+version = "2.0.117"
+spdx = "MIT OR Apache-2.0"
+note = "Rust syntax parsing for proc macros; dual-licensed permissive."
+
+[[dependency]]
+name = "tck-runner"
+version = "0.0.0"
+spdx = "MIT"
+note = "Internal crate: openCypher TCK conformance runner; MIT licensed."
+
+[[dependency]]
+name = "textwrap"
+version = "0.16.2"
+spdx = "MIT"
+note = "Text wrapping utilities; MIT licensed."
+
+[[dependency]]
+name = "thiserror"
+version = "2.0.18"
+spdx = "MIT OR Apache-2.0"
+note = "Error derive macro; dual-licensed permissive."
+
+[[dependency]]
+name = "thiserror-impl"
+version = "2.0.18"
+spdx = "MIT OR Apache-2.0"
+note = "Proc-macro impl for thiserror; dual-licensed permissive."
+
+[[dependency]]
+name = "typed-builder"
+version = "0.23.2"
+spdx = "MIT OR Apache-2.0"
+note = "Compile-time checked builder pattern; dual-licensed permissive."
+
+[[dependency]]
+name = "typed-builder-macro"
+version = "0.23.2"
+spdx = "MIT OR Apache-2.0"
+note = "Proc-macro component of typed-builder; dual-licensed permissive."
+
+[[dependency]]
+name = "unicode-ident"
+version = "1.0.24"
+spdx = "MIT OR Apache-2.0"
+note = "Unicode identifier tables for proc-macro2; permissive (MIT/Apache-2.0 component chosen)."
+
+[[dependency]]
+name = "unicode-linebreak"
+version = "0.1.5"
+spdx = "Apache-2.0"
+note = "Unicode line-break algorithm; Apache-2.0 licensed."
+
+[[dependency]]
+name = "unicode-width"
+version = "0.2.2"
+spdx = "MIT OR Apache-2.0"
+note = "Unicode character width; dual-licensed permissive."
+
+[[dependency]]
+name = "zmij"
+version = "1.0.21"
+spdx = "MIT"
+note = "Dependency of gherkin (builder macro); MIT licensed."

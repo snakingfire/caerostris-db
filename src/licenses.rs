@@ -29,6 +29,7 @@ pub const APPROVED_SPDX: &[&str] = &[
     "MPL-2.0",
     "CC0-1.0",
     "Unlicense",
+    "Unicode-3.0",
     "Zlib",
 ];
 
