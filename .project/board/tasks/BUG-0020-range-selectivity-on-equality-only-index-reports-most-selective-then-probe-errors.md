@@ -2,15 +2,15 @@
 id: BUG-0020
 title: Range selectivity on a non-empty equality-only index reports 0.0 (most selective), then probe errors
 type: bug
-status: ready
+status: in_progress
 priority: P2
-assignee:
+assignee: implementer-wf_e9fceb87-27c-38
 epic: EPIC-005
 deps: []
 rubric_refs: [5, 3]
 estimate: S
 created: T+3:40
-updated: T+3:40
+updated: T+3:55
 ---
 
 ## Context
