@@ -2,15 +2,15 @@
 id: BUG-0019
 title: Index facade Equals uses orderability equality, not the openCypher `=` operator — wrong rows for null/NaN
 type: bug
-status: ready
+status: in_review
 priority: P1
-assignee:
+assignee: implementer-wf_fe688db0-093-31
 epic: EPIC-005
 deps: []
 rubric_refs: [5, 4]
 estimate: S
 created: T+3:40
-updated: T+3:40
+updated: T+4:09
 ---
 
 ## Context
@@ -65,3 +65,32 @@ so it is latent, not a live incident — hence P1, fix before T-0024/EPIC-002 la
 ## Notes / log
 - T+3:40 filed by adversarial-reviewer during T-0022 re-review. Pairs with BUG-0020
   (range selectivity on equality-only index).
+- T+3:58 implemented on `work/BUG-0019-index-equals-cypher-equal-semantics` (based on
+  latest `main`). Surface chosen: keep the documented `= <value>` semantics; guard
+  `Equals(v)` in both `probe` and `selectivity` to short-circuit to no rows when
+  `cypher_equal(v, v) != Some(true)` (the sole orderability-vs-`=` divergence: `null`,
+  `NaN`, indeterminate containers). Clean probes need no post-filtering (proof in the
+  helper doc + ADR 0005). 7 new TDD tests (4 RED→GREEN, 3 regression guards); full suite
+  285 passed; clippy + `./format_code.sh` green. ADR 0005 + `IndexQuery::Equals` doc
+  corrected. Status → in_review; review gate (adversarial-reviewer + premortem-analyst)
+  pending.
+- T+4:02 adversarial-reviewer: **approve**, no blocking findings. Central correctness
+  claim ("clean probe needs no post-filtering") survived a 299-value brute force in
+  both directions (zero false positives, zero false negatives) + precision-loss
+  (`i64 as f64`) and self-equality audits. fmt/clippy/format_code.sh green; full
+  `cargo test` 0 failures (lib 242, index 40). Verdict block + reviewer checkbox in
+  PR.md. Non-blocking: confirm range-bound null/NaN is covered (BUG-0020 sibling)
+  before the planner wires comparison predicates. Pre-mortem sign-off still pending.
+- T+4:08 premortem-analyst: **approve**. Re-ran the load-bearing claim with an
+  *independent* brute force (2500 ordered pairs over a 50-value corpus incl. NaN,
+  ±0.0, ±Inf, i64::MAX, `2^53+1` precision-loss, and dirty/clean nested lists):
+  for clean probes orderability-eq ⟺ `=`-eq (both directions), for dirty probes no
+  stored value is ever `=`-equal — zero false positives, zero false negatives.
+  `./format_code.sh` exit 0; full `cargo test` exit 0 (lib 242 + all integration
+  suites, 0 failures); no dep/Cargo.lock change, no `unsafe`, no new unwrap/panic.
+  Six pre-mortem lenses cleared (corruption mitigated; no SLA/byte/phase impact —
+  O(1) guard on the hot path, no extra reads, not cache-dependent; no concurrency/
+  manifest/GC surface; reversible). Non-blocking: the fix relies on cypher_equal /
+  cypher_order staying mutually consistent — a future divergence beyond null/NaN
+  would not be caught by a compile-time link (latent maintenance risk, not introduced
+  here). Both review-gate sign-offs now green; ready for the integrator.
