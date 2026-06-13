@@ -2,7 +2,8 @@
 id: T-0030
 title: PyO3 + maturin scaffold, importable package, pytest in CI
 type: task
-status: readypriority: P2
+status: ready
+priority: P2
 assignee:
 epic: EPIC-007
 deps: [T-0001]
