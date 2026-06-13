@@ -2,14 +2,14 @@
 id: BUG-0018
 title: TCK parse-error gap (1602 vs pinned 1615) is unowned and mis-cited as "BUG-0008"
 type: bug
-status: ready
+status: blocked
 priority: P1
 assignee:
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 12]
 created: T+4:30
-updated: T+4:30
+updated: T+5:15
 ---
 
 ## Context
@@ -73,3 +73,24 @@ stale; the discrepancy is currently undocumented as a defect.
   must therefore target 3884 (the fully-expanded parseable count), not 1602/1615. The
   grader instruction (`.claude/agents/rubric-grader.md` L51-52) still pins `1.0.0-M23` /
   `total == 1615`; reconciling it is part of this BUG's scope.
+- **T+5:15 — adversarial-reviewer** verdict **changes_requested** on branch
+  `work/BUG-0018-tck-parse-gap-citation-and-pin-reconciliation` (PR.md in worktree
+  `wf_fe688db0-093-30`). The technical reconciliation is correct and tests pass (367/367).
+  Four blocking process/GATE integrity findings: (1) pin change justified by false
+  "2024.3 is 1.0.0-M23 renamed" claim that contradicts upstream tag history and
+  Decision 0008 lines 59-63; must reframe as deliberate pin bump per Decision 0008
+  L61-63; (2) steering re-ratification required before overriding the Cat. 4 GATE
+  canonical pin (Decision 0008 is a steering-ratified decision, Loop A first); (3) the
+  rewritten 100% bar allows 13 Literals6 `parse_errors` scenarios as a permanent
+  excluded subset — add `parse_errors == 0` to the Cat. 4 GATE requirement; (4) the
+  headline P0 (grader misfire on `rubric-grader.md` L51-52 still citing 1.0.0-M23/1615)
+  is undelivered — this PR does not touch that file, so the false-P0 persists.
+  Review-gate checkbox left unchecked. Branch returned to author.
+- **T+5:15 — integrator**: LANDING BLOCKED — adversarial-reviewer sign-off is
+  `changes_requested`. Review-gate checkbox unchecked. Required actions before reland:
+  (1) get steering sign-off (Loop A) on the pin bump; (2) correct the "calendar rename"
+  claim to "deliberate pin bump"; (3) add `parse_errors == 0` to Cat. 4 GATE 100% bar;
+  (4) update `.claude/agents/rubric-grader.md` L51-52 with the new pin (or obtain
+  explicit authorization for that agent-self-modification edit). After fixes, re-run
+  `./format_code.sh` + cargo nextest, reset review-gate checkboxes to unchecked, and
+  request a fresh adversarial review + pre-mortem pass. Status set to `blocked`.
