@@ -547,3 +547,8 @@ GATEs now strong: Cat3=78, Cat10~82, Cat11=65. Laggards Cat4/2/1 all gated on SP
 done:25 ready:11 in_review:3 backlog:36. MAIN GREEN (e197e00) — no P0. No new land this 5-min window: the two highest-value items are mid-build (NOT stuck) — SPIKE-0003 storage-format ADR (steering, writing) + T-0018 planner (focused builder, 144 lines deep). 5/5 lanes building (5/1/9/6/10 files <3min).
 The instant SPIKE-0003 ratifies → storage cascade opens (T-0007/0008 writer/reader Cat2, T-0009/0010 commit Cat1, executor for Cat4) → I dispatch focused builders at it. Cat-12 in_review backlog left to lanes (low value).
 No GATE sliding (Cat3=78, Cat10~82, Cat11=65). ~1h26m to deadline.
+
+## STATUS — T+3:40 (DEMO is now #1; storage cascade opened)
+done:27 main GREEN (d320f93). Cleared a stray ci.yml half-merge (reset --merge). SPIKE-0003 storage-format ADR ratified→DONE → cascade OPENED: T-0007/0008 writer/reader (Cat2), T-0009 manifest, then T-0010 commit (Cat1). 5/5 lanes. T-0018 planner in_review.
+PRIORITY PIVOT (hackathon demo in ~2h): dispatched a focused implementer to build a RUNNABLE end-to-end demo (insert → MATCH → return) — minimal in-memory executor on the landed lexer/parser + data model, a `caero` CLI + scripts/demo.sh + docs/DEMO.md, verified working before land. This is the submission deliverable; outranks rubric breadth.
+Lanes keep building storage/python/cache breadth in parallel. ~1h44m to deadline.
