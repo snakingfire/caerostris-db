@@ -10,7 +10,7 @@ deps: [T-0039]
 rubric_refs: [12]
 estimate: S
 created: T0+0:48
-updated: T0+3:18
+updated: T0+3:24
 ---
 
 ## Context
@@ -86,3 +86,23 @@ SPDX expression is recorded** in the manifest.
   parens (reachable only via the committed manifest; fail-loud, never masks
   copyleft) — accepted as non-blocking follow-up, not a gate. Premortem checkbox
   ticked in PR.md. Both review gates now green; ready for the integrator.
+- T0+3:24 (premortem-analyst, 2nd lane): **approve** — but **DUPLICATE BRANCH
+  ALERT for the integrator.** I was dispatched against the PR in
+  `.worktrees/BUG-0008` on branch `work/BUG-0008-spdx-and-or-precedence` (tip
+  `ec08ac8`), a *parallel* attempt at the same bug as the `T0+3:18` entry above
+  (which reviewed `work/BUG-0008-spdx-precedence-eval`). Several `work/BUG-0008-*`
+  branches exist; **only one may land** — the integrator should land whichever
+  rebases cleanest and drop the rest. My independent pre-mortem on the
+  `…-and-or-precedence` branch reached the same verdict: no P0 surface (pure
+  CI-time checker, no write/read/concurrency/SLA/storage path); the only failure
+  mode is the unbounded-recursion stack-abort, which is unreachable (input is the
+  repo's own reviewed manifest) and fail-closed (aborts the build, never emits a
+  false "permissive") — already tracked as BUG-0015, so not re-filed.
+  **Staleness caveat:** this branch is 49 commits behind `main`; `licenses.rs`
+  diverged (main added `Unicode-3.0` to the allow-list in `be0a34f`). I trial-
+  rebased onto `main` tip in a throwaway worktree — code 3-way-merges cleanly
+  (final tree keeps **both** `Unicode-3.0` and the new parser); only the board
+  file and the stray `PR.md` (BUG-0013) conflict. Post-rebase: 21/21 license unit
+  tests, `license_manifest` 2/2 (27 real entries), clippy clean. `land.sh` must
+  rebase + re-run the gate before merge. Premortem block + checkbox in this
+  branch's PR.md.
