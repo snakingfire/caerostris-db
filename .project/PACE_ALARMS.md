@@ -439,3 +439,11 @@ Cleaned orphaned worktrees (down to main only). Relaunched 3 lanes: lane1 `wf_5e
 **Board:** done:8 in_review:2 in_progress:3 blocked:2 ready:6 backlog:45. Lanes 1/2/3 all hot (11-12 agents), disjoint claims.
 **Cron** replaced 366ea28f→`670ebfac` (every 5 min: unblock + claim-gc + env + maintain 3 lanes, scale to 5 when ready>12).
 **Still RED on pace** (grader T+1:38: 15 vs ~35). The fixes are landing the right way; watch for SPIKE-0002 ratify + the backlog cascade + code merges over the next 15 min. T+1:58 remains the hard checkpoint.
+
+---
+
+## ROOT CAUSE FOUND — T+1:54 (name-cache served v1 orchestrator the WHOLE time)
+
+The reason no code was landing: `Workflow({name:"mainspring"})` resolves a CACHED registry copy of the orchestrator (v1, broken per-agent claim, no claim.sh/unblock.sh/land-routing). EVERY relaunch since launch ran that stale v1 — none of the committed fixes (claim.sh, unblock.sh, in_review→land) ever executed. On-disk .claude/workflows/mainspring.js was correct v3, but `name` never read it.
+
+FIX: relaunch via scriptPath (reads disk directly). Stopped all v2 lanes; relaunched 3 via scriptPath="/Users/.../.claude/workflows/mainspring.js": lane1 wf_86b0c2e8-f29, lane2 wf_94c471c3-447, lane3 wf_f36e3f02-1c4. Cron replaced 670ebfac→b09b7588 — now relaunches via scriptPath (CRITICAL: name= would re-break it). Still behind ~20 on pace; this is the unblock that lets the real orchestrator finally run — watch for Merge work/ commits + cascade now.
