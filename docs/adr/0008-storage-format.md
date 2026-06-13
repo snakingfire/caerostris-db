@@ -812,6 +812,8 @@ gets a smaller band) recorded in the partition map, not by hashing.
 - **decision 0027** (BC-1): cross-version sharing → reference-counted GC — §7.2.
 - **T-0007** (columnar node-property writer/reader): implements §2.
 - **T-0008** (adjacency-list edge writer/reader): implements §3, §3.4 early-abort.
+  See the **Implementation notes (T-0008)** addendum below for two recorded,
+  reversible format details that refine (not contradict) §3.2.
 - **T-0009** (manifest + statistics + version resolution): implements §5, §7.1.
 - **T-0010** (atomic commit): implements §7.1 against ADR 0002.
 - **EPIC-001**: parent epic.
@@ -962,3 +964,40 @@ region or contradicts an upstream ratified ADR, so a `reject` or `changes_reques
 would be unfounded; "looks fine" is not the basis — the seven cited survivals are.
 
 **Signed:** steering-storage  T0+~03:40
+
+---
+
+## Implementation notes (T-0008) — recorded format refinements
+
+> Added by the T-0008 implementer per its AC ("docs / ADR updated if format
+> detail deviates from SPIKE-0003"). These are **refinements within** §3.2's
+> framing, not contradictions of it; each is reversible behind `format_version`.
+> Full rationale: `.project/decisions/0034-*`.
+
+1. **Header length is 52 bytes, not the ~48 the §3.2 diagram suggested.** The
+   field list (magic 4 + version 2 + kind 1 + flags 1 + rel_type_id 4 +
+   direction 1 + pad 3 + src_band_lo 8 + src_band_hi 8 + src_count 4 +
+   offset_dir_off 8 + content_len 8) sums to 52 with the 8-byte-aligned pad after
+   `direction`. The diagram was illustrative; the field set is unchanged.
+
+2. **Trailer self-checksum is FNV-1a-64, not a BLAKE3 prefix (yet).** The §3.2
+   trailer's 8-byte `blake3_prefix` is implemented as an 8-byte FNV-1a digest to
+   avoid pulling the `blake3` crate (and its license tree) into the engine for a
+   non-hot-path integrity guard whose only current consumer is fail-closed
+   framing. The **content-address object-key hash** (ADR 0002 §1 — the BLAKE3
+   that names `db/data/<content-hash>/...` and the GC reference-set depends on)
+   is **unchanged and remains T-0009's responsibility**; this note is only about
+   the trailer integrity field. Switching the trailer to a BLAKE3 prefix later is
+   a `format_version` bump with a fail-closed older reader — no silent
+   reinterpretation (§8.2). Decision 0034.
+
+3. **Edge properties are encoded per-neighbour (a self-describing value codec),
+   not yet as columnar-within-block.** §3.2's optional `[edge_prop columns]` are
+   realized as a length-prefixed property map per neighbour entry for now — this
+   gives exact round-trip fidelity (proptested) and is the simplest faithful
+   representation; columnar-within-block is a forward-compatible optimisation
+   (new `codec`/`flags`, fail-closed older reader) the writer may adopt later
+   without a format break. The **co-located destination projection** (§3.3) and
+   the **manifest partition map** (§5.1) remain owned by T-0009/T-0018 and are
+   not implemented in T-0008 (which owns the single-shard `.adj` bytes + the
+   banded, early-aborting reader).

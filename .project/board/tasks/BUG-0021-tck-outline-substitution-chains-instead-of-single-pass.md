@@ -2,14 +2,14 @@
 id: BUG-0021
 title: TCK outline substitution chains instead of single-pass — a value containing a sibling column's <token> is re-substituted (latent; 0 hits in 2024.3 corpus)
 type: bug
-status: ready
+status: blocked
 priority: P3
 assignee:
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+3:29
-updated: T0+3:50
+updated: T0+4:12
 ---
 
 ## Context
@@ -108,3 +108,12 @@ Verified: that case substitutes correctly.)
   `<...>` span"; and harden the guard to scan from every `<`. Add a
   comparison-operator-adjacent regression test. Verdict + evidence in the
   worktree's PR.md.
+- T0+4:12 (integrator): RELAND BLOCKED — adversarial-reviewer sign-off is
+  `changes_requested` (not `approve`). The current implementation in
+  `work/BUG-0021-tck-outline-single-pass-substitution` anchors on raw `<` which
+  collides with Cypher comparison operators; 68 expanded scenarios are corrupted.
+  Review-gate checkboxes in PR.md are both unchecked. Branch returned to author.
+  Required fix: substitute only bound `<header>` tokens by scanning the binding
+  keys directly (not arbitrary `<...>` spans); add comparison-operator regression
+  test; re-run format+tests; reset review gate for a fresh review pass. Status
+  set to `blocked`.

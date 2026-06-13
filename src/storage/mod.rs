@@ -21,10 +21,18 @@
 //!   implement [`ObjectStore`]. [`CachingStore`](cache::CachingStore) is one such
 //!   wrapper: a resource-aware read cache that is off by default and disabled by
 //!   a single config flag, never required for correctness or the cold-start SLA.
+//! - **Edge adjacency.** [`AdjacencyShardWriter`] and [`AdjacencyShardReader`]
+//!   implement the CSR adjacency-list format from ADR 0008, supporting early-abort
+//!   range reads for hop expansion within the byte-budget envelope.
 
+pub mod adjacency;
 pub mod cache;
 pub mod memory;
 
+pub use adjacency::{
+    AdjacencyShardReader, AdjacencyShardWriter, Direction, ExpandCap, Expansion, Neighbor,
+    StorageFormatError,
+};
 pub use cache::{CacheConfig, CacheStats, CachingStore, DiskCacheConfig, EvictionPolicy};
 pub use memory::MemoryStore;
 
