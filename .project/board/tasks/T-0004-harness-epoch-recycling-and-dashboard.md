@@ -2,15 +2,15 @@
 id: T-0004
 title: Mainspring epoch-recycling, board/pace dashboard, and STOP-sentinel handling
 type: task
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: implementer-wf_fe688db0-093-7
 epic: EPIC-010
 deps: []
 rubric_refs: [12]
 estimate: M
 created: T0
-updated: T+0:53
+updated: T+3:10
 ---
 
 ## Context
