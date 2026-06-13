@@ -2,7 +2,7 @@
 id: BUG-0024
 title: .adj writer overflows i64 on neighbour dst ids that straddle 2^63 (debug panic / silent release wrap)
 type: bug
-status: in_progress
+status: in_review
 priority: P1
 assignee: implementer-wf_e9fceb87
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [2, 3]
 estimate: S
 created: T0+4:12
-updated: T0+4:42
+updated: T0+4:52
 ---
 
 ## Context
@@ -74,3 +74,11 @@ suite never exercised dst ids above `~1e6`, so AC #3's "arbitrary directed typed
 claim was unproven for the full `u64` id space (Cat. 2 / Cat. 3). The test is the durable
 form of the recorded lesson and converts BUG-0024 into a permanent regression guard. No
 production code changes; test-only diff.
+
+**T0+4:52 — in_review.** Branch `work/BUG-0024-adj-writer-i64-delta-overflow-on-high-node-ids`,
+2 commits ahead of `main` (claim + test). PR.md filled. Test
+`neighbor_dst_ids_spanning_2_63_boundary_round_trip` verified RED (panics
+`attempt to subtract with overflow` at `adjacency.rs:356`) against a temporary signed-delta
+variant and GREEN against the canonical `wrapping_sub` in both debug and release. Full suite
+476/476 pass (was 475); `./format_code.sh` exit 0. Dispatching adversarial-reviewer +
+premortem-analyst.
