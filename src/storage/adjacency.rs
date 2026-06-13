@@ -611,8 +611,14 @@ impl<S: ObjectStore> AdjacencyShardReader<S> {
         gets += 1;
         bytes_read += buf.len();
 
+        // The buffer is `capped` when we deliberately fetched fewer bytes than
+        // the full block (`want < block_len`). On a capped buffer, a varint that
+        // runs off the end — including the *leading degree* varint when the cap
+        // is 0 or below the degree's encoded width — is the §3.4 early-abort, not
+        // corruption. On a full buffer, the checksum (validated at `open()`)
+        // guards integrity, so any decode failure there still fails closed.
         let (neighbors, decode_truncated) =
-            decode_block_prefix(&buf, degree as usize, cap.max_neighbors)?;
+            decode_block_prefix(&buf, degree as usize, cap.max_neighbors, truncated)?;
         truncated |= decode_truncated;
 
         Ok(Expansion {
@@ -737,15 +743,35 @@ fn verify_checksum(bytes: &[u8]) -> Result<(), StorageFormatError> {
 /// Decode up to `max_neighbors` neighbours from a (possibly truncated) block
 /// buffer that should contain `degree` entries. Returns the decoded neighbours
 /// and whether decoding stopped early (cap hit or buffer exhausted mid-entry).
+///
+/// `buffer_capped` is `true` when the caller deliberately fetched fewer bytes
+/// than the full block (a §3.4 / C2 byte-budget early-abort). On a capped
+/// buffer, the byte range can end *before or inside* the leading `degree`
+/// varint (e.g. cap = 0, or cap = 1 with degree >= 128): that is a clean
+/// early-abort yielding zero neighbours, not corruption. On a non-capped (full)
+/// buffer the leading varint must decode — a failure there is genuine
+/// corruption and fails closed (the block checksum is validated at `open()`).
 fn decode_block_prefix(
     buf: &[u8],
     degree: usize,
     max_neighbors: usize,
+    buffer_capped: bool,
 ) -> Result<(Vec<Neighbor>, bool), StorageFormatError> {
     let mut cursor = Cursor::new(buf);
     // The block leads with its own degree varint; trust the directory `degree`
     // as the canonical count but validate consistency when the prefix is whole.
-    let encoded_degree = cursor.read_varint()? as usize;
+    let encoded_degree = match cursor.read_varint() {
+        Ok(d) => d as usize,
+        // Ran off the *capped* buffer before the degree varint completed: this
+        // is the budget-driven early-abort (cap below the degree prefix), not
+        // corruption. Return an empty, truncated prefix.
+        Err(StorageFormatError::BadVarint | StorageFormatError::Truncated { .. })
+            if buffer_capped =>
+        {
+            return Ok((Vec::new(), true));
+        }
+        Err(e) => return Err(e),
+    };
     let want = degree.min(max_neighbors);
     let mut neighbors = Vec::with_capacity(want.min(encoded_degree));
     let mut prev_target: u64 = 0;
@@ -1267,6 +1293,102 @@ mod tests {
             .unwrap();
         assert_eq!(exp.neighbors.len(), 20);
         assert!(!exp.truncated);
+    }
+
+    // ---- BUG-0028: byte cap below the block's leading degree varint ----
+    //
+    // The remaining byte budget handed to the last source(s) of a frontier can
+    // legitimately be 0 or a few bytes (§3.4 / C2 budget-driven early-abort).
+    // A cap that lands *inside* (or before) the leading `degree` varint must
+    // still early-abort cleanly — `Ok(truncated, neighbors: [])` — never `Err`.
+
+    #[test]
+    fn byte_cap_zero_early_aborts_cleanly() {
+        let edges: Vec<Edge> = (0..40)
+            .map(|i| Edge::new(i as u64, "FOLLOWS", 1_u64, (100 + i) as u64))
+            .collect();
+        let reader = round_trip(&edges, Direction::Out, 1, 1);
+        // n = 0: we ask for zero bytes of the block. This is a clean early-abort,
+        // NOT a BadVarint error.
+        let exp = reader
+            .expand(1, ExpandCap::bytes(0))
+            .expect("max_bytes=0 must early-abort, not error");
+        assert!(exp.neighbors.is_empty(), "no bytes => no neighbours");
+        assert!(exp.truncated, "a zero-byte cap is a truncation");
+    }
+
+    #[test]
+    fn byte_cap_one_on_multibyte_degree_prefix_early_aborts() {
+        // 200 neighbours => leading degree varint is 2 bytes (200 >= 128).
+        let edges: Vec<Edge> = (0..200)
+            .map(|i| Edge::new(i as u64, "FOLLOWS", 1_u64, (100 + i) as u64))
+            .collect();
+        let reader = round_trip(&edges, Direction::Out, 1, 1);
+        assert_eq!(reader.degree(1).unwrap(), 200);
+        // n = 1: the 2-byte degree varint cannot be read from a 1-byte buffer.
+        // That is the early abort, not corruption.
+        let exp = reader
+            .expand(1, ExpandCap::bytes(1))
+            .expect("max_bytes=1 below a 2-byte degree varint must early-abort");
+        assert!(exp.neighbors.is_empty());
+        assert!(exp.truncated);
+    }
+
+    #[test]
+    fn byte_cap_sweep_is_monotone_and_error_free() {
+        // A real block; sweep the cap from 0 up to and past the full block.
+        let edges: Vec<Edge> = (0..200)
+            .map(|i| Edge::new(i as u64, "FOLLOWS", 1_u64, (100 + i) as u64))
+            .collect();
+        let reader = round_trip(&edges, Direction::Out, 1, 1);
+        let (_, block_len, degree, _) = reader.read_dir_entry(1).unwrap();
+        let block_len = block_len as usize;
+        let degree = degree as usize;
+
+        let mut prev = 0usize;
+        for n in 0..=(block_len + 4) {
+            let exp = reader
+                .expand(1, ExpandCap::bytes(n))
+                .unwrap_or_else(|e| panic!("max_bytes={n} must early-abort, got Err({e:?})"));
+            // Monotone: a larger byte cap never yields fewer neighbours.
+            assert!(
+                exp.neighbors.len() >= prev,
+                "neighbour count regressed: max_bytes={n} gave {} after {prev}",
+                exp.neighbors.len()
+            );
+            prev = exp.neighbors.len();
+            // Decoded prefix is always valid + in target order.
+            for w in exp.neighbors.windows(2) {
+                assert!(w[0].neighbor.get() <= w[1].neighbor.get());
+            }
+            // Truncation is reported iff we did not (provably) read the whole block.
+            if n >= block_len {
+                assert!(!exp.truncated, "full cap should not report truncation");
+                assert_eq!(exp.neighbors.len(), degree);
+            } else {
+                assert!(exp.truncated, "cap below block_len must report truncation");
+            }
+        }
+    }
+
+    #[test]
+    fn full_buffer_corrupt_degree_varint_fails_closed() {
+        // BUG-0028 AC #2: the early-abort relaxation applies only to a *capped*
+        // buffer. A genuinely corrupt FULL buffer (e.g. an unterminated degree
+        // varint) must still fail closed — corruption is not silently truncated.
+        // (In production `open()`'s checksum catches this; here we exercise the
+        // decoder directly to pin the `buffer_capped == false` branch.)
+        let corrupt = vec![0x80u8; 4]; // all continuation bits set, never ends
+        let err = decode_block_prefix(&corrupt, 3, usize::MAX, false).unwrap_err();
+        assert!(
+            matches!(err, StorageFormatError::BadVarint),
+            "full-buffer corrupt degree varint must fail closed, got {err:?}"
+        );
+        // Same bytes, but flagged as a capped buffer => clean early-abort.
+        let (neighbors, truncated) =
+            decode_block_prefix(&corrupt, 3, usize::MAX, true).expect("capped => early-abort");
+        assert!(neighbors.is_empty());
+        assert!(truncated);
     }
 
     // ---- Fail-closed framing ----

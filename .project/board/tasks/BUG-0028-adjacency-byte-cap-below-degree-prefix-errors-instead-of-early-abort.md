@@ -2,15 +2,15 @@
 id: BUG-0028
 title: Adjacency expand() errors (BadVarint) instead of early-aborting when the byte cap is below a block's leading degree varint
 type: bug
-status: ready
+status: in_review
 priority: P1
-assignee:
+assignee: implementer-wf_3215ee4a-fcf-29
 epic: EPIC-001
 deps: []
 rubric_refs: [2, 3]
 estimate: S
 created: T0+4:10
-updated: T0+4:10
+updated: T0+4:46
 ---
 
 ## Context
@@ -88,3 +88,39 @@ miss it — there is **no test for `max_bytes` below a block's degree prefix**.
   the review gate completed (merge 3c0bd9c with the adversarial/premortem boxes
   unchecked) — flagged separately as a process deviation; this BUG fixes the code
   defect regardless.
+- T0+4:30 (implementer-wf_3215ee4a-fcf-29): fixed on `work/BUG-0028-adjacency-byte-cap-below-degree-prefix-early-abort`
+  (based on latest `main`). TDD: 3 RED byte-cap tests reproduced `Err(BadVarint)`
+  on the landed code, then GREEN. `decode_block_prefix` now takes a `buffer_capped`
+  flag; on a capped buffer a degree-varint that runs off the end returns
+  `Ok((vec![], truncated))`; on a full buffer it still fails closed (checksum guards
+  open()). Added `full_buffer_corrupt_degree_varint_fails_closed` (decoder-direct,
+  pins the `!buffer_capped` Err arm) + integration test
+  `exhausted_budget_on_last_source_early_aborts_not_errors`. Full suite 480/480
+  green; `./format_code.sh` exit 0. PR.md filled; status → in_review; dispatching
+  adversarial-reviewer + premortem-analyst.
+- T0+4:36 (adversarial-reviewer): verdict **approve**. Re-ran in the worktree:
+  `cargo nextest run storage::adjacency` 29/29, `--test adjacency_storage` 8/8,
+  full suite 480/480, `./format_code.sh` exit 0 (worktree clean after). Hardest
+  attack (corrupt overflowing varint slipping through the capped arm) does not
+  land: such a byte pattern is unreachable on legitimately written data and
+  corrupt blocks are gated by the open-time checksum; both `match` arms are pinned
+  by `full_buffer_corrupt_degree_varint_fails_closed`. Reviewer box ticked in
+  PR.md. Three non-blocking notes (open-vs-expand re-read window is pre-existing;
+  BUG-0027 also edits adjacency.rs — land in sequence; add a MinIO n=0 case as
+  follow-up). Still needs premortem-analyst sign-off before the integrator lands.
+- T0+4:46 (premortem-analyst): verdict **approve** — premortem box ticked in PR.md.
+  Read-path-only diff; worked all six lenses backwards. Every P0 (silent
+  corruption, ACID/concurrency, latency-theorem, blast radius, OSS hygiene) is
+  out-of-scope or mitigated by a verified guard: the open-time whole-object
+  checksum (`open()` `get()`+`verify_checksum`) gates corruption before any
+  `expand`; both stores enforce ranges strictly (no silent short-read can fake a
+  cap); `buffer_capped = (want < block_len)` confines the new early-abort to the
+  caller's deliberate sub-block fetch; the fail-closed arm is pinned by
+  `full_buffer_corrupt_degree_varint_fails_closed`. The new `match` only catches
+  decode errors (`BadVarint`/`Truncated`), never `StoreError`, so an S3 5xx still
+  propagates. No new dependency / no format bump (`git diff --stat`: only
+  adjacency.rs + adjacency_storage.rs + this item). Re-verified gates in the
+  worktree: clippy `-D warnings` clean, full suite **480/480** (MinIO ran),
+  `./format_code.sh` exit 0. Two non-blocking follow-ups recorded (pre-existing
+  open-vs-expand re-read window; a MinIO n=0 integration case). No blocking
+  findings — both gates now `approve`; ready for the integrator to land.
