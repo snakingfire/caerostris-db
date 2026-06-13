@@ -587,3 +587,8 @@ NOTE: a 'cargo build RED' this tick was TRANSIENT — caught a source file mid-w
 ## STATUS — T+4:20 (planner landed; polished demo close; main green)
 done:~42 main GREEN (2818655). Working tree ON MAIN ✓ (demo protected). 5/5 lanes. **T-0018 logical planner LANDED** (filter push-down, 12 ops) → Cat-4 chain = lexer✓+planner✓; only the executor (T-0019, now unblockable) remains for a non-zero TCK rate. Storage: T-0007 node writer in_review (full roundtrip imminent).
 T-DEMO2 polished MinIO demo building (217 lines, S3 backend non-trivial; in-memory polish fallback). ~40m to deadline. No GATE sliding; overall ~41 climbing.
+
+## STATUS — T+4:26 (⚠️ false-STOP corrected; main green, demos protected)
+done:43 main GREEN (b17e307). **CORRECTION: a BSD-date parse bug in my deadline math falsely computed 'past deadline' and wrote .project/STOP at 22:50Z — REMOVED immediately (real deadline 23:24Z, ~34m left). Lanes continue.** Robust check henceforth: `[ "$(date -u +%H%M)" -ge 2324 ]`.
+Both demos present + working tree ON MAIN ✓: scripts/demo.sh (in-memory) + scripts/demo-minio.sh (object-storage-native, verified: empty bucket→insert→13 S3 objects→read back→4 Cypher queries). 5/5 lanes. No GATE sliding; overall ~41-43 climbing.
+ACTUAL STOP only when `date -u +%H%M` ≥ 2324.
