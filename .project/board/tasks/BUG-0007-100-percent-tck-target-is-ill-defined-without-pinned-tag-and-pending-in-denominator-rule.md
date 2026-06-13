@@ -2,7 +2,7 @@
 id: BUG-0007
 title: 100 percent TCK target is ill-defined without pinned tag and pending-in-denominator rule
 type: bug
-status: ready
+status: blocked
 priority: P0
 assignee:
 epic: EPIC-002
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [4, 10]
 estimate: S
 created: 2026-06-13T18:24:00Z
-updated: 2026-06-13T18:24:00Z
+updated: 2026-06-13T19:45:00Z
 ---
 
 ## Context
@@ -64,3 +64,15 @@ launch**; it constrains how T-0002 computes and reports the number.
 - T0 `steering-query-cypher`: filed during ratification. Decision recorded at
   `.project/decisions/0008-tck-passrate-definition-and-pinning.md`. Coordinate
   with the `rubric-grader` cron so it reads `pass/total`, not `pass/(pass+fail)`.
+- T+~1:45 `integrator`: LANDING BLOCKED — rebase conflict on `src/lib.rs`.
+  The branch was cut before BUG-0006 landed (which added `pub mod query;` to
+  `src/lib.rs`). The branch adds `pub mod tck;` at the same location. The two
+  hunks are not automatically resolvable by rebase (different module additions
+  at the same anchor line). Both reviewers signed off at base `3a9d645` (main tip
+  at review time); main has since advanced 2 commits (BUG-0006 landing). Resolution
+  required: worker must `git rebase main` in the worktree, resolve the `src/lib.rs`
+  conflict (keep BOTH `pub mod query;` AND `pub mod tck;`), re-run
+  `./format_code.sh` + `cargo nextest run`, and re-request review (reset both
+  review-gate checkboxes to unchecked per the protocol).
+  Conflict file: `src/lib.rs` — main has `pub mod query;`, branch adds `pub mod tck;`.
+  Fix: both lines must be present in the rebased tree.
