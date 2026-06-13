@@ -305,3 +305,71 @@ fn empty_edge_properties_round_trip() {
     assert_eq!(nbrs.len(), 1);
     assert_eq!(nbrs[0].properties, BTreeMap::new());
 }
+
+#[test]
+fn neighbor_dst_ids_spanning_2_63_boundary_round_trip() {
+    // BUG-0024 regression guard (rubric Cat. 2 / Cat. 3).
+    //
+    // `NodeId` is `pub u64` and engine-assigned — nothing constrains dst ids to
+    // `< 2^63`. The neighbour list is delta-encoded against the previous target,
+    // and `2^63 - 1` (= `i64::MAX`) and `2^63` (= `i64::MIN`) sort **adjacent**
+    // in `u64` space. A delta computed in the **signed** domain
+    // (`(dst as i64) - prev`) overflows for that adjacent pair: it panics in a
+    // debug/test build (`attempt to subtract with overflow`) and silently wraps
+    // in release. The canonical writer encodes the delta with `wrapping_sub` in
+    // the **unsigned** `u64` domain (`src/storage/adjacency.rs`), and the reader
+    // mirrors it with `wrapping_add`, so any `u64` pair round-trips exactly.
+    //
+    // This proves AC #3's "arbitrary directed typed edge sets" claim for the full
+    // `u64` id space — the prior suite never exercised dst ids above ~1e6. Because
+    // it is compiled and run in the test profile (overflow checks ON), a
+    // regression to signed-domain delta arithmetic would panic here rather than
+    // silently corrupt the round-trip.
+    const TWO_POW_63: u64 = 1u64 << 63; // i64::MIN as u64
+    let dsts = [7u64, TWO_POW_63 - 1, TWO_POW_63, u64::MAX];
+
+    // All edges share one source (id 5) so they land in a single neighbour block
+    // and the deltas are computed across the boundary-straddling pair. A property
+    // on each edge proves the *whole* row (delta + edge id + properties) survives.
+    let src = 5u64;
+    let edges: Vec<Edge> = dsts
+        .iter()
+        .enumerate()
+        .map(|(i, &dst)| Edge::new(i as u64, "FOLLOWS", src, dst).with_property("idx", i as i64))
+        .collect();
+
+    let mut store = MemoryStore::new();
+    write_shard(&mut store, &edges, src, src);
+
+    let reader = AdjacencyShardReader::open(store, KEY).unwrap();
+    assert_eq!(reader.degree(src).unwrap(), dsts.len() as u32);
+
+    let nbrs = reader.neighbors(src).unwrap();
+    assert_eq!(nbrs.len(), dsts.len());
+
+    // Neighbours come back in ascending `u64` order with exact ids and the
+    // boundary pair `(2^63 - 1, 2^63)` adjacent — the case that overflows a
+    // signed delta.
+    let got: Vec<u64> = nbrs.iter().map(|n| n.neighbor.get()).collect();
+    assert_eq!(got, dsts.to_vec(), "dst ids must round-trip across 2^63");
+
+    // The full row (edge id + properties) survives alongside the delta.
+    for (i, n) in nbrs.iter().enumerate() {
+        assert_eq!(n.edge_id.get(), i as u64);
+        assert_eq!(
+            n.properties.get("idx"),
+            Some(&PropertyValue::Integer(i as i64)),
+            "property of neighbour {} ({}) lost",
+            i,
+            n.neighbor.get()
+        );
+    }
+
+    // Strictly ascending — confirms no wrap collapsed two distinct ids onto one.
+    for w in nbrs.windows(2) {
+        assert!(
+            w[0].neighbor.get() < w[1].neighbor.get(),
+            "neighbours must be strictly ascending across the boundary"
+        );
+    }
+}
