@@ -2,7 +2,7 @@
 id: T-0001
 title: Crate skeleton, workspace layout, and object-store abstraction with local mock
 type: task
-status: ready
+status: backlog
 priority: P0
 assignee:
 epic: EPIC-001

@@ -2,7 +2,7 @@
 id: T-0018
 title: Logical query planner + plan IR with filter push-down
 type: task
-status: ready
+status: backlog
 priority: P1
 assignee:
 epic: EPIC-002

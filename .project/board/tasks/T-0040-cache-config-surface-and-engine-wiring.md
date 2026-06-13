@@ -1,0 +1,35 @@
+---
+id: T-0040
+title: Cache configuration surface + opt-in engine wiring (default off)
+type: task
+status: backlog
+priority: P3
+assignee:
+epic: EPIC-008
+deps: [T-0033, T-0019]
+rubric_refs: [9]
+estimate: S
+created: T0+0:20
+updated: T0+0:20
+---
+
+## Context
+
+Wire the cache wrapper (T-0033) into the engine read path as an **opt-in** layer
+that defaults to off, with a clean configuration surface (open-time option / config
+struct). The engine must never assume the cache is present — disabling it stays a
+single flag. This is what makes the Cat. 9 "architecturally optional" claim true in
+the real read path rather than just in the wrapper. See `EPIC-008`, `EPIC-002`.
+
+## Acceptance criteria
+- [ ] Cache config exposed at open/attach time (max memory, disk path/size, eviction, on/off); default is off.
+- [ ] The engine read path (T-0019) routes object reads through the cache only when enabled; with it off, the path is byte-for-byte the no-cache path.
+- [ ] A test confirms that toggling the cache flag requires no other code/config change (single-flag claim).
+- [ ] With cache on, a repeated query is measurably faster; with cache off, behaviour and results are identical.
+- [ ] tests added (unit + integration on the mock); coverage not regressed
+- [ ] docs updated with the config surface
+- [ ] `./format_code.sh` green
+
+## Notes / log
+Design-before-code: depends on the cache wrapper (T-0033) and the read path
+(T-0019). P3 — the cold-SLA-off guard (T-0034) is the higher-value Cat. 9 evidence.
