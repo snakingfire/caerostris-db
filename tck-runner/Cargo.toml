@@ -1,0 +1,21 @@
+[package]
+name = "tck-runner"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+description = "openCypher TCK (Gherkin) conformance runner for caerostris-db"
+license = "MIT"
+repository = "https://github.com/caerostris/caerostris-db"
+publish = false
+
+[dependencies]
+# The engine's side-effect accounting surface (Decision 0012 / BUG-0006): the
+# adapter reads `QueryStatistics` to assert `Then the side effects should be:`
+# TCK steps as real pass/fail, never auto-`pending`.
+caerostris-db = { path = ".." }
+gherkin.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

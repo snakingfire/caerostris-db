@@ -2,15 +2,15 @@
 id: T-0002
 title: Wire openCypher TCK Gherkin runner and report live pass-rate
 type: task
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: implementer-wf_d44011fb-4d5-6
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 estimate: M
 created: T0
-updated: T0
+updated: T0+1:40
 ---
 
 ## Context
