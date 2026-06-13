@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [2, 12]
 estimate: S
 created: 2026-06-13T20:20:00Z
-updated: 2026-06-13T20:43:00Z
+updated: 2026-06-13T21:06:00Z
 ---
 
 ## Context
@@ -77,3 +77,19 @@ silently capping. Filed because BUG-0003's own fix already corrected `docs/desig
   enforced. Raw grep confirms only BUG-0011 and BUG-0003 retain `docs/design/` (both
   legitimate defect records — the "historical record" exception). `./format_code.sh`
   green; full `cargo nextest run` green (57 passed, 0 skipped). PR opened; → in_review.
+- 2026-06-13T21:03:00Z (adversarial-reviewer): **APPROVE** (verdict appended to PR.md).
+  Attacks tried and survived: vacuous-test (verified RED on injected ref), allowlist
+  bypass, walker symlink loop, stale-ref hiding outside searched dirs, wrong canonical
+  target (confirmed ADR 0003 is server-mode, so the SPIKE-0003 spec pointer is correct),
+  secrets/deps/unsafe. Re-ran `./format_code.sh` (exit 0) + full `cargo test` (all green)
+  locally. No blocking findings; 3 non-blocking notes (PR.md churn from pre-existing
+  BUG-0013, a minor commit-attribution inaccuracy in BUG-0013's body, AC #4 re-wording).
+  Awaiting premortem sign-off before the integrator lands.
+- 2026-06-13T21:06:00Z (premortem-analyst): **APPROVE** (verdict appended to PR.md;
+  premortem box ticked). No code path in this diff can corrupt data, regress the SLA,
+  or split-brain — no `src`/storage/commit/lease/cache code is touched; the only Rust
+  is a read-only, std-only CI guard that fails safe. Independently re-verified the guard
+  is RED-capable (injected a `docs/design/` ref into a non-allowlisted doc → test FAILED,
+  reverted clean), `./format_code.sh` exit 0, and full `cargo test` green. Residual risks
+  are all P3 operational/accuracy notes (PR.md churn → BUG-0013; allowlist-by-file;
+  walker error-swallow) — accepted/already filed. Both gates green; clear to land.
