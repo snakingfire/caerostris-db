@@ -458,3 +458,10 @@ FIX: relaunch via scriptPath (reads disk directly). Stopped all v2 lanes; relaun
 **Pool:** 3 v3 lanes alive (wf_86b0c2e8 / wf_94c471c3 / wf_f36e3f02). Held at 3 — lanes are WORK-starved not lane-starved (ready=9 < 3×roundCap=18). Scaling lanes won't help until SPIKE-0002 ratifies and the 46-task backlog cascades. SPIKE-0002 is claimed + ratifying.
 **Env:** healthy; no stale land-lock; unblock.sh found nothing new (cascade still gated on SPIKE-0002/0003).
 **HARD LINE — next tick (~T+2:08):** the foundational critical-path tasks T-0000 (env), T-0001 (skeleton), T-0002 (TCK harness) must be landing. If they're still not on main, HAND-LAND them directly (T-0000→T-0001→T-0002), resolving src/lib.rs conflicts by hand — they gate the entire query/storage chain and the swarm has not landed them in 2h.
+
+---
+
+## STATUS — T+2:08 (code landing slowly; decoupled the skeleton to open the chain)
+ready:11 done:11 blocked:0 backlog:45. Code on main growing (src 4→6, tests 1→4 since T+2:00); merges via v3 land path (BUG-0007 + relands). Still deep RED on pace (~16 vs ~45).
+ACTION: decoupled T-0001 (crate skeleton) from T-0000 — env already works, so the skeleton (which gates the whole data-model/query/storage chain) can land now without waiting on T-0000's hardening. SPIKE-0002 still ratifying (ACID gate).
+Pool: 3 v3 lanes alive (work-saturated; ready=11<12 so holding 3). Scale to 5 the moment T-0001 lands + backlog cascades. HAND-LAND watch: if T-0001/T-0002 not landed next tick, land them directly.
