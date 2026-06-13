@@ -2,7 +2,7 @@
 id: BUG-0014
 title: parse_manifest silently drops entries written with aligned-key whitespace (license gate fails open)
 type: bug
-status: in_review
+status: done
 priority: P2
 assignee: implementer-wf_e9fceb87-27c-6
 epic: EPIC-010
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+2:45
-updated: T0+3:24
+updated: T0+5:10
 ---
 
 ## Context
@@ -104,3 +104,8 @@ defeats only the hand-rolled manifest cross-check, not all license enforcement.
   gates (adversarial + pre-mortem) are now `approve`; ready for the integrator. One non-blocking
   doc note: the "taplo produces aligned style" wording overstates taplo (default taplo emits
   single-space and `format_code.sh` does not format manifest.toml) — does not affect the fix.
+- Landed in commit 3220927 at T+5:10 (branch work/BUG-0014-parse-manifest-whitespace). Merge
+  conflict in board file resolved additively (union of both lanes' notes). PR.md removed from
+  root (belongs in worktree only). src/licenses.rs merged cleanly. Duplicate branches
+  (work/BUG-0014-aligned-key-whitespace, work/BUG-0014-parse-manifest-silently-...) are now
+  no-ops against main and may be dropped.
