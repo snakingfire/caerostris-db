@@ -482,6 +482,147 @@ mod equality_only {
     }
 }
 
+// --- IndexQuery::Equals resolves the openCypher `=` operator (BUG-0019) ------
+//
+// `IndexQuery::Equals(v)` is documented as `WHERE n.prop = <value>` — the
+// openCypher `=` *operator* (`PropertyValue::cypher_equal`, ternary), NOT the
+// orderability equality `OrderedKey` is keyed on. The two relations disagree
+// exactly on `null` and `NaN`:
+//
+// - `= null`  → unknown (None) ⇒ matches **no rows** (the spec way to match
+//   nulls is `IS NULL`, not `=`).
+// - `= NaN`   → `Some(false)`  ⇒ matches **no rows** (IEEE: NaN ≠ anything).
+//
+// while orderability collapses all nulls to one key and all NaNs to one key, so
+// a naïve `lookup(&OrderedKey(v))` would wrongly return null-/NaN-keyed nodes.
+// These tests pin the `=` semantics on both `probe` and `selectivity`.
+
+/// A numeric/null-bearing property→node index built from `(value, node)` pairs.
+fn pv_index(pairs: &[(PropertyValue, u64)]) -> InMemoryIndex<OrderedKey, NodeId> {
+    let mut idx = InMemoryIndex::new();
+    for (v, n) in pairs {
+        idx.insert(OrderedKey(v.clone()), node(*n));
+    }
+    idx
+}
+
+#[test]
+fn equals_null_probe_yields_no_rows() {
+    // Stored null-keyed nodes must NOT be returned by `= null`; the answer is [].
+    let idx = pv_index(&[(PropertyValue::Null, 9), (PropertyValue::Integer(1), 5)]);
+    let probed = PropertyIndex::probe(&idx, &IndexQuery::Equals(PropertyValue::Null)).unwrap();
+    assert_eq!(probed, Vec::<NodeId>::new(), "= null must match no rows");
+}
+
+#[test]
+fn equals_nan_probe_yields_no_rows() {
+    // Stored NaN-keyed nodes must NOT be returned by `= NaN`; the answer is [].
+    let idx = pv_index(&[
+        (PropertyValue::Float(f64::NAN), 1),
+        (PropertyValue::Float(f64::NAN), 2),
+        (PropertyValue::Float(1.0), 5),
+    ]);
+    let probed =
+        PropertyIndex::probe(&idx, &IndexQuery::Equals(PropertyValue::Float(f64::NAN))).unwrap();
+    assert_eq!(probed, Vec::<NodeId>::new(), "= NaN must match no rows");
+}
+
+#[test]
+fn equals_clean_probe_never_returns_stored_null_or_nan() {
+    // A `= 1.0` probe over an index that also holds null- and NaN-keyed nodes
+    // returns ONLY the numeric matches — never the null/NaN entries.
+    let idx = pv_index(&[
+        (PropertyValue::Null, 9),
+        (PropertyValue::Float(f64::NAN), 8),
+        (PropertyValue::Float(1.0), 5),
+    ]);
+    let probed =
+        PropertyIndex::probe(&idx, &IndexQuery::Equals(PropertyValue::Float(1.0))).unwrap();
+    assert_eq!(probed, vec![node(5)]);
+}
+
+#[test]
+fn equals_integer_matches_float_of_same_value() {
+    // `1 = 1.0` is true under the `=` operator, and orderability collapses
+    // Integer(1)/Float(1.0) to one key, so this case is — and must stay — fine.
+    let idx = pv_index(&[
+        (PropertyValue::Integer(1), 5),
+        (PropertyValue::Float(1.0), 6),
+    ]);
+    // Probe with the integer: both the Integer(1) and Float(1.0) nodes match.
+    let by_int =
+        PropertyIndex::probe(&idx, &IndexQuery::Equals(PropertyValue::Integer(1))).unwrap();
+    assert_eq!(by_int, vec![node(5), node(6)]);
+    // Probe with the float: same result (1.0 = 1 and 1.0 = 1.0).
+    let by_float =
+        PropertyIndex::probe(&idx, &IndexQuery::Equals(PropertyValue::Float(1.0))).unwrap();
+    assert_eq!(by_float, vec![node(5), node(6)]);
+}
+
+#[test]
+fn equals_selectivity_excludes_null_and_nan_probes() {
+    // selectivity must agree with probe: a `= null` / `= NaN` probe matches
+    // nothing, so it is maximally selective (0 of N), not "N-of-N because the
+    // ordered key collapsed".
+    let idx = pv_index(&[
+        (PropertyValue::Null, 9),
+        (PropertyValue::Null, 10),
+        (PropertyValue::Float(f64::NAN), 8),
+        (PropertyValue::Integer(1), 5),
+    ]);
+    let null_sel = idx.selectivity(&IndexQuery::Equals(PropertyValue::Null));
+    assert!(
+        (null_sel.fraction() - 0.0).abs() < f64::EPSILON,
+        "= null selects 0 rows, got {}",
+        null_sel.fraction()
+    );
+    let nan_sel = idx.selectivity(&IndexQuery::Equals(PropertyValue::Float(f64::NAN)));
+    assert!(
+        (nan_sel.fraction() - 0.0).abs() < f64::EPSILON,
+        "= NaN selects 0 rows, got {}",
+        nan_sel.fraction()
+    );
+    // A clean probe still measures correctly: 1 of 4 entries.
+    let int_sel = idx.selectivity(&IndexQuery::Equals(PropertyValue::Integer(1)));
+    assert!((int_sel.fraction() - 0.25).abs() < f64::EPSILON);
+}
+
+#[test]
+fn equals_container_with_nan_or_null_probe_yields_no_rows() {
+    // A list/map *containing* null or NaN is not definitely equal to itself
+    // under the `=` operator, so `= [NaN]` and `= [1, null]` match no rows even
+    // though an identical value is stored (orderability would collapse them).
+    let nan_list = PropertyValue::List(vec![PropertyValue::Float(f64::NAN)]);
+    let null_list = PropertyValue::List(vec![PropertyValue::Integer(1), PropertyValue::Null]);
+    let idx = pv_index(&[(nan_list.clone(), 1), (null_list.clone(), 2)]);
+    assert_eq!(
+        PropertyIndex::probe(&idx, &IndexQuery::Equals(nan_list)).unwrap(),
+        Vec::<NodeId>::new(),
+        "= [NaN] must match no rows"
+    );
+    assert_eq!(
+        PropertyIndex::probe(&idx, &IndexQuery::Equals(null_list)).unwrap(),
+        Vec::<NodeId>::new(),
+        "= [1, null] must match no rows"
+    );
+}
+
+#[test]
+fn equals_clean_list_probe_matches_value_equal_lists() {
+    // `= [1]` matches a stored `[1.0]` (1 = 1.0 element-wise) but never a stored
+    // `[NaN]` — proving clean container probes still resolve through the index.
+    let idx = pv_index(&[
+        (PropertyValue::List(vec![PropertyValue::Float(1.0)]), 5),
+        (PropertyValue::List(vec![PropertyValue::Float(f64::NAN)]), 8),
+    ]);
+    let probed = PropertyIndex::probe(
+        &idx,
+        &IndexQuery::Equals(PropertyValue::List(vec![PropertyValue::Integer(1)])),
+    )
+    .unwrap();
+    assert_eq!(probed, vec![node(5)]);
+}
+
 // --- IndexError display ------------------------------------------------------
 
 #[test]

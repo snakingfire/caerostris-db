@@ -326,7 +326,21 @@ pub trait SecondaryIndex {
 /// [`PropertyValue`]s so it is independent of the concrete index type.
 #[derive(Debug, Clone, PartialEq)]
 pub enum IndexQuery {
-    /// Equality: `WHERE n.prop = <value>`.
+    /// Equality under the openCypher `=` *operator*: `WHERE n.prop = <value>`.
+    ///
+    /// The [`PropertyIndex`] facade resolves this with the **ternary `=`
+    /// operator** ([`PropertyValue::cypher_equal`]), *not* the orderability
+    /// equality the underlying [`OrderedKey`] index is keyed on (they disagree on
+    /// `null`/`NaN`). Concretely (BUG-0019):
+    ///
+    /// - `Equals(null)` matches **no rows** (`n.prop = null` is `null`/unknown for
+    ///   every row; the spec way to match nulls is `IS NULL`, not `=`).
+    /// - `Equals(NaN)` matches **no rows** (`NaN = NaN` is `false` per IEEE-754),
+    ///   and a stored `NaN` is never returned by an `=` probe.
+    /// - A probe value that is a list/map *containing* `null`/`NaN` such that it is
+    ///   not `=`-equal to itself likewise matches **no rows**.
+    /// - `Equals(Integer(1))` and `Equals(Float(1.0))` are equivalent and match
+    ///   both stored `1` and `1.0` (`1 = 1.0` is `true`).
     Equals(PropertyValue),
     /// Half-open / open range: `WHERE n.prop >= lo AND n.prop < hi` and the like.
     Range(KeyRange<PropertyValue>),
@@ -407,6 +421,33 @@ pub trait PropertyIndex {
     fn probe(&self, query: &IndexQuery) -> Result<Vec<NodeId>, IndexError>;
 }
 
+/// `true` if `v` is a legitimate probe value for the openCypher `=` *operator* —
+/// i.e. `v = v` is **definitely true** (`cypher_equal(v, v) == Some(true)`).
+///
+/// This is the exact guard that reconciles the index's orderability-keyed lookup
+/// with `=` semantics (BUG-0019). `IndexQuery::Equals` means `WHERE n.prop = <v>`,
+/// the `=` operator — which is *ternary* and disagrees with the orderability
+/// equality [`OrderedKey`] is keyed on precisely where `v = v` is not definitely
+/// true:
+///
+/// - `v` is `null`  ⇒ `null = null` is unknown (`None`)         ⇒ no rows.
+/// - `v` is `NaN`   ⇒ `NaN = NaN` is `Some(false)` (IEEE)        ⇒ no rows.
+/// - `v` is a list/map *containing* `null`/`NaN` such that `v = v` is not
+///   `Some(true)` (e.g. `[NaN]` ⇒ `Some(false)`, `[1, null]` ⇒ `None`) ⇒ no rows.
+///
+/// When `v = v` **is** `Some(true)`, every value orderability-equal to `v` is also
+/// `=`-equal to `v`: orderability and `=` agree on every non-null, non-NaN scalar
+/// (numbers compared by value, booleans, strings) and, recursively, on containers
+/// free of indeterminate elements. (A clean `v` can only be orderability-equal to
+/// other clean values: a null/NaN element sorts into a distinct order position, so
+/// no dirty value collapses onto a clean key.) So a clean probe needs no
+/// post-filtering — the ordered `lookup` is already exactly the `=` result,
+/// including `1 = 1.0`. The only divergence is the not-self-equal case this guard
+/// rejects up front.
+fn is_equal_probe_matchable(v: &PropertyValue) -> bool {
+    v.cypher_equal(v) == Some(true)
+}
+
 /// Wrap a [`KeyRange<PropertyValue>`] (as carried in an [`IndexQuery`]) into the
 /// [`OrderedKey`] domain the concrete index is keyed on.
 fn ordered_range(range: &KeyRange<PropertyValue>) -> KeyRange<OrderedKey> {
@@ -439,6 +480,10 @@ where
     fn selectivity(&self, query: &IndexQuery) -> Selectivity {
         let total = self.entry_count();
         let matched = match query {
+            // `= null` / `= NaN` (and indeterminate containers) match no rows
+            // under the `=` operator, so they are maximally selective regardless
+            // of how many such values the index stores (BUG-0019).
+            IndexQuery::Equals(v) if !is_equal_probe_matchable(v) => 0,
             IndexQuery::Equals(v) => self.lookup(&OrderedKey(v.clone())).len(),
             // An index that cannot order its keys cannot *serve* a range query at
             // all, so it must never be reported as a usable plan for one. Report
@@ -466,6 +511,10 @@ where
 
     fn probe(&self, query: &IndexQuery) -> Result<Vec<NodeId>, IndexError> {
         match query {
+            // `= null` / `= NaN` (and indeterminate containers) yield no rows
+            // under the `=` operator, even though their orderability-collapsed
+            // key exists in the index (BUG-0019).
+            IndexQuery::Equals(v) if !is_equal_probe_matchable(v) => Ok(Vec::new()),
             IndexQuery::Equals(v) => Ok(self.lookup(&OrderedKey(v.clone()))),
             IndexQuery::Range(range) => {
                 let hits = self.range_scan(&ordered_range(range))?;

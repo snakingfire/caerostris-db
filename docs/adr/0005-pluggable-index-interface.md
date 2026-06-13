@@ -73,6 +73,25 @@ will add an **`OrderedKey`** newtype that implements `Ord`/`Eq` by delegating to
 all values and types). `OrderedKey` is the key type ordered property indices use;
 the planner-facing `IndexQuery` speaks plain `PropertyValue` and wraps internally.
 
+**`IndexQuery::Equals` resolves the openCypher `=` *operator*, not orderability
+equality (BUG-0019).** The index is keyed on `OrderedKey`, whose equality is the
+total orderability relation (`cypher_order == Equal`). That relation disagrees
+with the `=` operator (`PropertyValue::cypher_equal`, ternary) exactly on `null`
+and `NaN`: orderability collapses all `null`s to one key and all `NaN`s to one
+key, but `null = null` is *unknown* and `NaN = NaN` is *false*, so `= null` and
+`= NaN` must match **no rows** (the spec way to match nulls is `IS NULL`). The
+facade therefore guards `Equals(v)`: if `v = v` is not definitely true
+(`cypher_equal(v, v) != Some(true)` — i.e. `v` is `null`, `NaN`, or a list/map
+containing such an indeterminate element), both `probe` and `selectivity` short-
+circuit to *no rows* / *zero matches* without touching the index. When `v = v`
+**is** `Some(true)` the ordered `lookup` is already exactly the `=` result —
+every value orderability-equal to a clean `v` is also `=`-equal to it (a `null`/
+`NaN` element sorts into a distinct order position, so no indeterminate value
+collapses onto a clean key), including the `1 = 1.0` cross-numeric case. This
+keeps the documented `WHERE n.prop = <value>` semantics honest and forecloses the
+silent Cat. 4 TCK regression Alternative C warns about, with no post-filtering on
+the hot path for clean probes.
+
 An in-memory `InMemoryIndex<K: Ord, V>` reference implementation lands with the
 trait to exercise the interface in unit tests; it is explicitly **not** the
 object-store B-tree (T-0023). A second, unordered equality-only index type is
@@ -168,7 +187,7 @@ the index layer where it belongs.
 |------|------|--------|
 | 5 | Secondary indices | Defines the pluggable trait + selectivity-aware planner facade + a second index type sketch — the structural prerequisites for Cat. 5 = 100. |
 | 3 | Latency envelope | Provides the `PropertyIndex::selectivity` surface the planner uses to anchor unanchored matches inside `B_max`. |
-| 4 | openCypher (planner) | The type-erased facade is what the planner consults to turn `WHERE n.prop = x` into an index probe. |
+| 4 | openCypher (planner) | The type-erased facade is what the planner consults to turn `WHERE n.prop = x` into an index probe — resolving the openCypher `=` operator (not orderability equality), so `= null`/`= NaN` correctly match no rows (BUG-0019). |
 
 ## Sign-off
 
