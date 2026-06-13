@@ -47,4 +47,7 @@ If actual < expected at a marker:
 <Append pace observations here each marker; the grader/marshal also link reports.>
 
 - **T0 stamped** `2026-06-13T18:18:30Z` by `/launch`. Markers filled; hard deadline
-  `2026-06-13T23:18:30Z`. Crons + epoch-1 mainspring run id recorded below once armed.
+  `2026-06-13T23:18:30Z`.
+- **Crons armed:** rubric-grader `93bfbe05` (`*/20 * * * *`); pace-marshal
+  `04c26baa` (`*/10 * * * *`). Both session-only (live with the launch session).
+- **Epoch 1 mainspring** kicked off at T0 by `/launch` (run id in launch hand-off).
