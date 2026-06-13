@@ -2,15 +2,15 @@
 id: BUG-0025
 title: .adj writer allocates a dense offset directory over the full source-id span — panics/OOMs on a sparse band
 type: bug
-status: ready
+status: in_progress
 priority: P1
-assignee:
+assignee: implementer-wf_e9fceb87-27c-59
 epic: EPIC-001
 deps: []
 rubric_refs: [2, 3]
 estimate: M
 created: T0+4:12
-updated: T0+4:12
+updated: T0+5:33
 ---
 
 ## Context
