@@ -597,3 +597,6 @@ ACTUAL STOP only when `date -u +%H%M` ≥ 2324.
 done:43 main GREEN (05463f1). Robust deadline check OK (22:54Z<2324Z → no STOP). Working tree ON MAIN ✓; both demos intact (demo.sh + demo-minio.sh verified). 5/5 lanes.
 **T-0007 node-property writer/reader LANDED** → storage layer complete (ObjectStore+model+node+edge+manifest = full graph roundtrip) → Cat 2 ~48→~60. Executor T-0019 still backlog (dep T-0011 snapshot reads); the last Cat-4 piece — lanes building, but tight in 30m.
 No GATE sliding (Cat3=78/Cat10=84/Cat11=65); overall ~43-45 climbing. STOP fires correctly at 2324Z.
+
+## STATUS — T+4:35 (steady; main green, demos protected; ~25m left)
+done:43 main GREEN (d75e934). No STOP (22:59Z<2324Z). Working tree ON MAIN ✓; demo.sh + demo-minio.sh intact + verified. 5/5 lanes building. Flat window (no new done; lanes deep in executor T-0019 / remaining storage+commit). Overall ~43-45; GATEs steady (Cat3=78/Cat10=84/Cat11=65/Cat2~60). Env OK. STOP fires at 2324Z.
