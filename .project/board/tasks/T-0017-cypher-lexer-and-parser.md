@@ -2,15 +2,15 @@
 id: T-0017
 title: Implement openCypher lexer + parser to AST
 type: task
-status: ready
+status: in_progress
 priority: P1
-assignee:
+assignee: implementer-wf_fe688db0-093-9
 epic: EPIC-002
 deps: [T-0001]
 rubric_refs: [4]
 estimate: M
 created: T0+0:20
-updated: T0+0:20
+updated: T0+3:10
 ---
 
 ## Context
