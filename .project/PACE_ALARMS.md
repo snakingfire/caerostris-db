@@ -592,3 +592,8 @@ T-DEMO2 polished MinIO demo building (217 lines, S3 backend non-trivial; in-memo
 done:43 main GREEN (b17e307). **CORRECTION: a BSD-date parse bug in my deadline math falsely computed 'past deadline' and wrote .project/STOP at 22:50Z — REMOVED immediately (real deadline 23:24Z, ~34m left). Lanes continue.** Robust check henceforth: `[ "$(date -u +%H%M)" -ge 2324 ]`.
 Both demos present + working tree ON MAIN ✓: scripts/demo.sh (in-memory) + scripts/demo-minio.sh (object-storage-native, verified: empty bucket→insert→13 S3 objects→read back→4 Cypher queries). 5/5 lanes. No GATE sliding; overall ~41-43 climbing.
 ACTUAL STOP only when `date -u +%H%M` ≥ 2324.
+
+## STATUS — T+4:30 (storage layer COMPLETE; main green; demos protected; ~30m left)
+done:43 main GREEN (05463f1). Robust deadline check OK (22:54Z<2324Z → no STOP). Working tree ON MAIN ✓; both demos intact (demo.sh + demo-minio.sh verified). 5/5 lanes.
+**T-0007 node-property writer/reader LANDED** → storage layer complete (ObjectStore+model+node+edge+manifest = full graph roundtrip) → Cat 2 ~48→~60. Executor T-0019 still backlog (dep T-0011 snapshot reads); the last Cat-4 piece — lanes building, but tight in 30m.
+No GATE sliding (Cat3=78/Cat10=84/Cat11=65); overall ~43-45 climbing. STOP fires correctly at 2324Z.
