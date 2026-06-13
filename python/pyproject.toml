@@ -1,0 +1,37 @@
+# Python packaging for the caerostris embedded bindings (EPIC-007, Cat. 8).
+#
+# maturin is the build backend: `maturin develop` builds the PyO3 cdylib and
+# installs it into the active environment as the importable `caerostris` module;
+# `maturin build` produces a wheel. Both run in CI (see .github/workflows/ci.yml).
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "caerostris"
+# The version is sourced from the Rust crate (Cargo.toml) by maturin; pinning it
+# here too would risk drift. `dynamic` tells the backend to read it from Cargo.
+requires-python = ">=3.9"
+description = "Python embedded bindings for caerostris-db, a graph database on object storage"
+license = { text = "MIT" }
+readme = "README.md"
+classifiers = [
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+# Dev/test tooling for the pytest smoke suite and the linter. These are not
+# runtime dependencies of the extension.
+test = ["pytest>=7", "ruff>=0.5"]
+
+[tool.maturin]
+# Build a stable-ABI (abi3) extension module from the sibling Rust crate.
+# `extension-module` is the crate's own opt-in feature (see Cargo.toml): maturin
+# enables it for the wheel; a plain `cargo test` leaves it off so the unit-test
+# binary links libpython and runs.
+manifest-path = "Cargo.toml"
+module-name = "caerostris"
+features = ["extension-module"]

@@ -1,0 +1,40 @@
+# cargo-deny configuration for the `python/` PyO3 bindings workspace (T-0030).
+#
+# The root deny.toml only sees the engine workspace; this crate is its own
+# isolated workspace (own Cargo.lock) so `cargo deny` must be pointed here too
+# (CI runs it with `--manifest-path python/Cargo.toml`). Layer 1 is the in-repo
+# manifest check (tests/license_manifest.rs, which also audits python/Cargo.lock).
+#
+# Run locally:  cargo deny --manifest-path python/Cargo.toml check licenses sources
+
+[licenses]
+# Same permissive allow-list as the engine workspace, plus the two licenses the
+# PyO3 dependency tree legitimately carries:
+#   * LLVM-exception — target-lexicon ships `Apache-2.0 WITH LLVM-exception`; the
+#     exception only relaxes Apache-2.0, so it is at least as permissive.
+#   * Unicode-3.0 — unicode-ident's data tables; permissive (also in the engine
+#     allow-list via src/licenses.rs APPROVED_SPDX).
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "MPL-2.0",
+  "CC0-1.0",
+  "Unicode-3.0",
+  "Unlicense",
+  "Zlib",
+]
+confidence-threshold = 0.93
+
+[bans]
+multiple-versions = "warn"
+
+[advisories]
+yanked = "warn"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
