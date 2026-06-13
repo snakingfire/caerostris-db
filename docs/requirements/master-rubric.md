@@ -61,7 +61,21 @@ queries are detected & handled explicitly; benchmarks corroborate.
 ### Cat. 4 — openCypher completeness (TCK)  **[GATE]**  (weight: 12)
 Live TCK pass-rate is the metric. Phased: P1 reads → P2 writes+txns → P3 full breadth.
 - **Score = TCK pass-rate %**, with a floor: 0 if the TCK harness isn't wired.
-- **100:** the official openCypher TCK passes 100%, run in CI.
+- **`pass_rate = pass / total`, where `total = pass + pending + fail`.** Both
+  `pending` (unimplemented) and `fail` (wrong result) are in the denominator;
+  **no scenario is ever excluded from `total`**. Reaching 100 therefore requires
+  `pending == 0 && fail == 0` — `pass_rate = pass / (pass + fail)` (excluding
+  `pending`) is **forbidden**: it is a curated subset and falsifies "100% means
+  all of it, not a subset". Moving a scenario to `pending` to inflate the rate is
+  likewise forbidden. (BUG-0007 / Decision 0008.)
+- **The suite is pinned.** "100% of the TCK" is defined against a pinned
+  openCypher release tag (**`1.0.0-M23`**, commit `007895a`) with a recorded
+  scenario `total` (**1615** scenarios across 220 `.feature` files). The harness
+  emits the tag and `total` in its machine-readable output and a guard fails if
+  the loaded scenario count differs from the recorded pin (catches silent suite
+  shrinkage). The grader reads `pass/total` from `.project/reports/tck-latest.json`.
+- **100:** the official openCypher TCK (pinned tag) passes 100% — i.e.
+  `pass == total`, `pending == 0`, `fail == 0` — run in CI.
 
 ### Cat. 5 — Pluggable secondary indices  (weight: 7)
 B-tree on text properties first; index trait/interface designed for future types

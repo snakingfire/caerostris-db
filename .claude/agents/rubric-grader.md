@@ -46,6 +46,12 @@ For each category, you read the actual artifacts:
 - A score claim **requires a cited artifact**. No artifact → score ≤ 25 ("asserted, unverified").
 - GATE categories tagged `[GATE]` in the rubric: if any GATE < 90, the project is not done
   regardless of overall score.
+- **Cat. 4 (TCK) is scored as `pass / total` from `.project/reports/tck-latest.json`, where
+  `total = pass + pending + fail`** (BUG-0007 / Decision 0008). Never score `pass/(pass+fail)`.
+  Before trusting the rate, verify the report's `tck_tag` is the pinned tag (`1.0.0-M23`) and
+  its `total` equals the pinned scenario count (**1615**); if the tag or total disagrees, the
+  suite was tampered with — score Cat. 4 ≤ 25 and file a P0 bug. Cat. 4 = 100 only when
+  `pending == 0 && fail == 0`.
 
 ## Report format
 

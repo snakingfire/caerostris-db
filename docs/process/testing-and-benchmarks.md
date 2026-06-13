@@ -321,6 +321,20 @@ The rubric-grader reads `.project/reports/tck-latest.json` and sets the Cat. 4
 score to the pass-rate percentage. A pass-rate below the current phase target is a
 P0 gap-closing task.
 
+**Pass-rate definition (BUG-0007 / Decision 0008).** The metric is fixed in code
+at `src/tck.rs` (`caerostris_db::tck`) so it is non-gameable:
+
+- `pass_rate = pass / total`, where `total = pass + pending + fail`. **Both
+  `pending` and `fail` are in the denominator** — no scenario is ever excluded.
+  `pass / (pass + fail)` is forbidden; it would hide unimplemented scenarios and
+  turn a GATE into a curated subset.
+- The suite is **pinned to openCypher `1.0.0-M23`** (commit `007895a`), whose
+  scenario `total` is **1615** (across 220 `.feature` files). The harness emits
+  `tck_tag`, `tck_commit`, and `total` in `tck-latest.json` and calls
+  `tck::verify_suite_size()`, which fails if the loaded count differs from the
+  pin — so the rate cannot rise by silently dropping `.feature` files. The grader
+  computes `pass/total`, never `pass/(pass+fail)`.
+
 ### Phased delivery
 
 - **Phase 1 (P1):** read-only clauses (`MATCH`, `RETURN`, `WHERE`, `WITH`, `ORDER
@@ -330,8 +344,12 @@ P0 gap-closing task.
 - **Phase 3 (P3):** full breadth (all remaining TCK scenarios).
 
 The harness marks P2/P3 scenarios as *pending* (not *failed*) until the engine
-supports them, so the pass-rate reflects only wired scenarios and the pending count
-is tracked separately.
+supports them. `pending` keeps unimplemented scenarios out of the *failure* count
+(an unimplemented feature is not a bug) **but they remain in `total`**, so the
+pass-rate honestly reflects the *whole* pinned suite, not just the wired subset.
+Phased delivery moves scenarios from `pending` to `pass` as features land; the
+denominator never shrinks. Reaching the Cat. 4 GATE (100%) means `pending == 0 &&
+fail == 0` over all 1615 pinned scenarios.
 
 ---
 

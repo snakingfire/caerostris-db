@@ -30,16 +30,19 @@ At T0 the engine has no openCypher implementation, so the expected initial resul
 
 ## Acceptance criteria
 
-- [ ] TCK `.feature` files vendored or fetched by a reproducible script; pinned to a specific openCypher release; CI does not require external network access to run them.
-- [ ] Gherkin parser integrated: all `.feature` files parsed without errors; scenario count matches the official TCK count for the pinned release.
+- [ ] TCK `.feature` files vendored or fetched by a reproducible script; **pinned to openCypher `1.0.0-M23`** (commit `007895aff5f33097d67b2e48a0a2babd6bd18590`); CI does not require external network access to run them. (Pin = `caerostris_db::tck::PINNED_TCK_TAG` / `PINNED_TCK_COMMIT`; BUG-0007 / Decision 0008.)
+- [ ] Gherkin parser integrated: all `.feature` files parsed without errors; **scenario count == `caerostris_db::tck::PINNED_TCK_SCENARIOS` (1615)** — the harness calls `tck::verify_suite_size(loaded)` and aborts if it differs (catches silent suite shrinkage/growth).
 - [ ] Harness runner executes each scenario against the engine adapter; unimplemented paths yield `pending`, not panics.
 - [ ] **Side-effect assertion (BUG-0006):** the adapter reads the engine's `caerostris_db::query::QueryStatistics` surface and asserts the `Then the side effects should be:` step by parsing the Gherkin table with `QueryStatistics::from_tck_side_effects` and comparing with `matches_side_effects` (≡ `==`); such scenarios count as real pass/fail, never auto-`pending`. Semantics pinned in `.project/decisions/0012-tck-side-effect-counting-semantics.md`.
-- [ ] Machine-readable output emitted: JSON (or structured text) with `total`, `pass`, `pending`, `fail`, `pass_rate` fields; file path documented so the rubric grader can find it.
+- [ ] Machine-readable output emitted: JSON (or structured text) with `tck_tag`, `tck_commit`, `total`, `pass`, `pending`, `fail`, `pass_rate` fields (use `caerostris_db::tck::TckSummary::to_json()`); written to `.project/reports/tck-latest.json` so the rubric grader can find it.
+- [ ] **`pass_rate = pass / total`, `total = pass + pending + fail`** — `pending` and `fail` are in the denominator; **no scenario excluded** (use `tck::pass_rate` / `TckSummary::pass_rate`). 100% requires `pending == 0 && fail == 0` (`TckSummary::is_complete()`). Computing `pass / (pass + fail)` or moving scenarios to `pending` to inflate the rate is forbidden.
 - [ ] CI step added: TCK runner runs in CI; pass-rate is surfaced in the CI job summary or artifact.
-- [ ] Initial run shows the correct `total` count matching the pinned TCK; zero unexpected `fail` results (all unimplemented = `pending`).
+- [ ] Initial run shows the correct `total` count matching the pinned TCK (1615); zero unexpected `fail` results (all unimplemented = `pending`).
 - [ ] Tests added for the harness itself: a synthetic `.feature` file with a trivially-passing scenario and a trivially-failing scenario, verifying the harness counts them correctly.
 - [ ] `./format_code.sh` green.
 
 ## Notes / log
 
 The engine adapter in this task is intentionally minimal (a stub that returns `pending` for every query). The language implementation comes in EPIC-002 stories that plug into this harness. Keep the harness/adapter interface clean so language implementors can fill it in independently.
+
+- BUG-0007 (T+0:54): the pass-rate definition and suite pin are now fixed in code at `src/tck.rs` (`caerostris_db::tck`). The harness MUST consume `tck::pass_rate` / `tck::TckSummary` / `tck::verify_suite_size` rather than computing its own rate, so the Cat. 4 GATE metric stays non-gameable. Pinned tag `1.0.0-M23`, 1615 scenarios, 220 feature files — see `.project/decisions/0008-tck-passrate-definition-and-pinning.md`.
