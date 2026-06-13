@@ -2,15 +2,15 @@
 id: SPIKE-0005
 title: Commit-protocol pre-ratification constraints — CAS primitive, fencing token, durability barrier
 type: spike
-status: ready
+status: in_review
 priority: P0
-assignee:
+assignee: researcher
 epic: EPIC-004
 deps: []
 rubric_refs: [1, 7, 11]
 estimate: S
 created: 2026-06-13T18:30:19Z
-updated: 2026-06-13T18:30:19Z
+updated: 2026-06-13T19:15:00Z
 ---
 
 ## Context
@@ -104,3 +104,21 @@ pre-swap commit are GC-able and never referenced).
 - Non-blocking notes recorded in
   `.project/decisions/0004-distributed-acid-ratification-findings.md`
   (master-less GC interaction; reject-not-queue for the writer lease).
+- 2026-06-13T19:15:00Z (researcher): Research complete. Spec committed at
+  `docs/specs/SPIKE-0005-commit-protocol-pre-ratification-constraints.md`.
+  Steering sign-off request filed at
+  `.project/decisions/0012-spike-0005-steering-sign-off-request.md`.
+  Status set to `in_review`. Awaiting ratification from `steering-distributed-acid`
+  (primary) and `steering-formal-methods` (secondary) before SPIKE-0002 ADR
+  revisions can be merged and commit-path implementation becomes `ready`.
+  Summary of recommendations:
+    - Constraint 1: Use `If-None-Match: *` with uniquely named immutable
+      manifest objects and lexicographic-max list resolution. Specify and run
+      the mock-fidelity integration test before any commit-path task is `ready`.
+    - Constraint 2: Embed generation counter in manifest key name; swap
+      predicate is key uniqueness via `If-None-Match: *`. Safety invariant
+      restated as ManifestVersionUniqueness. TLA+ must include ZombieWriter
+      process.
+    - Constraint 3: All data object PUTs acked before manifest swap issued;
+      client ack = swap ack. TLA+ must include DataObjectDurable predicate,
+      reader-safety invariant, and recovery invariant for orphaned objects.

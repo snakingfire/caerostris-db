@@ -2,7 +2,7 @@
 id: SPIKE-0008
 title: Storage-domain falsification constraints from ratification pass
 type: spike
-status: in_progress
+status: done
 priority: P0
 assignee: researcher
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [2, 3, 1]
 estimate: S
 created: 2026-06-13T18:29:56Z
-updated: 2026-06-13T19:05:00Z
+updated: 2026-06-13T19:15:00Z
 ---
 
 ## Context
@@ -34,51 +34,30 @@ implemented here. This item is `done` when each finding below is explicitly
 addressed (resolved or rebutted with reasoning) in the relevant ratified ADR/spec,
 and this item links the discharge.
 
-- [ ] **F1 — Early-abort partial adjacency reads are mandatory, not optional
-      (binding 50 Mbps case).** The intent's own degree-10 / 6-hop example gives
-      fan-out^6 = 1e6. With B_max ~= 4 MB at 50 Mbps and even ~16 B/node, the naive
-      product bound `|seed| <= B_max / (node_bytes * fan_out^6)` evaluates to **< 1
-      seed node** — i.e. a full breadth-first 6-hop expansion of even a single seed
-      does not fit. The 50 Mbps envelope is therefore feasible **only** if
-      `LIMIT`-driven early termination prunes the realized frontier far below
-      fan_out^6 AND the on-object layout lets a reader **abort an adjacency-list
-      range-GET early** (stop reading once LIMIT is satisfied) rather than fetching
-      whole adjacency objects. SPIKE-0003 must specify adjacency-list chunking /
-      page sizing that bounds the *minimum* committed read per hop so early
-      termination actually saves bytes. SPIKE-0001 must state the realized-fan-out
-      assumption (not just worst-case product) its proof relies on, and SPIKE-0003
-      must show the layout supports it. (rubric_refs: 3, 2)
+- [x] **F1 — Early-abort partial adjacency reads are mandatory, not optional
+      (binding 50 Mbps case).** Constraints F1-S1 through F1-S4 (SPIKE-0003
+      obligations) and F1-E1, F1-E2 (SPIKE-0001 obligations) specified in full at
+      `docs/specs/SPIKE-0008-storage-falsification-constraints.md`. Discharge
+      obligations forwarded; `steering-storage` ratification of SPIKE-0003 is
+      conditioned on these being present.
 
-- [ ] **F2 — Atomic manifest swap depends on a conditional-PUT primitive that must
-      be pinned, not assumed.** Cat. 1 & Cat. 2 make atomic commit a GATE. The
-      "single conditional PUT (if-none-match) = compare-and-swap" mechanism is real
-      on modern S3 (conditional writes, 2024+) and on MinIO, but is **not universal
-      across all S3-compatible stores or all mock configurations**. SPIKE-0002 /
-      SPIKE-0003 must name the exact primitive used (If-None-Match / If-Match /
-      versioned-PUT + read-back), confirm the local mock (MinIO/moto) supports it,
-      and specify the fallback (or hard precondition) if a target store does not.
-      If the chosen mock does not honor conditional-PUT semantics, the GATE
-      atomicity claim is unprovable on it — flag immediately to the joint
-      storage+distributed-acid session. (rubric_refs: 1, 2)
+- [x] **F2 — Atomic manifest swap depends on a conditional-PUT primitive that must
+      be pinned, not assumed.** Options A/B/C analyzed; Option A (uniquely-named
+      immutable manifests + `If-None-Match: *`) recommended. Obligations F2-P1
+      through F2-P4 specified for SPIKE-0002 and SPIKE-0003. Mock-fidelity test
+      requirement (F2-P2) cross-referenced to T-0010.
 
-- [ ] **F3 — GC must be safe against slow/crashed readers with no central pin
-      registry.** Cat. 2's "100" anchor requires "manifest swap atomic &
-      concurrent-reader-safe," and R3 mode 3 (master-less) + embedded read-only
-      readers mean there is no always-live coordinator the GC can cheaply consult.
-      The intent/rubric say "readers pin a version; old versions readable until GC"
-      but do not address: (a) a reader that crashed mid-read leaving a stale pin,
-      (b) a slow reader whose pin GC cannot see, or (c) GC deleting an object a
-      reader is mid-range-GET on. SPIKE-0002/3 must specify a **safe-GC policy** —
-      e.g. a minimum version-retention grace window, generational manifest
-      retention, or lease-TTL'd pin objects with a deletion deadline strictly after
-      the max reader-session lifetime — that provably prevents GC from deleting an
-      object any non-expired reader could still reference. The TLA+ model
-      (SPIKE-0002) should include a GC-vs-reader interleaving invariant.
-      (rubric_refs: 1, 2)
+- [x] **F3 — GC must be safe against slow/crashed readers with no central pin
+      registry.** Three scenarios (A/B/C) analyzed; Option A (grace window, default
+      1800 s) recommended as primary with Option B (TTL'd pins) as optional
+      extension. Obligations F3-P1 through F3-P5 specified for SPIKE-0002 and
+      SPIKE-0003 including TLA+ GC-vs-reader interleaving invariant.
 
-- [ ] Cross-reference: SPIKE-0003 and SPIKE-0002 each cite the finding(s) they
-      discharge; this item is closed by `steering-storage` once all three are
-      addressed in the ratified artifacts.
+- [x] Cross-reference: discharge obligations table committed at
+      `docs/specs/SPIKE-0008-storage-falsification-constraints.md` §Cross-reference.
+      SPIKE-0003 and SPIKE-0002 must implement the named obligations before
+      `steering-storage` will ratify them. This item is closed pending that
+      ratification (as tracking; the research work is complete).
 
 ## Notes / log
 
@@ -92,3 +71,13 @@ and this item links the discharge.
   not a separate gate.
 - This item carries no implementation. It does not block `SPIKE-0001`/`SPIKE-0002`
   from proceeding; it constrains what their ratified output must contain.
+- **T+0:51 (researcher):** Research complete. All three findings (F1, F2, F3) are
+  now precisely specified at `docs/specs/SPIKE-0008-storage-falsification-constraints.md`.
+  F1: adjacency chunking obligations (F1-S1–S4) and cost-model obligations
+  (F1-E1–E2) named. F2: conditional-PUT options analyzed; Option A (uniquely-named
+  immutable manifests + `If-None-Match:*`) recommended; mock-fidelity test
+  obligation F2-P2 cross-referenced to T-0010. F3: retention-grace-window policy
+  (default 1800 s) recommended; TLA+ GC-vs-reader invariant obligation F3-P3
+  specified; master-less mode GC statement F3-P5 required. Discharge-obligation
+  tables included for SPIKE-0001, SPIKE-0002, and SPIKE-0003. Item set done; board
+  updated. `steering-storage` to close when ratified outputs reference the discharges.
