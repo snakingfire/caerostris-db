@@ -4,9 +4,10 @@
 //! (ADR-0001) and prints a human-readable report plus a one-line machine
 //! verdict. Exit code is non-zero if any in-envelope SLA assertion fails or if
 //! the out-of-envelope sanity case does NOT bust the budget — so this binary
-//! doubles as a CI check.
+//! doubles as a CI check, invoked via `--manifest-path` in the
+//! `latency-sim` CI job (`.github/workflows/ci.yml`).
 //!
-//! Run:
+//! Run locally:
 //! ```text
 //! cargo run --manifest-path formal/latency-sim/Cargo.toml --release
 //! ```
