@@ -1,5 +1,5 @@
 ---
-id: BUG-0001
+id: BUG-0004
 title: Latency byte-budget formula under-reserves intra-phase tail (max-of-M parallel GETs)
 type: bug
 status: ready
@@ -92,8 +92,15 @@ until it is addressed.
 ## Notes / log
 
 - 2026-06-13T18:30Z `steering-formal-methods` (ratification pass): filed. Decision record:
-  `.project/decisions/0001-latency-budget-intra-phase-tail.md`. This does NOT block the
+  `.project/decisions/0005-latency-budget-intra-phase-tail.md`. This does NOT block the
   launch — it is an instruction binding SPIKE-0001's ratification. The launch is APPROVED;
   this item is the tracked obligation.
+- Renamed from BUG-0001 → BUG-0004 (decision 0001 → 0005) to resolve ID collisions with
+  concurrently-filed ratification findings from other steering agents.
+- Related (distinct): `SPIKE-0006` pins the assumed L_p99 / per-hop round-trip count (the
+  K·L_p99 floor). This BUG is the orthogonal intra-phase max-of-M order-statistic
+  amplification on top of that floor. Both must be reflected in SPIKE-0001's final model.
+- Related: `BUG-0003` already owns the formal/ADR artifact-path mismatch; the
+  docs-reconciliation criterion here defers path canonicalisation to BUG-0003.
 - Reproduction is in the decision record (Python, seeded). Re-run it against the calibrated
   S3 distribution once real numbers arrive.

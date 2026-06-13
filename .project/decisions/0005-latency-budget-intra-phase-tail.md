@@ -1,9 +1,9 @@
-# Decision 0001 — Latency budget must account for the intra-phase max-of-M tail
+# Decision 0005 — Latency budget must account for the intra-phase max-of-M tail
 
 - **Date:** 2026-06-13 (T0+~00:06)
 - **Author / role:** `steering-formal-methods`
 - **Type:** ratification-pass finding (design-level; binds SPIKE-0001)
-- **Status:** decided — tracked as `BUG-0001` (P0); launch APPROVED
+- **Status:** decided — tracked as `BUG-0004` (P0); launch APPROVED
 - **Rubric:** Cat. 3 (latency envelope, GATE, w14), Cat. 11 (formal artifacts, GATE, w6)
 - **Affects:** `docs/commanders-intent.md`, `docs/requirements/master-rubric.md`,
   `docs/requirements/core-requirements.md` (R7), `docs/process/formal-verification-policy.md`,
@@ -61,7 +61,7 @@ At M=1 the formula is conservative (ratio < 1). At the realistic high-fan-out re
 1. **APPROVE the launch.** The latency theorem closes; this is an under-specification, not a
    falsification. Per ratification doctrine we surface-and-track rather than hard-block.
 
-2. **Bind SPIKE-0001 (via `BUG-0001`, P0):** the cost model must replace the bare `K·L_p99`
+2. **Bind SPIKE-0001 (via `BUG-0004`, P0):** the cost model must replace the bare `K·L_p99`
    latency reservation with a term that accounts for the intra-phase max-of-M order statistic,
    and the **envelope must become jointly defined over (s, B_max, K, M)** — frontier width M
    is a first-class envelope parameter because byte budget and latency budget are coupled
@@ -97,8 +97,20 @@ rubric-grader to score Cat. 11 as "missing" when an artifact exists at the other
 
 Recommendation: canonicalise on `formal/` for model/sim/spec artifacts and `docs/adr/` for
 ADRs (these match the policy and the existing directory), and fix the board items + grader
-inputs to match. Owner: planner / docs-curator. Folded into `BUG-0001`'s docs-reconciliation
-criterion to avoid a redundant board item.
+inputs to match. Owner: planner / docs-curator. **Already filed independently as `BUG-0003`**
+(`design-spike-artifact-paths-mismatch-canonical-formal-and-adr-dirs`) by a concurrent
+ratification pass — no separate board item from me; `BUG-0004` defers path canonicalisation
+to `BUG-0003`.
+
+## Related concurrent findings (cross-link, not merge)
+
+- `SPIKE-0006` pins the assumed `L_p99` and the per-hop round-trip count that set the
+  `K·L_p99` latency *floor*. This decision is the orthogonal *intra-phase* max-of-M
+  order-statistic amplification layered on that floor. SPIKE-0001's final cost model must
+  incorporate **both** the pinned floor (SPIKE-0006) and the max-of-M term (this decision).
+- `SPIKE-0004` / decision `0003` (planner stats + tail-fanout bound) feed the
+  out-of-envelope detection criterion in `BUG-0004` — the planner needs maintained graph
+  statistics to estimate frontier width M at plan time.
 
 ## Reproduction
 
