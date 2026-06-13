@@ -2,15 +2,15 @@
 id: SPIKE-0009
 title: Choose server-mode network protocol (gRPC / custom TCP / HTTP) — ADR
 type: spike
-status: ready
+status: in_progress
 priority: P2
-assignee:
+assignee: steering-distributed-acid
 epic: EPIC-006
 deps: []
 rubric_refs: [7]
 estimate: S
 created: T0+0:20
-updated: T0+0:20
+updated: T0+1:15
 ---
 
 ## Context
