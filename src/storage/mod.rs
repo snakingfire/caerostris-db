@@ -23,6 +23,7 @@
 //!   a single config flag, never required for correctness or the cold-start SLA.
 
 pub mod cache;
+pub mod manifest;
 pub mod memory;
 
 pub use cache::{CacheConfig, CacheStats, CachingStore, DiskCacheConfig, EvictionPolicy};
