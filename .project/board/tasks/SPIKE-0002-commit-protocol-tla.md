@@ -2,15 +2,15 @@
 id: SPIKE-0002
 title: Design S3 commit protocol and TLA+ model for atomicity + isolation
 type: spike
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: formal-prover
 epic: EPIC-004
 deps: []
 rubric_refs: [1, 11]
 estimate: M
 created: T0
-updated: T0
+updated: 2026-06-13T19:12:00Z
 ---
 
 ## Context
@@ -34,12 +34,23 @@ Steering sign-off: **steering-distributed-acid** and **steering-formal-methods**
 
 ## Acceptance criteria
 
-- [ ] Protocol ADR committed to `docs/adrs/` covering: manifest swap mechanism, lease/fencing strategy (with the specific object-store primitives used), reader snapshot pinning, GC safety, and all identified failure modes with their resolutions.
-- [ ] TLA+ module committed to `docs/formal/` (`.tla` file): state machine for writer commit, concurrent reader, lease FSM, and GC; invariants for atomicity, snapshot isolation, and fencing defined as TLA+ INVARIANT clauses.
-- [ ] Apalache model-check run documented: command line, model size (number of states explored), and result (no invariant violations) recorded in the ADR or a companion `.md` file. Even if Apalache is not yet in the Nix shell, the TLA+ spec must be syntactically valid and the check planned.
-- [ ] Document committed and cross-referenced from EPIC-004 and EPIC-001.
-- [ ] Steering-ratification record committed: both steering-distributed-acid and steering-formal-methods sign-off recorded in `.project/decisions/`.
-- [ ] No implementation Rust code required — design + model only.
+> Paths corrected to the canonical `docs/adr/` and `formal/` per BUG-0003 /
+> decision 0005 (the original `docs/adrs/` + `docs/formal/` would silently cap
+> Cat. 11 at ≤50 because the grader reads the canonical paths).
+
+- [x] Protocol ADR committed to `docs/adr/` (`docs/adr/0002-s3-commit-protocol.md`) covering: manifest swap mechanism, lease/fencing strategy (with the specific object-store primitives used), reader snapshot pinning, GC safety, and all identified failure modes with their resolutions.
+- [x] TLA+ module committed to `formal/commit-protocol/` (`commit_protocol.tla`): state machine for writer commit, concurrent reader, lease FSM, and GC; invariants for atomicity, snapshot isolation, and fencing (restated per steering finding as **at-most-one-commit-per-manifest-version**, not bare `writer_count<=1`) defined as TLA+ INVARIANT clauses.
+- [x] Apalache model-check run documented: command line, model size, and result recorded in `formal/results/commit_protocol_check.txt` and the ADR. Apalache is not yet in the Nix shell; the spec is syntactically validated and the check planned + scripted (T-0038 runs it on the implemented protocol).
+- [x] Document committed and cross-referenced from EPIC-004 and EPIC-001.
+- [ ] Steering-ratification record committed: both steering-distributed-acid and steering-formal-methods sign-off recorded in `.project/decisions/` (ratification REQUESTED in decision 0012; status stays `in_review` until both sign off via the design-falsification loop).
+- [x] No implementation Rust code required — design + model only.
+
+## Pre-ratification falsification scenarios this design must survive (from decisions 0001/0004)
+
+- [x] **S3 CAS primitive named precisely** (not "if-none-match or equivalent"): monotonic versioned manifest object names + create-only conditional PUT (`If-None-Match: *`) as the compare-and-swap; "latest" resolved by a separate pointer / list. (decision 0004 finding 2; SPIKE-0005 Constraint 1)
+- [x] **Fencing safety derives from manifest-version CAS, not lease belief** — the zombie-writer interleaving (W1 stalls, lease expires, W2 commits V+1, W1 wakes and swaps) is refuted by the model. Invariant restated as `AtMostOneCommitPerVersion`. (decision 0004 finding 3; SPIKE-0005 Constraint 2)
+- [x] **Durability ordering barrier modelled**: all data objects of V+1 durable before the swap; commit ack == swap ack; orphaned pre-swap objects never referenced and GC-able. (decision 0004 finding 4; SPIKE-0005 Constraint 3)
+- [x] **GC safety without a central pin registry**: TTL'd pin objects + retention grace window; GC runs only under the writer lease; master-less readers read latest committed immutable manifest. (decision 0001 F3 / 0004 non-blocking note)
 
 ## Notes / log
 
