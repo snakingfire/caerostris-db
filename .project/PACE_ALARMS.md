@@ -557,3 +557,8 @@ Lanes keep building storage/python/cache breadth in parallel. ~1h44m to deadline
 done:30 ready:9 in_review:2 backlog:33. MAIN GREEN (feef7ea) — no P0. 5/5 lanes building the storage cascade (T-0007/0008/0009/0010, now open). T-0018 planner in_review.
 DEMO (priority): focused build progressing well (112 lines, ~10min, building the in-memory MATCH executor + caero CLI + scripts/demo.sh in its worktree; not landed yet, ETA ~20-30min). Will be verified-runnable before land.
 ~1h34m to deadline. GATEs strong (Cat3=78, Cat10~82, Cat11=65); overall ~34. No sliding.
+
+## STATUS — T+3:55 (✅ DEMO LANDED + VERIFIED WORKING)
+done:31 main GREEN. **DEMO LANDED (merge 61ffdac) and VERIFIED by pace-marshal** — `./scripts/demo.sh` inserts (:Person Alice/Bob)+KNOWS, runs `MATCH (p:Person {name:'Alice'}) RETURN p` → returns Alice, and `MATCH (a:Person)-[:KNOWS]->(b) RETURN a,b` → returns the pair. 248 tests pass. Files: src/demo/{store,executor,mod}.rs, src/bin/caero.rs, scripts/demo.sh, docs/DEMO.md. The hackathon deliverable is READY.
+Also landed: T-0004 dashboard, BUG-0010 ADR-hygiene guards. Storage cascade building (T-0007/0008). 5/5 lanes. ~1h29m to deadline.
+NOTE: restored main worktree to main (a T-0008 lane had transiently checked out in main again — recurring; demo unaffected, on main).
