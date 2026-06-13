@@ -2,15 +2,15 @@
 id: T-0022
 title: Define pluggable secondary-index trait (insert/delete/lookup/range)
 type: task
-status: in_review
+status: done
 priority: P2
-assignee: implementer-wf_6a2f8faf-da3-8
+assignee: integrator
 epic: EPIC-005
 deps: [T-0006]
 rubric_refs: [5]
 estimate: S
 created: T0+0:20
-updated: T+3:10
+updated: T+3:22
 ---
 
 ## Context
@@ -49,3 +49,7 @@ T+3:10 — implementer-wf_6a2f8faf-da3-8, branch `work/T-0022-pluggable-index-tr
 ADR `docs/adr/0005-pluggable-index-interface.md` records the decision (proposed).
 Status -> in_review; PR.md at worktree root. Awaiting adversarial-reviewer +
 premortem-analyst sign-off.
+
+T+3:22 — Landed in commit ab5fc7a at T+3:22. integrator: rebased onto main
+(91b934c), format_code.sh green, 175 tests passed (33 new index tests), cargo
+build clean. Merged --no-ff. Board set to done.
