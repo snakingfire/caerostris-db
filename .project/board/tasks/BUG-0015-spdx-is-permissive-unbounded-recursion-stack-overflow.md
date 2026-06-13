@@ -2,7 +2,7 @@
 id: BUG-0015
 title: SPDX is_permissive recursive-descent parser has no depth cap (stack overflow on deeply-nested parens)
 type: bug
-status: in_review
+status: done
 priority: P3
 assignee: implementer-wf_e9fceb87-27c-42
 epic: EPIC-010
@@ -10,7 +10,7 @@ deps: [BUG-0008]
 rubric_refs: [12]
 estimate: S
 created: T0+3:18
-updated: T0+4:08
+updated: T0+4:40
 ---
 
 ## Context
@@ -85,3 +85,7 @@ which is the more conservative behaviour the module otherwise upholds.
   equivalent fix on `work/BUG-0015-spdx-is-permissive-recursive-descent-parser-has-no`
   (worktree `wf_156e2b80-bb6-50`). Integrator should land **one** (recommend this
   `spdx-depth-cap` branch) and drop the other.
+- T0+4:40 — Landed in commit a8f7ede at T0+4:40. Integrator rebased branch onto
+  main (resolving additive board-file conflicts), ran ./format_code.sh (exit 0)
+  and cargo nextest run (346/346 passed), then merged via git merge --no-ff.
+  Landing commit: a8f7ede. Status: done.
