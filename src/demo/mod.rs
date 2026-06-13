@@ -15,14 +15,17 @@
 //!   writes labelled, human-readable output for screen recording.
 
 pub mod executor;
+pub mod persist;
 pub mod store;
 
 use std::fmt::Write as _;
 
 use crate::cypher::parse;
 use crate::model::PropertyValue;
+use crate::storage::ObjectStore;
 
 pub use executor::{Binding, ExecError, Row, execute};
+pub use persist::{load_graph, persist_graph};
 pub use store::GraphStore;
 
 /// Render a [`PropertyValue`] the way the demo prints it (close to Cypher
@@ -183,6 +186,188 @@ pub fn run_demo(out: &mut impl std::io::Write) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
+/// Build the richer "social graph" used by the object-storage demo: a handful
+/// of `:Person` nodes (each with `name`, `city`, `age`), two `:Company` nodes,
+/// and `KNOWS` / `WORKS_AT` relationships between them.
+///
+/// This is intentionally bigger than [`run_demo`]'s two-node graph so the
+/// MinIO demo can show several objects in the bucket and run filtered one-hop
+/// queries that return varied, non-trivial result sets.
+#[must_use]
+pub fn build_social_graph() -> GraphStore {
+    let mut g = GraphStore::new();
+
+    let person = |g: &mut GraphStore, name: &str, city: &str, age: i64| {
+        g.insert_node(
+            ["Person"],
+            vec![
+                ("name", PropertyValue::String(name.into())),
+                ("city", PropertyValue::String(city.into())),
+                ("age", PropertyValue::Integer(age)),
+            ],
+        )
+    };
+
+    let alice = person(&mut g, "Alice", "Berlin", 30);
+    let bob = person(&mut g, "Bob", "Berlin", 27);
+    let carol = person(&mut g, "Carol", "Lisbon", 41);
+    let dave = person(&mut g, "Dave", "Lisbon", 35);
+
+    let acme = g.insert_node(
+        ["Company"],
+        vec![
+            ("name", PropertyValue::String("Acme".into())),
+            ("city", PropertyValue::String("Berlin".into())),
+        ],
+    );
+    let globex = g.insert_node(
+        ["Company"],
+        vec![
+            ("name", PropertyValue::String("Globex".into())),
+            ("city", PropertyValue::String("Lisbon".into())),
+        ],
+    );
+
+    g.insert_edge("KNOWS", alice, bob, [("since", 2015_i64)]);
+    g.insert_edge("KNOWS", alice, carol, [("since", 2019_i64)]);
+    g.insert_edge("KNOWS", carol, dave, [("since", 2021_i64)]);
+    g.insert_edge("WORKS_AT", alice, acme, [("role", "Engineer")]);
+    g.insert_edge("WORKS_AT", bob, acme, [("role", "Designer")]);
+    g.insert_edge("WORKS_AT", carol, globex, [("role", "Founder")]);
+    g.insert_edge("WORKS_AT", dave, globex, [("role", "Analyst")]);
+
+    g
+}
+
+/// Run one query against `graph`, printing a labelled header, the query text,
+/// and the rendered rows.
+fn run_labelled_query(
+    out: &mut impl std::io::Write,
+    graph: &GraphStore,
+    section: &str,
+    description: &str,
+    query: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    writeln!(out, "-- {section}: {description} --")?;
+    writeln!(out, "  query : {query}")?;
+    let parsed = parse(query)?;
+    let rows = execute(graph, &parsed)?;
+    writeln!(out, "  result:")?;
+    writeln!(out, "{}", render_rows(&rows))?;
+    writeln!(out)?;
+    Ok(())
+}
+
+/// The full **object-storage-native** demo: insert a social graph, persist it
+/// to `store` as individual S3 objects, list the objects, read the graph back
+/// out of the store, then answer several openCypher `MATCH` queries from the
+/// reloaded graph.
+///
+/// `store` is any [`ObjectStore`] — pass an
+/// [`S3CliStore`](crate::storage::S3CliStore) to run against real MinIO/S3, or
+/// a [`MemoryStore`](crate::storage::MemoryStore) in tests. The narration is
+/// written to `out` with labelled sections suitable for screen recording.
+///
+/// # Errors
+/// Returns an error if a store operation, (de)serialisation, or one of the
+/// bundled queries fails.
+pub fn run_minio_demo(
+    out: &mut impl std::io::Write,
+    store: &mut dyn ObjectStore,
+) -> Result<(), Box<dyn std::error::Error>> {
+    writeln!(
+        out,
+        "== caerostris-db — object-storage-native graph demo =="
+    )?;
+    writeln!(out)?;
+
+    // 1. The bucket starts empty.
+    writeln!(out, "-- 1. The object store is EMPTY --")?;
+    let before = store.list("")?;
+    if before.is_empty() {
+        writeln!(out, "  (no objects)")?;
+    } else {
+        for k in &before {
+            writeln!(out, "  {k}")?;
+        }
+    }
+    writeln!(out)?;
+
+    // 2. Build and persist the graph as durable objects.
+    writeln!(
+        out,
+        "-- 2. Insert a social graph & persist it as objects --"
+    )?;
+    let graph = build_social_graph();
+    writeln!(
+        out,
+        "  built {} nodes and {} edges",
+        graph.nodes().len(),
+        graph.edges().len()
+    )?;
+    let keys = persist_graph(store, &graph)?;
+    writeln!(out, "  wrote {} objects to the store", keys.len())?;
+    writeln!(out)?;
+
+    // 3. The bucket now CONTAINS the persisted objects (key + size).
+    writeln!(out, "-- 3. The object store now holds the durable graph --")?;
+    let after = store.list("")?;
+    for key in &after {
+        let size = store.get(key).map(|b| b.len()).unwrap_or(0);
+        writeln!(out, "  {key:<18} {size:>5} bytes")?;
+    }
+    writeln!(out)?;
+
+    // 4. Read the graph back OUT of the store and query it.
+    writeln!(
+        out,
+        "-- 4. Read the graph back from the store & query it --"
+    )?;
+    let loaded = load_graph(store)?;
+    writeln!(
+        out,
+        "  loaded {} nodes, {} edges from the object store",
+        loaded.nodes().len(),
+        loaded.edges().len()
+    )?;
+    writeln!(out)?;
+
+    run_labelled_query(
+        out,
+        &loaded,
+        "Q1",
+        "find a person by name (single-node + property filter)",
+        "MATCH (p:Person {name: 'Alice'}) RETURN p",
+    )?;
+    run_labelled_query(
+        out,
+        &loaded,
+        "Q2",
+        "multi-property filter (people in Berlin who are 30)",
+        "MATCH (p:Person {city: 'Berlin', age: 30}) RETURN p",
+    )?;
+    run_labelled_query(
+        out,
+        &loaded,
+        "Q3",
+        "one-hop traversal (who works where)",
+        "MATCH (p:Person)-[r:WORKS_AT]->(c:Company) RETURN p, c",
+    )?;
+    run_labelled_query(
+        out,
+        &loaded,
+        "Q4",
+        "one-hop + WHERE clause (Alice's acquaintances)",
+        "MATCH (a:Person)-[:KNOWS]->(friend) WHERE a.name = 'Alice' RETURN friend",
+    )?;
+
+    writeln!(
+        out,
+        "== demo complete: the graph lives in object storage and answers Cypher =="
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -229,5 +414,48 @@ mod tests {
         assert!(text.contains("b = (:Person {name: 'Bob'})"));
 
         assert!(text.contains("demo complete"));
+    }
+
+    #[test]
+    fn social_graph_has_expected_shape() {
+        let g = build_social_graph();
+        assert_eq!(g.nodes().len(), 6, "4 people + 2 companies");
+        assert_eq!(g.edges().len(), 7, "3 KNOWS + 4 WORKS_AT");
+    }
+
+    #[test]
+    fn minio_demo_round_trips_through_an_object_store() {
+        use crate::storage::MemoryStore;
+
+        let mut store = MemoryStore::new();
+        let mut buf: Vec<u8> = Vec::new();
+        run_minio_demo(&mut buf, &mut store).expect("minio demo runs end to end");
+        let text = String::from_utf8(buf).expect("utf8 output");
+
+        // Section 1: empty store.
+        assert!(text.contains("object store is EMPTY"));
+        assert!(text.contains("(no objects)"));
+
+        // Section 3: objects now exist (one per node + edge).
+        assert!(text.contains("nodes/0.json"));
+        assert!(text.contains("edges/0.json"));
+        assert!(text.contains("bytes"));
+
+        // Section 4: queries run against the RELOADED graph.
+        assert!(text.contains("Read the graph back from the store"));
+        // Q1 single node.
+        assert!(text.contains("p = (:Person {age: 30, city: 'Berlin', name: 'Alice'})"));
+        // Q2 multi-property filter returns exactly Alice (Bob is 27, not 30).
+        assert!(text.contains("multi-property filter"));
+        // Q3 one-hop person->company.
+        assert!(text.contains("(:Company {city: 'Berlin', name: 'Acme'})"));
+        // Q4 WHERE clause returns Alice's friends (Bob and Carol), not Dave.
+        assert!(text.contains("friend = (:Person {age: 27, city: 'Berlin', name: 'Bob'})"));
+        assert!(text.contains("friend = (:Person {age: 41, city: 'Lisbon', name: 'Carol'})"));
+        assert!(!text.contains("friend = (:Person {age: 35, city: 'Lisbon', name: 'Dave'})"));
+
+        // The objects really landed in the store.
+        assert_eq!(store.list("nodes/").unwrap().len(), 6);
+        assert_eq!(store.list("edges/").unwrap().len(), 7);
     }
 }
