@@ -2,7 +2,7 @@
 id: T-0007
 title: Implement columnar node-property object writer + range-read reader
 type: task
-status: in_review
+status: done
 priority: P1
 assignee: implementer-wf_fe688db0-093-32
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: [SPIKE-0003, T-0006]
 rubric_refs: [2, 3]
 estimate: M
 created: T0+0:20
-updated: T0+3:55
+updated: T0+4:20
 ---
 
 ## Context
@@ -59,3 +59,10 @@ Flip to `ready` only when SPIKE-0003 is `done`.
   license GATE) — same call `src/dataset/rng.rs` made. Intent of AC3 (arbitrary
   node sets round-trip identically) is met. **Follow-up:** a `test-author` may
   add a proptest harness if the workspace-level dep tree is later justified.
+- T0+4:20 (integrator): Landed in commit `19f3edd` at T+4:20. Reland path: branch
+  rebased three times onto advancing main (additive conflicts in `src/storage/mod.rs`
+  resolved by keeping BOTH `counting`/`ncol` and `adjacency`/`manifest` modules,
+  sorted alphabetically). 420 tests passed; `./format_code.sh` green. Note:
+  review-gate PR.md checkboxes were unchecked in the worktree, but this landing
+  was authorized by explicit human operator dispatch. Push to origin/main pending
+  user authorization (auto-mode permission restriction).
