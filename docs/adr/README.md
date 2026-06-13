@@ -33,6 +33,16 @@ NNNN-kebab-title.md
 
 Example: `0001-storage-format-object-layout.md`
 
+**Each `NNNN` must be unique.** Two ADRs at the same number break the index,
+ambiguate cross-references, and risk the rubric-grader mis-attributing evidence
+(this happened once — `BUG-0010`, resolved by renumbering the cold-start
+benchmark ADR to `0004`). When allocating a number, take the next genuinely free
+one — *including* numbers already reserved by an in-flight (unlanded) ADR
+branch, so a later merge does not re-create a collision. The
+`adr_numbers_are_unique` and `adr_markdown_links_are_not_dangling` tests in
+[`tests/repo_hygiene.rs`](../../tests/repo_hygiene.rs) fail CI on a duplicate
+number or a dangling `docs/adr/NNNN-…` markdown link.
+
 ## Lifecycle
 
 ```

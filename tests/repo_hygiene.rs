@@ -167,6 +167,156 @@ fn hourly_release_procedure_documented() {
     );
 }
 
+/// Parse the four-digit sequence number out of an ADR filename like
+/// `0004-cold-start-benchmark-protocol.md`. Returns `None` for files that do not
+/// follow the `NNNN-...md` convention (e.g. `README.md`).
+fn adr_seq(file_name: &str) -> Option<&str> {
+    let stem = file_name.strip_suffix(".md")?;
+    let (seq, _rest) = stem.split_once('-')?;
+    if seq.len() == 4 && seq.chars().all(|c| c.is_ascii_digit()) {
+        Some(seq)
+    } else {
+        None
+    }
+}
+
+#[test]
+fn adr_numbers_are_unique() {
+    // The ADR README mandates a unique zero-padded sequence number per ADR.
+    // Two ADRs at the same number break the index and ambiguate cross-references
+    // (BUG-0010). `0000-template.md` is the template, not a real ADR, but its
+    // number must still not be reused by a real ADR, so we include it here.
+    let adr_dir = repo_root().join("docs/adr");
+    let mut by_seq: std::collections::BTreeMap<String, Vec<String>> = Default::default();
+
+    for entry in std::fs::read_dir(&adr_dir)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", adr_dir.display()))
+    {
+        let entry = entry.expect("dir entry");
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if let Some(seq) = adr_seq(&name) {
+            by_seq.entry(seq.to_string()).or_default().push(name);
+        }
+    }
+
+    let collisions: Vec<(String, Vec<String>)> = by_seq
+        .into_iter()
+        .filter(|(_, files)| files.len() > 1)
+        .collect();
+
+    assert!(
+        collisions.is_empty(),
+        "ADR sequence numbers must be unique (docs/adr/README.md), but found collisions: {collisions:?}"
+    );
+}
+
+#[test]
+fn adr_markdown_links_are_not_dangling() {
+    // Any markdown link that targets `docs/adr/NNNN-...md` (written either as an
+    // absolute repo path or as a relative `../adr/...` / `adr/...` link) must
+    // point at a file that exists. This guards against an ADR rename (BUG-0010)
+    // that forgets to update an inbound reference.
+    use std::collections::BTreeSet;
+
+    let adr_dir = repo_root().join("docs/adr");
+    let existing: BTreeSet<String> = std::fs::read_dir(&adr_dir)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", adr_dir.display()))
+        .map(|e| {
+            e.expect("dir entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .filter(|n| n.ends_with(".md"))
+        .collect();
+
+    // Match `adr/NNNN-<slug>.md` regardless of the `../` / `docs/` prefix, then
+    // resolve to the bare ADR file name and check existence.
+    let mut dangling: Vec<(String, String)> = Vec::new();
+    for md in markdown_files_under("docs") {
+        let body =
+            std::fs::read_to_string(&md).unwrap_or_else(|e| panic!("read {}: {e}", md.display()));
+        for cap in adr_link_targets(&body) {
+            if !existing.contains(&cap) {
+                dangling.push((md.display().to_string(), cap));
+            }
+        }
+    }
+
+    assert!(
+        dangling.is_empty(),
+        "found markdown links to non-existent ADR files (a rename forgot an inbound reference?): {dangling:?}"
+    );
+}
+
+/// Collect the bare ADR file names (`NNNN-<slug>.md`) referenced by any
+/// `adr/NNNN-<slug>.md` substring in `body`. Pure string scan — no regex dep.
+///
+/// Only a *well-formed* filename token immediately after `adr/` is treated as a
+/// link target: a four-digit sequence, then `-`, then a kebab `[a-z0-9-]` slug,
+/// then `.md`. This deliberately ignores prose mentions that wrap across
+/// backticks/newlines (e.g. "`0001-*` is occupied by ... `foo.md`"), so the
+/// check flags genuine dangling links without false-positiving on narrative.
+fn adr_link_targets(body: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let needle = "adr/";
+    let mut search_from = 0usize;
+    while let Some(rel) = body[search_from..].find(needle) {
+        let start = search_from + rel + needle.len();
+        if let Some(token) = leading_adr_filename(&body[start..]) {
+            out.push(token);
+        }
+        search_from = start;
+    }
+    out
+}
+
+/// If `s` begins with a well-formed ADR filename token (`NNNN-<kebab>.md`),
+/// return it; otherwise `None`. The token ends at `.md`; the slug accepts only
+/// lowercase letters, digits, and hyphens so prose cannot leak in.
+fn leading_adr_filename(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    // Four ASCII digits.
+    if bytes.len() < 5 || !bytes[..4].iter().all(|b| b.is_ascii_digit()) || bytes[4] != b'-' {
+        return None;
+    }
+    // Scan the kebab slug until ".md".
+    let mut i = 5;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' {
+            i += 1;
+        } else {
+            break;
+        }
+    }
+    if s[i..].starts_with(".md") {
+        Some(s[..i + 3].to_string())
+    } else {
+        None
+    }
+}
+
+/// Recursively list `*.md` files under `repo_root()/rel`.
+fn markdown_files_under(rel: &str) -> Vec<PathBuf> {
+    fn walk(dir: &Path, acc: &mut Vec<PathBuf>) {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                walk(&path, acc);
+            } else if path.extension().is_some_and(|e| e == "md") {
+                acc.push(path);
+            }
+        }
+    }
+    let mut acc = Vec::new();
+    walk(&repo_root().join(rel), &mut acc);
+    acc
+}
+
 #[cfg(unix)]
 fn assert_is_executable(rel: &str) {
     use std::os::unix::fs::PermissionsExt;

@@ -817,10 +817,13 @@ not only p99) and T-0015 (estimator). Tracked in decision 0015.
 **Finding F3 (non-blocking) — ADR numbering collision. RESOLVED (BUG-0010, T0+~3:05).**
 `docs/adr/0001-*` was originally occupied by both this ADR and the cold-start
 benchmark-protocol ADR (SPIKE-0007). The docs-memory-curator renumbered the
-benchmark-protocol ADR to `0004-cold-start-benchmark-protocol.md` (the lower-churn
-fix, since this envelope ADR is the canonical, widely-referenced artifact) and
-updated its inbound references in living docs. Docs/board hygiene, not a design
-issue. This envelope ADR remains `0001`.
+benchmark-protocol ADR to `0004-cold-start-benchmark-protocol.md` (decision `0024`; the
+lower-churn fix, since this envelope ADR is the canonical, widely-referenced artifact)
+and updated its inbound references in living docs. `0002` is reserved for the in-flight
+SPIKE-0002 commit-protocol ADR, `0003` is the landed server-mode ADR, so `0004` is the
+next free number. Docs/board hygiene, not a design issue. This envelope ADR remains
+`0001`. A `tests/repo_hygiene.rs` guard now fails CI on any future duplicate ADR number
+or dangling ADR link.
 
 **Why these are conditions, not a `reject`:** F1 and F2 do not change the feasible
 region — they tighten *detection* thresholds and the *estimator's* safety margin. The
