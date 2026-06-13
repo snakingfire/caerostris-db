@@ -108,3 +108,11 @@ Output feeds directly into SPIKE-0003 (storage format spec must serve B_max) and
   - **Unblocks:** T-0014, T-0015, T-0016 eligible to flip `ready` (planner/integrator next
     grooming pass); SPIKE-0003 (in_progress) and SPIKE-0004 proceed against Part 5 constraints
     with F1/F2/PS-1 attached.
+
+- **T+~04:05 SPIKE-0004 closed the estimator-inputs gap (`docs/specs/SPIKE-0004-manifest-statistics-contract.md`):**
+  ADR 0001 §4.1's "manifest statistics (SPIKE-0004)" are now pinned to an exact contract —
+  per-label `node_count`/`total_node_count`, per-(label,property) selectivity (NDV/MCV/histogram),
+  and per-rel-type degree summary with BOTH `p99_deg` (typical) AND the mandatory `max_deg`
+  (super-hub safety gate, discharging finding F2 / decision 0015). The F2 condition this ADR
+  bound to SPIKE-0004 is satisfied. Sign-off request:
+  `.project/decisions/0030-spike-0004-statistics-contract-signoff-request.md` (≥3-of-5 quorum).

@@ -37,3 +37,5 @@ Relevant requirements: R5 (pluggable indices, B-tree first), R7 (anchoring the l
 ## Notes / log
 
 Depends on EPIC-001 storage abstractions being available (the index lives on object storage) and on the planner architecture from EPIC-002. SPIKE-0003 (storage format spec) should be ratified first so index objects fit naturally into the layout.
+
+**SPIKE-0004 (manifest statistics contract) feeds, and is fed by, the B-tree index.** Per-(label,property) `ndv`/`null_frac`/MCV/`histogram` statistics specified in `docs/specs/SPIKE-0004-manifest-statistics-contract.md` are the selectivity inputs the planner uses to choose the B-tree by selectivity (acceptance criterion 4 above). The histogram/MCV summaries support equality, range, and prefix selectivity for the B-tree; composite/correlated-predicate stats are noted as a future extension carried by this index trait (spec R3). Sign-off request: `.project/decisions/0030-spike-0004-statistics-contract-signoff-request.md`.

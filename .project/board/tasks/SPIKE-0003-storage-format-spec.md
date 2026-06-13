@@ -59,3 +59,16 @@ Status is `backlog` pending SPIKE-0001 ratification. Once SPIKE-0001 is done, th
   *detection*-only concern (handled by T-0015/SPIKE-0004's max-degree estimator) rather
   than a realized-latency bust. Restated here so the format spec wires early-abort as a
   budget-driven hard cap, not merely an optional optimization.
+- **T+~04:05 SPIKE-0004 ratified-spec input (`docs/specs/SPIKE-0004-manifest-statistics-contract.md`,
+  sign-off `.project/decisions/0030-...`):** the manifest statistics contract is now pinned and
+  this format spec owns two of its storage-layer decisions, per SPIKE-0004 Part 2 / R1:
+  (a) the **inline-vs-referenced cut** for the statistics block — OOE-critical scalars
+  (`node_count`, `total_node_count`, `edge_count`, `p99_deg`, `max_deg`) inline in the manifest,
+  bulky per-property MCV/histogram detail optionally a referenced content-addressed
+  `db/stats/<hash>.stats` blob GC-ed via the same manifest-reference-set rule (ADR 0002 §6); the
+  binding invariant to preserve is "super-hub / non-selective rejection needs no data-plane GET
+  beyond the manifest"; and (b) the early-abort per-GET byte/row cap above (F2's realized-latency
+  protection). Fold both into the format spec before `steering-storage` ratifies.
+  Value-digest privacy (per SPIKE-0004 Part 1.2): MCV/histogram entries store fixed-width
+  collision-resistant digests (BLAKE3-truncated) + order-preserving truncated keys, **never raw
+  property values** — keeps committed fixtures free of user data by construction (guardrails §3).

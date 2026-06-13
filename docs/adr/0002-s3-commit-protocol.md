@@ -60,8 +60,9 @@ steering before this ADR existed):
   and run only under the writer lease.
 
 This ADR also coordinates with: SPIKE-0003 (storage format / adjacency layout),
-SPIKE-0009 (manifest-published statistics for out-of-envelope detection — the
-manifest is the snapshot-consistent home for those stats), and EPIC-006 (attach
+SPIKE-0004 (manifest-published statistics for out-of-envelope detection — the
+manifest is the snapshot-consistent home for those stats; see
+`docs/specs/SPIKE-0004-manifest-statistics-contract.md`), and EPIC-006 (attach
 modes).
 
 ## Decision
@@ -80,7 +81,7 @@ A database lives under a bucket/prefix `db/`. Commit-relevant keys:
 | Key pattern | Object | Mutability |
 |-------------|--------|------------|
 | `db/data/<content-hash>/<shard>.col`, `.adj`, ... (content-addressed; see below) | Content-addressed columnar / adjacency data blobs. The object **key embeds a hash of the object's content**, so the key is **unique per distinct write**. | **Immutable**, written once; create-only PUT (`If-None-Match:*`) for defence in depth. |
-| `db/manifest/<V>.json` (V zero-padded, monotone) | The manifest for version `V`: the **explicit list of the exact data-object keys** it references, schema, and the snapshot-consistent statistics (SPIKE-0009). | **Immutable**, created exactly once. |
+| `db/manifest/<V>.json` (V zero-padded, monotone) | The manifest for version `V`: the **explicit list of the exact data-object keys** it references, schema, and the snapshot-consistent statistics (SPIKE-0004). | **Immutable**, created exactly once. |
 | `db/manifest/_latest` (optional) | Best-effort pointer to the max committed version. **Advisory only** — never trusted for correctness; resolution falls back to LIST. | Mutable, advisory. |
 | `db/lease/writer` | The writer-lease object: `{ owner, epoch, deadline }`. | Mutable under create-only-CAS (see §3). |
 | `db/pins/<reader-uuid>` | A reader's snapshot pin: `{ version, deadline }`. TTL'd. | Reader-owned. |
@@ -383,8 +384,10 @@ costs nothing extra.
   lifetime — to be pinned with concrete numbers in EPIC-001 (T-0012 GC) and
   EPIC-006 (lease timing). The *shape* (grace > max session) is fixed here; the
   constants are an implementation tuning, not a design question.
-- **Statistics-in-manifest schema** (SPIKE-0009 / SPIKE-0004) — the manifest is
-  the agreed snapshot-consistent home; the field layout is owned by those spikes.
+- **Statistics-in-manifest schema** (SPIKE-0004 —
+  `docs/specs/SPIKE-0004-manifest-statistics-contract.md`) — the manifest is the
+  agreed snapshot-consistent home; the field layout (inline OOE-critical scalars +
+  referenced per-property selectivity blobs) is owned by that spike.
 - **Multi-shard atomicity:** the model uses a single data shard per version; the
   atomicity argument is independent of shard count (all shards are staged before
   the single manifest create). EPIC-001 must preserve "all shards durable before

@@ -38,3 +38,5 @@ Relevant requirements: R1 (graph data model), R10 (100% openCypher), R6 (fast ag
 ## Notes / log
 
 T-0002 (TCK harness wire-up) is the immediate prerequisite and is `ready` from T0. Planner design and executor architecture should be specced (ADR committed) before major implementation begins to avoid costly rework.
+
+**SPIKE-0004 (manifest statistics contract) binds the planner's out-of-envelope detection.** The planner's filter push-down and index anchoring (and the OOE-detection path in T-0015) consume the per-label/per-property selectivity and per-rel-type degree statistics specified in `docs/specs/SPIKE-0004-manifest-statistics-contract.md`. Selectivity sizing (MCV + uniform-remainder + histogram interpolation) and the missing/stale-stats conservative-reject doctrine are binding inputs for T-0015. Sign-off request: `.project/decisions/0030-spike-0004-statistics-contract-signoff-request.md`.
