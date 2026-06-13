@@ -93,3 +93,8 @@ allow. License-gate records must be exact (cf. BUG-0008, BUG-0014).
   `- [x] premortem-analyst sign-off` checkbox (lines 120-133) yet the checkbox was
   unchecked at land time, so either land.sh was bypassed or it read a different
   PR.md. Accepted post-hoc here only because the shipped change is risk-free.
+- **T+~4:15 — integrator (post-hoc gate verification):** Both review-gate checkboxes
+  now ticked (adversarial-reviewer approve T+~4:05, premortem-analyst approve T+~4:10).
+  Branch `work/BUG-0023-unicode-3-0-deny-manifest` is fully merged into main (commit
+  a874ead). `./format_code.sh` exit 0; `cargo nextest run` 461/461 passed on current
+  main. Worktree `.worktrees/BUG-0023` and branch removed. Gate verified complete.
