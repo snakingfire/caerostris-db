@@ -2,15 +2,15 @@
 id: BUG-0013
 title: Stray PR.md committed to main (should be gitignored, not tracked)
 type: bug
-status: ready
+status: in_review
 priority: P3
-assignee:
+assignee: implementer-wf_156e2b80-bb6-13
 epic: EPIC-010
 deps: []
 rubric_refs: [12]
 estimate: S
 created: 2026-06-13T20:45:00Z
-updated: 2026-06-13T20:45:00Z
+updated: 2026-06-13T21:35:00Z
 ---
 
 ## Context
@@ -31,16 +31,24 @@ its own description on its branch, but the underlying "PR.md is tracked at all" 
 on `main` remains until this bug lands.
 
 ## Acceptance criteria
-- [ ] Root-level `PR.md` is removed from git tracking on `main` (`git rm --cached PR.md`
+- [x] Root-level `PR.md` is removed from git tracking on `main` (`git rm --cached PR.md`
       via a landed PR; do not delete worktree-local copies that workers actively edit).
-- [ ] `.gitignore` ignores a root-level `PR.md` (and/or `open.sh` is confirmed to only
+- [x] `.gitignore` ignores a root-level `PR.md` (and/or `open.sh` is confirmed to only
       ever write `.worktrees/<ID>/PR.md`, which is already ignored) so it cannot be
       re-committed by accident.
-- [ ] A guard (extend `tests/repo_hygiene.rs`) asserts `PR.md` is not tracked at the repo
+- [x] A guard (extend `tests/repo_hygiene.rs`) asserts `PR.md` is not tracked at the repo
       root, so the regression is caught in CI.
-- [ ] `./format_code.sh` green.
+- [x] `./format_code.sh` green.
 
 ## Notes / log
 - 2026-06-13T20:45:00Z (implementer-wf_86b0c2e8-f29-13): filed during BUG-0011. The
   tracked file is `PR.md` at the repo root, introduced by `f67868b`. Same docs/process
   hygiene family as BUG-0003/BUG-0010/BUG-0011. Low priority; does not block any GATE.
+- 2026-06-13T21:35:00Z (implementer-wf_156e2b80-bb6-13): claimed; implemented TDD-first
+  on `work/BUG-0013-stray-pr-md-committed-to-main-should-be-gitignored` off latest `main`
+  (`c3cc51a`). Fix commit `43761e8`: `git rm --cached PR.md` (untrack), `.gitignore`
+  `/PR.md` rule, and two `tests/repo_hygiene.rs` guards (`root_pr_md_is_not_tracked`,
+  `gitignore_ignores_root_pr_md`) — both RED before the fix, GREEN after. Confirmed
+  `scripts/pr/open.sh` only ever writes `.worktrees/<ID>/PR.md` (no script change).
+  `cargo nextest run` 125/125 green; `./format_code.sh` exit 0. PR.md filled; status →
+  `in_review`; dispatching adversarial-reviewer + premortem-analyst.
