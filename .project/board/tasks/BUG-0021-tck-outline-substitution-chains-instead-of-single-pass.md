@@ -9,7 +9,7 @@ epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+3:29
-updated: T0+3:29
+updated: T0+3:50
 ---
 
 ## Context
@@ -91,3 +91,20 @@ Verified: that case substitutes correctly.)
   scenario in the pinned corpus and does not affect the denominator; it is a
   latent correctness edge to close before EPIC-002's engine exercises the
   substituted variants. Relates to BUG-0009, Decision 0013.
+- T0+3:50 (adversarial-reviewer, reviewing PR on
+  `work/BUG-0021-tck-outline-single-pass-substitution`):
+  **changes_requested.** The single-pass scanner fix anchors on any `<`,
+  including Cypher comparison operators (`<`, `<=`), so a comparison `<` that
+  precedes a real `<placeholder>` swallows or drops the placeholder. Verified
+  against the real `expand_scenario` over the pinned corpus: **68 expanded
+  scenarios across 6 feature files (Comparison2, Quantifier7/9/10/11/12) now
+  leave a raw `<lhs>`/`<rhs>`/`<predicate>`/`<operands>` token in the query** —
+  e.g. Comparison2 `[5] Comparing NaN` yields `... 0.0 / 0.0 < <rhs> AS lt`
+  where the old code produced `... < 1 ...`. This is an *active* Cat. 4 GATE
+  regression, strictly worse than the original (0-impact) defect. The
+  reconciliation guard `scenario_has_placeholder` shares the same `<`-anchoring
+  blind spot and does NOT catch it (still green). Fix: substitute only **bound**
+  `<header>` tokens (longest-match against the binding keys), not "the next
+  `<...>` span"; and harden the guard to scan from every `<`. Add a
+  comparison-operator-adjacent regression test. Verdict + evidence in the
+  worktree's PR.md.
