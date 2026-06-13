@@ -1,0 +1,49 @@
+# cargo-deny configuration — caerostris-db
+#
+# License hygiene, layer 2 (open-source-guardrails.md §5). Layer 1 is the
+# in-repo manifest check (tests/license_manifest.rs). cargo-deny reads each
+# crate's ACTUAL license metadata and enforces a permissive-only allow-list,
+# catching anything the hand-written manifest might misrecord.
+#
+# Run locally:  cargo deny check licenses
+# Runs in CI:   .github/workflows/ci.yml (license-check job)
+
+[licenses]
+# Crates whose license is not in `allow` cause a hard error. This is the
+# permissive allow-list from open-source-guardrails.md §5. Copyleft /
+# source-available licenses (GPL/LGPL/AGPL/SSPL/BUSL/CC-BY-NC) are intentionally
+# absent: adding one requires a recorded steering decision first.
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "MPL-2.0",
+  "CC0-1.0",
+  "Unlicense",
+  "Zlib",
+]
+# Require a high-confidence license match; do not infer from anything ambiguous.
+confidence-threshold = 0.93
+
+# Per-crate clarifications (for crates that ship a license file cargo-deny can't
+# map to SPDX automatically) go here with a recorded file hash and a steering
+# note. Empty today: the only crate is `caerostris-db`, whose `license = "MIT"`
+# field in Cargo.toml cargo-deny reads directly. Add `[[licenses.clarify]]`
+# blocks as third-party deps land.
+
+[bans]
+# Surface duplicate dependency versions as a warning (not a hard fail yet).
+multiple-versions = "warn"
+
+[advisories]
+# Security advisories: warn for now (the RustSec DB needs network in CI). The
+# secret/license gates are the hard ones this task owns; advisory enforcement is
+# tightened in a follow-up once the engine has real dependencies.
+yanked = "warn"
+
+[sources]
+# Only allow crates.io and git as registries/sources.
+unknown-registry = "deny"
+unknown-git = "deny"

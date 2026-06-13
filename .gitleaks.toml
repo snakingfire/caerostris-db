@@ -1,0 +1,38 @@
+# gitleaks configuration — caerostris-db
+#
+# Secret scanning runs in two places (open-source-guardrails.md §2):
+#   - the pre-commit hook (.pre-commit-config.yaml) — blocks local commits
+#   - CI (.github/workflows/ci.yml) — blocks pushed secrets
+# Both use this committed config so the ruleset is identical and reproducible.
+#
+# We build on gitleaks' bundled ruleset rather than replacing it: `useDefault`
+# pulls in the full set of upstream detectors (AWS keys, private keys, tokens,
+# etc.). Do not set this to false — see open-source-guardrails.md (never disable
+# gitleaks; allow-list specific false positives instead).
+
+title = "caerostris-db gitleaks config"
+
+[extend]
+useDefault = true
+
+# Allow-list for known-safe matches. Add entries here (with a comment explaining
+# why each is safe) instead of disabling gitleaks or skipping the hook.
+[allowlist]
+description = "Project-wide allowlist for false positives"
+
+# These paths contain only example/placeholder values, never real credentials.
+paths = [
+  '''\.env\.example$''',
+  # Lockfiles contain crate hashes that can trip entropy heuristics; they hold
+  # no secrets (public crates.io checksums).
+  '''Cargo\.lock$''',
+]
+
+# Documentation deliberately spells out the NAMES of credential env vars
+# (AWS_SECRET_ACCESS_KEY, etc.) to tell contributors where real creds come from.
+# These are the variable names, never values — allow-list the literal names.
+regexes = [
+  '''AWS_SECRET_ACCESS_KEY''',
+  '''AWS_ACCESS_KEY_ID''',
+  '''AWS_SESSION_TOKEN''',
+]
