@@ -52,3 +52,5 @@ This task intentionally does NOT implement any storage format, commit protocol, 
 ## Notes / log
 
 Does not depend on SPIKE-0001 or SPIKE-0003 — deliberately. The format spec will slot into the storage module once ratified. Keep the `ObjectStore` trait minimal and stable; avoid baking format assumptions into the trait interface.
+
+Landed in commit 16790d5 at T+2:25 (emergency direct land authorized by pace-marshal at T+2:13 — keystone blockage). Implemented by integrator: ObjectStore trait (object-safe, synchronous, put/get/get_range/delete/list), MemoryStore (BTreeMap-backed, zero external deps), stub modules for engine/planner/txn. 49 unit + 10 integration + 3 doctests passing. MinIO integration fixture deferred to T-0002 env setup.
