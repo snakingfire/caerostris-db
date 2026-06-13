@@ -27,7 +27,7 @@ Relevant requirements: R7 (selectivity-envelope theorem), R9 (cache must not be 
 
 - [ ] Envelope precisely defined and committed as a spec/ADR: selectivity bound `s`, byte budget `B_max` derived for 1 Gbps (≈75 MB) and 50 Mbps (≈4 MB), phase bound `K`, maximum seed-set size and per-hop fan-out bound.
 - [ ] Analytical cost model committed: proves that any query satisfying the envelope constraints hits P99 ≤ 1 s cold, showing the algebra step by step.
-- [ ] Discrete-event simulation committed (Rust or Python): calibrated to realistic S3 latency distributions; simulation outputs match the cost model predictions.
+- [x] Discrete-event simulation committed (Rust or Python): calibrated to realistic S3 latency distributions; simulation outputs match the cost model predictions. — `formal/latency-sim/` (T-0014).
 - [ ] Out-of-envelope detection implemented in the planner: estimated bytes-read or fan-out exceeding B_max causes an explicit error/warning at plan time, never a silent SLA miss.
 - [ ] Benchmark on the local S3 mock with injected P99 latency demonstrates the cold-start target met for a representative in-envelope query, **with cache disabled**.
 - [ ] Steering-ratification record committed (steering-perf-sla + steering-formal-methods sign-off) before implementation tasks in EPIC-001 / EPIC-002 that depend on this go `ready`.
@@ -36,3 +36,15 @@ Relevant requirements: R7 (selectivity-envelope theorem), R9 (cache must not be 
 ## Notes / log
 
 SPIKE-0001 is the first task; its output is the steering-ratified model doc/ADR. All storage and query execution tasks that must serve the envelope carry SPIKE-0001 in their deps.
+
+- **T-0014 (re-landed via `work/T-0014-latency-sim-reland`):** the discrete-event
+  simulation half of deliverable (3) lands at `formal/latency-sim/`. It corroborates
+  ADR-0001's analytical cost model: in-envelope headline query P99 = 889 ms (sim)
+  vs 1000 ms (analytic) at both 1 Gbps and the binding 50 Mbps, cache OFF; agreement
+  within 15%; the out-of-envelope (50× B_max) and slow-deployment (L_p99=150 ms)
+  cases correctly bust the budget. The sim also reproduces the decision-0005
+  max-of-M α table to within ~1.5%. The remaining deliverable (5) — the *measured*
+  benchmark on the mock with injected latency, cache OFF — is T-0016 (the empirical
+  counterpart). (Originally authored on `work/T-0014-cold-start-latency-sim`, which
+  was set `in_review` but never cleared the gate or landed; re-adopted onto a fresh
+  branch off the latest `main` and re-driven through review.)

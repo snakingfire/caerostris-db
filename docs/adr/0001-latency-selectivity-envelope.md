@@ -699,6 +699,16 @@ in §2.2 is the correct replacement.
    is derived from a Monte-Carlo simulation using an assumed lognormal distribution.
    The discrete-event simulation (T-0014) must validate this against the actual mock
    latency distribution and update if needed.
+   - **T+~03:41 (T-0014) — partially resolved (analytical/sim half):** the
+     discrete-event simulation committed at `formal/latency-sim/` reproduces the
+     decision-0005 max-of-M table (P50=20/P99=100) to within ~1.5% (K=3,M=8 →
+     338 ms vs the table's 332 ms), independently confirming α(M_max=8) ≈ 1.10.
+     At the §3.4 design-point GET distribution (P50=20/P99=**50**) the realised
+     latency term is *smaller* (≈329 ms vs the 440 ms analytical reserve), so the
+     in-envelope P99 closes at 889 ms (sim) under the 1000 ms analytical boundary —
+     a conservative, safe-direction margin. **Still open:** calibration against the
+     *measured* MinIO-mock latency distribution (the empirical half), which is the
+     T-0016 headline benchmark.
 2. **SPIKE-0003 must confirm r ≤ 1 is achievable:** If the storage format requires
    `r=2`, the envelope must be re-derived with K_min=14, and the 50 Mbps case becomes
    infeasible. Escalate to steering if this occurs.
