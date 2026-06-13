@@ -2,7 +2,7 @@
 id: BUG-0028
 title: Adjacency expand() errors (BadVarint) instead of early-aborting when the byte cap is below a block's leading degree varint
 type: bug
-status: in_review
+status: done
 priority: P1
 assignee: implementer-wf_3215ee4a-fcf-29
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [2, 3]
 estimate: S
 created: T0+4:10
-updated: T0+4:46
+updated: T0+4:54
 ---
 
 ## Context
@@ -124,3 +124,4 @@ miss it — there is **no test for `max_bytes` below a block's degree prefix**.
   `./format_code.sh` exit 0. Two non-blocking follow-ups recorded (pre-existing
   open-vs-expand re-read window; a MinIO n=0 integration case). No blocking
   findings — both gates now `approve`; ready for the integrator to land.
+- T0+4:54 (integrator): Landed in commit 9a2df495 at T0+4:54. Both review gates verified approve in PR.md. ./format_code.sh exit 0. cargo nextest run 480/480 pass. Merged work/BUG-0028-adjacency-byte-cap-below-degree-prefix-early-abort into main with --no-ff; cargo build clean post-merge. Worktree removed. Branch deletion was denied by permission classifier (non-blocking; branch is fully merged).
