@@ -26,35 +26,55 @@
 //!    scenario count ([`PINNED_TCK_SCENARIOS`]). [`verify_suite_size`] fails the
 //!    build if the harness loads a different count.
 //!
-//! See `.project/decisions/0008-tck-passrate-definition-and-pinning.md` and
-//! `docs/requirements/master-rubric.md` (Cat. 4).
+//! See `.project/decisions/0008-tck-passrate-definition-and-pinning.md` (the
+//! pass-rate *definition*),
+//! `.project/decisions/0034-tck-pin-reconciliation-2024-3-canonical.md` (the
+//! canonical pin: vendored `2024.3` / `677cbaf`, expanded denominator `3884`),
+//! and `docs/requirements/master-rubric.md` (Cat. 4).
 
 use core::fmt;
 
-/// The pinned openCypher TCK release tag. Grading is reproducible only against a
+/// The pinned openCypher TCK release tag — the **vendored corpus** under
+/// `tck/openCypher/` (Decision 0034). Grading is reproducible only against a
 /// fixed suite; tracking a moving branch cannot anchor a GATE. Bumping this pin
-/// is a deliberate, recorded action (update the constants below and Decision
-/// 0008 in the same change).
-pub const PINNED_TCK_TAG: &str = "1.0.0-M23";
+/// is a deliberate, recorded action (update the constants below, the corpus
+/// `tck/openCypher/PINNED_*` markers, Decision 0034, master-rubric Cat. 4, and
+/// `testing-and-benchmarks.md` §6 in the same change, and re-measure `total`).
+///
+/// History: this was `1.0.0-M23` (Decision 0008) — a release that was never
+/// actually vendored. Decision 0034 reconciled the pin to the corpus that is
+/// vendored, run, and graded.
+pub const PINNED_TCK_TAG: &str = "2024.3";
 
 /// The exact commit the pinned tag resolves to in
 /// `github.com/opencypher/openCypher`. Recorded so the pin survives a tag being
-/// re-pointed upstream.
-pub const PINNED_TCK_COMMIT: &str = "007895aff5f33097d67b2e48a0a2babd6bd18590";
+/// re-pointed upstream. Matches `tck/openCypher/PINNED_COMMIT`.
+pub const PINNED_TCK_COMMIT: &str = "677cbafabb8c3c5eed458fd3b1ec0daec8d67d23";
 
 /// Number of `.feature` files in `tck/features/` at the pinned tag. Recorded as
 /// a secondary integrity signal (a dropped file usually drops many scenarios).
 pub const PINNED_TCK_FEATURE_FILES: usize = 220;
 
-/// Total Gherkin scenarios (`Scenario:` + `Scenario Outline:`) across all
-/// `.feature` files at the pinned tag. This is the canonical `total` for the
-/// Cat. 4 metric and the rubric's suite-integrity check: the harness MUST load
-/// exactly this many scenarios (see [`verify_suite_size`]).
+/// The canonical Cat. 4 `total`: the **expanded executable test-case count** the
+/// live `tck-runner` harness reports for the pinned `2024.3` corpus, i.e. each
+/// `Scenario Outline` expanded into one case per `Examples` data row (BUG-0009 /
+/// Decision 0013). This is the rubric's suite-integrity check: the harness MUST
+/// load exactly this many cases (see [`verify_suite_size`]).
 ///
-/// Measured directly at the pinned commit:
+/// Composition (parser-authoritative, at the pinned commit):
+/// 1326 parseable plain `Scenario:` + 2558 expanded outline cases = **3884**.
+/// The 13 `Scenario:` in the unparseable `Literals6.feature` (the parse gap owned
+/// by **BUG-0018**) land in `parse_errors`, never in `total`. See also
+/// [`PINNED_TCK_SCENARIO_DEFINITIONS`] for the once-each definition count.
+pub const PINNED_TCK_SCENARIOS: usize = 3884;
+
+/// The scenario-*definition* count at the pinned tag (`Scenario:` +
+/// `Scenario Outline:`, counted once each), recorded for traceability:
 /// `grep -rhE '^\s*(Scenario|Scenario Outline):' tck/features --include='*.feature' | wc -l`
-/// → 1339 `Scenario:` + 276 `Scenario Outline:` = 1615.
-pub const PINNED_TCK_SCENARIOS: usize = 1615;
+/// → 1339 `Scenario:` + 276 `Scenario Outline:` = **1615**. This is *not* the
+/// grader's denominator — outlines expand to many cases (see
+/// [`PINNED_TCK_SCENARIOS`], the expanded `total` the harness actually reports).
+pub const PINNED_TCK_SCENARIO_DEFINITIONS: usize = 1615;
 
 /// The non-gameable TCK pass-rate: `pass / total`, where
 /// `total = pass + pending + fail`.
@@ -133,8 +153,8 @@ impl TckSummary {
     /// can parse it deterministically.
     ///
     /// ```json
-    /// {"tck_tag":"1.0.0-M23","tck_commit":"007895a…","total":1615,
-    ///  "pass":0,"pending":1615,"fail":0,"pass_rate":0.000000}
+    /// {"tck_tag":"2024.3","tck_commit":"677cbaf…","total":3884,
+    ///  "pass":0,"pending":3884,"fail":0,"pass_rate":0.000000}
     /// ```
     #[must_use]
     pub fn to_json(&self) -> String {
@@ -237,9 +257,9 @@ mod tests {
         let j = s.to_json();
         assert_eq!(
             j,
-            "{\"tck_tag\":\"1.0.0-M23\",\
-             \"tck_commit\":\"007895aff5f33097d67b2e48a0a2babd6bd18590\",\
-             \"total\":1615,\"pass\":0,\"pending\":1615,\"fail\":0,\
+            "{\"tck_tag\":\"2024.3\",\
+             \"tck_commit\":\"677cbafabb8c3c5eed458fd3b1ec0daec8d67d23\",\
+             \"total\":3884,\"pass\":0,\"pending\":3884,\"fail\":0,\
              \"pass_rate\":0.000000}"
         );
     }
@@ -255,8 +275,22 @@ mod tests {
     fn suite_size_error_display_is_actionable() {
         let e = verify_suite_size(10).unwrap_err();
         let msg = e.to_string();
-        assert!(msg.contains("1615"));
-        assert!(msg.contains("1.0.0-M23"));
+        assert!(msg.contains("3884"));
+        assert!(msg.contains("2024.3"));
         assert!(msg.contains("10"));
+    }
+
+    #[test]
+    fn pinned_total_is_the_expanded_executable_count() {
+        // The contract module's pinned `total` is the expanded executable count
+        // the live harness reports (Decision 0034), not the once-each definition
+        // count. 1326 parseable-plain + 2558 expanded-outline = 3884. These are
+        // compile-time invariants (const-block assertions), so a future drift in
+        // either constant fails to compile, not merely at test time.
+        const {
+            assert!(PINNED_TCK_SCENARIOS == 1326 + 2558);
+            assert!(PINNED_TCK_SCENARIO_DEFINITIONS == 1615);
+            assert!(PINNED_TCK_SCENARIOS > PINNED_TCK_SCENARIO_DEFINITIONS);
+        }
     }
 }

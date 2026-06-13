@@ -68,12 +68,18 @@ Live TCK pass-rate is the metric. Phased: P1 reads → P2 writes+txns → P3 ful
   `pending`) is **forbidden**: it is a curated subset and falsifies "100% means
   all of it, not a subset". Moving a scenario to `pending` to inflate the rate is
   likewise forbidden. (BUG-0007 / Decision 0008.)
-- **The suite is pinned.** "100% of the TCK" is defined against a pinned
-  openCypher release tag (**`1.0.0-M23`**, commit `007895a`) with a recorded
-  scenario `total` (**1615** scenarios across 220 `.feature` files). The harness
-  emits the tag and `total` in its machine-readable output and a guard fails if
-  the loaded scenario count differs from the recorded pin (catches silent suite
-  shrinkage). The grader reads `pass/total` from `.project/reports/tck-latest.json`.
+- **The suite is pinned.** "100% of the TCK" is defined against the vendored,
+  pinned openCypher release tag (**`2024.3`**, commit `677cbaf`) with a recorded
+  `total` of **3884** executable test cases across 220 `.feature` files — the
+  *expanded* count (each `Scenario Outline` expanded into one case per `Examples`
+  data row, BUG-0009 / Decision 0013); the once-each scenario-*definition* count
+  is 1615. The single unparseable file (`Literals6.feature`, 13 scenarios) is the
+  parse gap owned by **BUG-0018**; its scenarios sit in `parse_errors`, outside
+  `total`, until it parses. The harness emits the tag and `total` in its
+  machine-readable output and a guard fails if the loaded case count differs from
+  the recorded pin (catches silent suite shrinkage). The grader reads `pass/total`
+  from `.project/reports/tck-latest.json`. (Pin reconciliation: Decision 0034
+  supersedes the stale `1.0.0-M23` / 1615 pin of Decision 0008.)
 - **100:** the official openCypher TCK (pinned tag) passes 100% — i.e.
   `pass == total`, `pending == 0`, `fail == 0` — run in CI.
 

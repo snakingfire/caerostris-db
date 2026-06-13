@@ -328,12 +328,18 @@ at `src/tck.rs` (`caerostris_db::tck`) so it is non-gameable:
   `pending` and `fail` are in the denominator** — no scenario is ever excluded.
   `pass / (pass + fail)` is forbidden; it would hide unimplemented scenarios and
   turn a GATE into a curated subset.
-- The suite is **pinned to openCypher `1.0.0-M23`** (commit `007895a`), whose
-  scenario `total` is **1615** (across 220 `.feature` files). The harness emits
-  `tck_tag`, `tck_commit`, and `total` in `tck-latest.json` and calls
-  `tck::verify_suite_size()`, which fails if the loaded count differs from the
-  pin — so the rate cannot rise by silently dropping `.feature` files. The grader
-  computes `pass/total`, never `pass/(pass+fail)`.
+- The suite is **pinned to the vendored openCypher `2024.3`** (commit `677cbaf`),
+  whose `total` is **3884** executable test cases across 220 `.feature` files —
+  the *expanded* count (each `Scenario Outline` expanded into one case per
+  `Examples` data row, BUG-0009 / Decision 0013); the once-each definition count
+  is 1615. The single unparseable file (`Literals6.feature`, 13 scenarios) is the
+  parse gap owned by **BUG-0018**; its scenarios sit in `parse_errors`, outside
+  `total`. The harness emits `tck_tag`, `tck_commit`, and `total` in
+  `tck-latest.json` and `tck::verify_suite_size()` fails if the loaded case count
+  differs from the pin — so the rate cannot rise by silently dropping `.feature`
+  files. The grader computes `pass/total`, never `pass/(pass+fail)`. (Pin
+  reconciliation: Decision 0034 supersedes the stale `1.0.0-M23` / 1615 pin of
+  Decision 0008; the pass-rate *definition* in Decision 0008 is unchanged.)
 
 ### Phased delivery
 
@@ -349,7 +355,7 @@ supports them. `pending` keeps unimplemented scenarios out of the *failure* coun
 pass-rate honestly reflects the *whole* pinned suite, not just the wired subset.
 Phased delivery moves scenarios from `pending` to `pass` as features land; the
 denominator never shrinks. Reaching the Cat. 4 GATE (100%) means `pending == 0 &&
-fail == 0` over all 1615 pinned scenarios.
+fail == 0` over all 3884 pinned executable test cases.
 
 ---
 

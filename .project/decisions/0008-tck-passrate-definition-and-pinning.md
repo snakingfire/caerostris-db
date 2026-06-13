@@ -2,7 +2,11 @@
 
 - **Date / marker:** T0 (2026-06-13T18:24:00Z)
 - **Owner:** steering-query-cypher
-- **Status:** recorded; tracked by BUG-0007 (P0)
+- **Status:** recorded; tracked by BUG-0007 (P0). **Numeric pin SUPERSEDED by
+  Decision 0034** (T+4:30, BUG-0018): the canonical pin is the vendored `2024.3` /
+  `677cbaf` corpus with an expanded `total` of `3884`, not `1.0.0-M23` / `1615`.
+  The pass-rate **definition** below (`pass / total`, nothing excluded, 100 ⇒
+  `pending == 0 && fail == 0`) is unchanged and still binding.
 - **Rubric:** Cat. 4 (openCypher/TCK), Cat. 10
 
 ## Context

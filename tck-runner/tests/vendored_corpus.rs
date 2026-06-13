@@ -12,9 +12,13 @@
 //! denominator cannot silently shift to certify a false 100% (Decision 0008
 //! forbids any curated-subset framing):
 //!
-//! - **BUG-0008 (Literals6):** one feature file the `gherkin` 0.16 parser
-//!   cannot read; its 13 scenarios land in `parse_errors`, never `pending`/`fail`.
-//!   Still open — its scenarios are excluded from `total` until it parses.
+//! - **BUG-0018 (Literals6 parse gap):** one feature file
+//!   (`expressions/literals/Literals6.feature`) the `gherkin` 0.16 parser cannot
+//!   read; its 13 scenarios land in `parse_errors`, never `pending`/`fail`. Still
+//!   open — its scenarios are excluded from `total` until it parses. Owned by
+//!   BUG-0018; this gap was previously *mis-cited* as "BUG-0008", which is an
+//!   unrelated SPDX license-classification bug. [`parse_gap_is_exactly_literals6`]
+//!   names and guards the exact file.
 //! - **BUG-0009 (Scenario Outline expansion) — RESOLVED.** The harness now
 //!   expands each `Scenario Outline` into one concrete scenario per `Examples`
 //!   data row, substituting `<placeholder>` tokens into the query, setup
@@ -47,7 +51,7 @@ const OFFICIAL_SCENARIO_DEFINITIONS: usize = 1615;
 
 /// Plain `Scenario:` definitions across the whole corpus at tag `2024.3`
 /// (`grep -rhE '^\s*Scenario:'`). 13 of these live in the unparseable
-/// `Literals6` file (BUG-0008).
+/// `Literals6` file (the parse gap owned by BUG-0018).
 const PLAIN_SCENARIOS: usize = 1339;
 
 /// `Scenario Outline:` definitions at tag `2024.3`
@@ -57,9 +61,15 @@ const SCENARIO_OUTLINES: usize = 276;
 
 /// Feature files the current Gherkin parser (`gherkin` 0.16) cannot parse —
 /// `Literals6.feature` only, due to its heavily-escaped result-table cells.
-/// Tracked by BUG-0008; until fixed these files land in `parse_errors`, never
+/// Tracked by BUG-0018; until fixed these files land in `parse_errors`, never
 /// in `pending`/`fail`, so they cannot inflate the pass-rate.
 const KNOWN_UNPARSEABLE_FILES: usize = 1;
+
+/// The exact corpus-relative path of the single unparseable feature file. Naming
+/// it (not just counting it) is the BUG-0018 ownership requirement: a *new* file
+/// silently failing to parse, or this gap silently closing, must fail CI rather
+/// than slip by as an unexplained `parse_errors` delta.
+const UNPARSEABLE_FEATURE_REL: &str = "expressions/literals/Literals6.feature";
 
 /// Scenarios in the known-unparseable file(s) (`Literals6` has 13 plain
 /// scenarios, 0 outlines).
@@ -121,10 +131,10 @@ fn corpus_expands_to_expected_total() {
     let dir = default_features_dir();
     let summary = run_suite(&dir, || PendingEngine).expect("corpus runs");
 
-    // Exactly the one known parser limitation (BUG-0008), no more.
+    // Exactly the one known parser limitation (BUG-0018), no more.
     assert_eq!(
         summary.parse_errors, KNOWN_UNPARSEABLE_FILES,
-        "unexpected number of unparseable feature files — see BUG-0008"
+        "unexpected number of unparseable feature files — see BUG-0018"
     );
     // `total` is now the *expanded* test-case count: each Scenario Outline
     // contributes one case per Examples data row (BUG-0009). If this drifts,
@@ -132,6 +142,48 @@ fn corpus_expands_to_expected_total() {
     assert_eq!(
         summary.total, EXPANDED_TOTAL,
         "expanded scenario count drifted from the pinned release 2024.3"
+    );
+}
+
+/// BUG-0018 ownership guard: the parse-error gap is exactly one *named* file —
+/// `expressions/literals/Literals6.feature` — not an anonymous `parse_errors`
+/// count. This satisfies AC#1 (the exact file is identified) and AC#2 (the gap
+/// is owned/tracked): if a different file starts failing, or this one starts
+/// parsing, the count *and* the name diverge from the pin and CI fails, forcing
+/// a deliberate, reviewed update rather than a silent denominator shift.
+#[test]
+fn parse_gap_is_exactly_literals6() {
+    use tck_runner::runner::unparseable_features;
+    let dir = default_features_dir();
+    let unparseable = unparseable_features(&dir).expect("corpus is readable");
+
+    assert_eq!(
+        unparseable.len(),
+        KNOWN_UNPARSEABLE_FILES,
+        "the parse gap must be exactly {KNOWN_UNPARSEABLE_FILES} file(s); got {unparseable:?} \
+         — a new unparseable file is a regression, file a BUG (cf. BUG-0018)"
+    );
+    assert!(
+        unparseable[0].ends_with(UNPARSEABLE_FEATURE_REL),
+        "the single unparseable file must be {UNPARSEABLE_FEATURE_REL} (owned by BUG-0018), \
+         got {:?}",
+        unparseable[0]
+    );
+
+    // The named file must actually exist in the vendored corpus (so the guard
+    // cannot pass vacuously if the corpus is restructured).
+    assert!(
+        dir.join(UNPARSEABLE_FEATURE_REL).is_file(),
+        "{UNPARSEABLE_FEATURE_REL} must exist in the vendored corpus"
+    );
+
+    // And the named-vs-counted views are consistent: the number of files the
+    // helper *names* equals the number the suite *counts* as parse errors.
+    let summary = run_suite(&dir, || PendingEngine).expect("corpus runs");
+    assert_eq!(
+        summary.parse_errors,
+        unparseable.len(),
+        "named parse-error files must equal the counted parse_errors"
     );
 }
 
@@ -246,7 +298,7 @@ fn walk_corpus(dir: &std::path::Path) -> (usize, usize, usize, usize) {
     let (mut plain, mut outlines, mut expanded_cases, mut survivors) = (0, 0, 0, 0);
     for path in discover_features(dir).expect("corpus is readable") {
         let Ok(feature) = Feature::parse_path(&path, GherkinEnv::default()) else {
-            continue; // BUG-0008 unparseable file; accounted for separately.
+            continue; // BUG-0018 unparseable file; accounted for separately.
         };
         let mut defs: Vec<&gherkin::Scenario> = feature.scenarios.iter().collect();
         for rule in &feature.rules {
