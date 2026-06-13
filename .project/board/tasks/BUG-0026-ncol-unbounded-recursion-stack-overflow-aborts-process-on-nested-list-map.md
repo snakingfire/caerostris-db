@@ -10,7 +10,7 @@ deps: [T-0007]
 rubric_refs: [2, 1, 10]
 estimate: S
 created: T0+~3:58
-updated: T0+~4:38
+updated: T0+~4:40
 ---
 
 ## Context
@@ -77,3 +77,14 @@ self-contained robustness/DoS gap in the value codec shared by writer and reader
   this bug (BUG-0026 names only `ncol.rs`); filed as **BUG-0030** to keep this
   diff small. Status set to `in_review`; awaiting adversarial-reviewer +
   premortem-analyst sign-off.
+- **T0+~4:40 — adversarial-reviewer: APPROVE.** Eight attacks attempted (bound
+  off-by-one, 100k-deep reader stack-exhaustion, poisoned-column reader path,
+  writer mid-ingest abort, wire-format drift, ACID/latency/split-brain surface,
+  non-exhaustive-match break, guardrails) — all survived; verdict block + attack
+  log in `PR.md`. Independently re-ran `cargo test --lib storage::ncol` (25
+  passed incl. the 6 regressions + the 100k-deep stream), `clippy -D warnings`
+  (clean), `cargo fmt --all --check` (exit 0). All five acceptance criteria met
+  with evidence. Reviewer gate ticked. One out-of-scope, non-regression finding
+  (a width/allocation DoS in the same reader, pre-existing on `main`) filed as
+  **BUG-0031** — not blocking BUG-0026. Awaiting premortem-analyst sign-off
+  before the integrator lands.
