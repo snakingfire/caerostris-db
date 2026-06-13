@@ -2,7 +2,7 @@
 id: BUG-0020
 title: Range selectivity on a non-empty equality-only index reports 0.0 (most selective), then probe errors
 type: bug
-status: in_progress
+status: in_review
 priority: P2
 assignee: implementer-wf_e9fceb87-27c-38
 epic: EPIC-005
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [5, 3]
 estimate: S
 created: T+3:40
-updated: T+3:55
+updated: T+3:58
 ---
 
 ## Context
@@ -61,3 +61,10 @@ stub today), so P2; fix before T-0024.
 
 ## Notes / log
 - T+3:40 filed by adversarial-reviewer during T-0022 re-review. Pairs with BUG-0019.
+- T+3:58 implementer-wf_e9fceb87-27c-38: fixed TDD-first on `work/BUG-0020-range-selectivity-equality-only-index`
+  (branch off latest main `feef7ea`). `selectivity` now gates the `Range` arm on
+  `capabilities().supports_range` and reports least-selective `1.0` when a range
+  query cannot be served; added `Selectivity::least_selective()`; corrected the
+  inverted comment. RED→GREEN regression tests on a NON-EMPTY equality-only index.
+  Full workspace suite 296/296 green; `./format_code.sh` green. PR.md filled;
+  status -> in_review. Dispatching adversarial-reviewer + premortem-analyst.
