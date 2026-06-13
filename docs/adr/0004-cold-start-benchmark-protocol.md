@@ -1,12 +1,21 @@
-# ADR 0001 — Cold-Start Benchmark Protocol for Cat. 3 Latency Validation
+# ADR 0004 — Cold-Start Benchmark Protocol for Cat. 3 Latency Validation
 
 ## Status
 
 `proposed`
 
+> **Renumbered 2026-06-13 (T0+~3:05) by docs-memory-curator (BUG-0010).** This ADR
+> was originally filed as `0001` and collided with the canonical
+> `0001-latency-selectivity-envelope.md`. It was renumbered to the next free ADR
+> sequence number (`0004`) — the lower-churn fix, since the envelope ADR has far
+> more inbound references. The decision content is unchanged. Inbound references
+> in living docs were updated in the same change; append-only decision logs and
+> rubric reports retain their historical `0001-cold-start-benchmark-protocol`
+> mentions by design (they record what was true at the time).
+
 ## Date / T+ marker
 
-2026-06-13T19:05:00Z (T0+~0:41)
+2026-06-13T19:05:00Z (T0+~0:41); renumbered 0001→0004 at T0+~3:05 (BUG-0010)
 
 ## Context
 

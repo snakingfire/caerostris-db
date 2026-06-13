@@ -814,11 +814,13 @@ maintained max-degree statistic as out-of-envelope (conservative reject), per th
 Bound to SPIKE-0004 (statistics contract: must maintain per-rel-type **max** degree,
 not only p99) and T-0015 (estimator). Tracked in decision 0015.
 
-**Finding F3 (non-blocking) — ADR numbering collision.** `docs/adr/0001-*` is occupied
-by both this ADR and `0001-cold-start-benchmark-protocol.md` (SPIKE-0007). Docs/board
-hygiene, not a design issue. Filed as `BUG-0010` for the docs-curator to renumber the
-benchmark-protocol ADR and fix its two inbound references in
-`docs/process/testing-and-benchmarks.md`.
+**Finding F3 (non-blocking) — ADR numbering collision. RESOLVED (BUG-0010, T0+~3:05).**
+`docs/adr/0001-*` was originally occupied by both this ADR and the cold-start
+benchmark-protocol ADR (SPIKE-0007). The docs-memory-curator renumbered the
+benchmark-protocol ADR to `0004-cold-start-benchmark-protocol.md` (the lower-churn
+fix, since this envelope ADR is the canonical, widely-referenced artifact) and
+updated its inbound references in living docs. Docs/board hygiene, not a design
+issue. This envelope ADR remains `0001`.
 
 **Why these are conditions, not a `reject`:** F1 and F2 do not change the feasible
 region — they tighten *detection* thresholds and the *estimator's* safety margin. The

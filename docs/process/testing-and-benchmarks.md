@@ -412,14 +412,14 @@ is a P0 Cat. 3 gap.
 | Hard ceiling | `slow-s3` | P99 ≤ 2 s |
 
 A result recorded under `loopback` or `fast-s3` **may not** be cited as Cat. 3
-primary evidence. See [`docs/adr/0001-cold-start-benchmark-protocol.md`](../adr/0001-cold-start-benchmark-protocol.md)
+primary evidence. See [`docs/adr/0004-cold-start-benchmark-protocol.md`](../adr/0004-cold-start-benchmark-protocol.md)
 for the full normative grader evidence rule.
 
 ### Cold-start benchmark protocol (normative — amends §5 above)
 
 > **This section supersedes the criterion `cargo bench` defaults for any Cat. 3
 > latency benchmark.** Standard criterion warm-up is invalid for cold-start
-> measurement. See [`docs/adr/0001-cold-start-benchmark-protocol.md`](../adr/0001-cold-start-benchmark-protocol.md)
+> measurement. See [`docs/adr/0004-cold-start-benchmark-protocol.md`](../adr/0004-cold-start-benchmark-protocol.md)
 > for the full normative spec. Summary of requirements:
 >
 > 1. **Fresh state per sample:** no warm OS page cache, no warm local cache
@@ -448,11 +448,11 @@ cargo bench --bench query_6hop -- --save-baseline nominal-s3
 
 **IMPORTANT:** For the Cat. 3 cold-start bench, do not use the default criterion
 `iter()` loop with the command above. Use `iter_custom()` with fresh state per
-sample (see ADR 0001). The `--save-baseline` flag is still useful for tracking
+sample (see ADR 0004). The `--save-baseline` flag is still useful for tracking
 the P50/P99 series over time.
 
 Record the P99 latency number from the bench output in
-`.project/reports/benchmark-history.jsonl` with all required fields from ADR 0001
+`.project/reports/benchmark-history.jsonl` with all required fields from ADR 0004
 Rule 5 (including `cold: true`, `cache: "off"`, `latency_profile: "nominal-s3"`,
 and `samples: N`). The rubric-grader reads only entries satisfying the cold-start
 filter for Cat. 3 evidence.

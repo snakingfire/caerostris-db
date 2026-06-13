@@ -366,7 +366,7 @@ pub struct SimReport {
 
 /// Extract the percentile at fractional rank `q ∈ (0, 1]` from a sorted slice,
 /// using the position `⌈q · N⌉` (1-indexed) per the cold-start benchmark
-/// protocol (ADR-0001 cold-start-benchmark Rule 4).
+/// protocol (ADR-0004 cold-start-benchmark Rule 4).
 fn percentile_sorted(sorted: &[f64], q: f64) -> f64 {
     assert!(!sorted.is_empty(), "percentile of empty sample");
     let n = sorted.len();

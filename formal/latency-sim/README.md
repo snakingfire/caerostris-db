@@ -128,7 +128,7 @@ Per the formal-verification policy, once the storage implementation exists this
 simulation must be **re-calibrated against measured latency** from the local S3
 mock (MinIO/moto + injected latency, per
 [`docs/process/testing-and-benchmarks.md`](../../docs/process/testing-and-benchmarks.md) §7
-and [ADR 0001-cold-start-benchmark-protocol](../../docs/adr/0001-cold-start-benchmark-protocol.md)).
+and [ADR 0004-cold-start-benchmark-protocol](../../docs/adr/0004-cold-start-benchmark-protocol.md)).
 The simulated and measured P99 must agree within tolerance; the measured-SLA half
 of Cat. 3 is the headline benchmark task **T-0016**. This artifact is the
 **analytical/simulation** half — the empirical benchmark must independently

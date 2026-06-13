@@ -54,10 +54,10 @@ readable artifact so the weight-14 GATE cannot be scored on invalid evidence.
   - **N (sample count) and the P99 estimator** are stated; N ≥ 200 required; P99 = sample at ⌈0.99×N⌉.
 - [x] The rubric-grader's Cat. 3 evidence rule is updated (or a note filed for the grader)
       so that a warm/loopback criterion number is **not** accepted as cold-start evidence.
-      Normative filter defined in ADR 0001.
+      Normative filter defined in ADR 0004 (renumbered from 0001 by BUG-0010).
 - [x] `.project/reports/benchmark-history.jsonl` schema includes `cold: true|false`,
       `cache: on|off`, `latency_profile`, and `samples` so evidence is self-describing.
-      Schema specified in ADR 0001 Rule 5.
+      Schema specified in ADR 0004 Rule 5 (renumbered from 0001 by BUG-0010).
 - [x] Cross-referenced from EPIC-003; consistent with SPIKE-0006 (the K·L_p99 floor sets
       what a *plausible* cold P99 even looks like under each profile).
 - [x] docs updated (`testing-and-benchmarks.md` §7 amended); `./format_code.sh` green (no code touched).
@@ -85,3 +85,10 @@ readable artifact so the weight-14 GATE cannot be scored on invalid evidence.
   Follow-up: steering-perf-sla must ratify ADR 0001 before the Cat. 3 bench harness is built.
   File a task for the perf-engineer to implement the bench harness (iter_custom / bespoke
   sampler) once EPIC-008 provides the `cache.enabled` config key.
+- T0+~3:05 — `docs-memory-curator` (BUG-0010): the ADR delivered here was renumbered from
+  `docs/adr/0001-cold-start-benchmark-protocol.md` to
+  `docs/adr/0004-cold-start-benchmark-protocol.md` to resolve the `0001` collision with the
+  latency-selectivity-envelope ADR. The "ADR 0001" mentions in the older log entry above are
+  retained as the historical record (they were accurate when written); the live
+  acceptance-criteria cross-references were updated to ADR 0004. The "ratify ADR 0001"
+  follow-up above now reads as "ratify ADR 0004 (the benchmark-protocol ADR)".
