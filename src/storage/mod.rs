@@ -17,8 +17,10 @@
 //!   needs concurrent I/O on the hot path. The trait is synchronous and
 //!   object-safe. Wrappers that add async can be layered on top.
 
+pub mod cache;
 pub mod memory;
 
+pub use cache::{CacheConfig, CacheStats, CachingStore, DiskCacheConfig, EvictionPolicy};
 pub use memory::MemoryStore;
 
 /// Errors returned by [`ObjectStore`] operations.
