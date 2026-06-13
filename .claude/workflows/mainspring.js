@@ -117,6 +117,9 @@ function orient(prevClaims) {
     `${CANON}\nORIENT + CLAIM (lane ${LANE}). Do EXACTLY this, in order, and report the structured result:\n` +
       `1. Release last round's claims: run \`${rel}\`.\n` +
       `2. Ensure the mock is healthy: run \`scripts/env/up.sh\` (idempotent).\n` +
+      `2b. OPEN THE CASCADE: run \`scripts/board/unblock.sh\` — it flips every backlog item whose deps are now ` +
+      `done to ready (and commits), so newly-unblocked work is claimable THIS round. This is how ratifying a spike ` +
+      `immediately feeds its dependent implementation tasks into the pool.\n` +
       `3. Atomically claim this lane's DISJOINT batch: run \`scripts/board/claim.sh claim ${LANE} ${ROUND_CAP}\`. It prints one TSV ` +
       `row per NEWLY-CLAIMED item: id<TAB>type<TAB>status<TAB>priority<TAB>rubric_refs<TAB>title. These ids are now OWNED by lane ${LANE} — ` +
       `no other lane will touch them. Put every claimed id in claimed_ids.\n` +
