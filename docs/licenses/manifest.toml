@@ -1,0 +1,34 @@
+# License manifest — caerostris-db
+#
+# The committed record of every third-party dependency and the license under
+# which we use it. Rubric Cat. 12 (process health) requires this manifest to be
+# complete and every license to be permissive (see
+# docs/process/open-source-guardrails.md, section 5).
+#
+# This file is checked automatically:
+#   - `tests/license_manifest.rs` parses Cargo.lock and fails CI if any
+#     dependency here is missing or carries a non-permissive SPDX id.
+#   - `cargo deny check licenses` (deny.toml) cross-checks against crate metadata.
+#
+# When you add a dependency to Cargo.toml:
+#   1. Run `cargo license --avoid-build-deps` (or read the crate's `license`
+#      field) to find its SPDX identifier.
+#   2. Confirm the SPDX id is in the approved allow-list
+#      (see `APPROVED_SPDX` in src/licenses.rs / open-source-guardrails.md).
+#      If it is copyleft/source-available, get steering sign-off first and
+#      record the decision in .project/decisions/ BEFORE adding it.
+#   3. Add a `[[dependency]]` block below with name, version, spdx, and a note.
+#
+# Format (parsed by src/licenses.rs — keep keys on their own lines):
+#
+#   [[dependency]]
+#   name    = "<crate name as in Cargo.lock>"
+#   version = "<resolved version>"
+#   spdx    = "<SPDX expression, e.g. MIT OR Apache-2.0>"
+#   note    = "<one line: why it is permissive / why we use it>"
+#
+# Status: the engine currently has ZERO third-party runtime dependencies. As the
+# storage/query/transaction layers land, their dependencies get recorded here.
+# The empty state below is intentional and passes the check.
+
+# (no third-party dependencies yet)
