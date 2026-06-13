@@ -7,7 +7,6 @@
 //! [`push_down`](super::pushdown) pass.
 
 use std::collections::BTreeSet;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::cypher::ast::{
     Clause, Expr, MatchClause, NodePattern, PathPattern, ProjectionClause, ProjectionItem, Query,
@@ -47,12 +46,6 @@ pub fn lower(query: &Query) -> PlanResult<LogicalPlan> {
     Ok(LogicalPlan::new(root))
 }
 
-/// Process-wide counter making every anonymous node's synthetic variable name
-/// unique. Two anonymous nodes in one pattern (`()-[:R]->()`) must NOT share a
-/// name, or the chained expand would self-loop (`from == to`) and corrupt the
-/// plan. A monotonic counter guarantees distinctness across the whole process.
-static ANON_COUNTER: AtomicU64 = AtomicU64::new(0);
-
 /// Running lowering state: the operator built so far plus whether it is still
 /// the fresh single-row [`Empty`](Operator::Empty) leaf (so the first scanned
 /// node replaces it rather than joining onto it).
@@ -61,6 +54,16 @@ struct LoweringState {
     /// `true` while `current` is the untouched [`Operator::Empty`] sentinel.
     fresh: bool,
     bound: BTreeSet<String>,
+    /// Per-`plan()` counter making every anonymous node's synthetic variable
+    /// name unique. Two anonymous nodes in one pattern (`()-[:R]->()`) must NOT
+    /// share a name, or the chained expand would self-loop (`from == to`) and
+    /// corrupt the plan. A per-call counter (not a process-global one) keeps
+    /// planning **deterministic**: the same query lowers to a structurally
+    /// equal [`LogicalPlan`] every time, so downstream golden/`EXPLAIN` and
+    /// `LogicalPlan`-equality tests (T-0015, T-0019) are stable. The `OPTIONAL
+    /// MATCH` sub-lowering threads this counter in and out so anonymous names
+    /// stay distinct across the required and optional sides of one query.
+    anon: u64,
 }
 
 impl Default for LoweringState {
@@ -69,11 +72,27 @@ impl Default for LoweringState {
             current: Operator::Empty,
             fresh: true,
             bound: BTreeSet::new(),
+            anon: 0,
         }
     }
 }
 
 impl LoweringState {
+    /// The variable a node pattern binds, synthesising a **unique** anonymous
+    /// name (via the per-call [`anon`](LoweringState::anon) counter) when the
+    /// node is unnamed (`()` / `(:Label)`), so chained expands always have a
+    /// distinct source and destination.
+    fn node_var(&mut self, node: &NodePattern) -> String {
+        match &node.variable {
+            Some(v) => v.clone(),
+            None => {
+                let n = self.anon;
+                self.anon += 1;
+                format!("__anon_{n}")
+            }
+        }
+    }
+
     fn lower_clause(&mut self, clause: &Clause) -> PlanResult<()> {
         match clause {
             Clause::Match(m) => self.lower_match(m),
@@ -108,6 +127,9 @@ impl LoweringState {
             // already bound, so its leading node may reference a bound variable.
             let mut sub = LoweringState {
                 bound: self.bound.clone(),
+                // Inherit the anon counter so anonymous names in the optional
+                // side never collide with the required side's.
+                anon: self.anon,
                 ..LoweringState::default()
             };
             sub.lower_pattern(pattern)?;
@@ -115,6 +137,9 @@ impl LoweringState {
                 sub.push_filters(pred);
             }
             self.bound.extend(sub.bound.iter().cloned());
+            // Thread the advanced counter back so later clauses keep distinct
+            // anonymous names.
+            self.anon = sub.anon;
             let optional = sub.into_root()?;
             self.current = Operator::Optional {
                 input: Box::new(std::mem::replace(&mut self.current, Operator::Empty)),
@@ -148,7 +173,7 @@ impl LoweringState {
                         .to_string(),
                 });
             }
-            let to_var = node_var(&step.node);
+            let to_var = self.node_var(&step.node);
             self.lower_expand(&prev_var, &step.relationship, &to_var)?;
             self.lower_node_constraints(&step.node, &to_var);
             prev_var = to_var;
@@ -161,7 +186,7 @@ impl LoweringState {
     /// of an `OPTIONAL MATCH` continuation), no new scan is emitted — the
     /// running operator already produces it.
     fn lower_start_node(&mut self, node: &NodePattern) -> String {
-        let var = node_var(node);
+        let var = self.node_var(node);
         if self.bound.contains(&var) && !self.fresh {
             // Continuation from an already-bound variable (e.g. the `(a)` in
             // `OPTIONAL MATCH (a)-[:R]->(b)` where `a` came from the required
@@ -341,21 +366,6 @@ impl LoweringState {
         }
         Ok(self.current)
     }
-}
-
-/// The variable a node pattern binds, synthesising a **unique** anonymous name
-/// when the pattern is unnamed (`()` / `(:Label)`), so expands always have a
-/// distinct source and destination.
-///
-/// The name must be unique per occurrence: keying on labels alone (the old
-/// behaviour) made `()-[:R]->()` lower to `Expand (__anon)-[:R]->(__anon)` —
-/// a self-loop where `from == to` — corrupting the headline multi-hop plan. A
-/// monotonic counter guarantees distinctness.
-fn node_var(node: &NodePattern) -> String {
-    node.variable.clone().unwrap_or_else(|| {
-        let n = ANON_COUNTER.fetch_add(1, Ordering::Relaxed);
-        format!("__anon_{n}")
-    })
 }
 
 /// Build the label-test predicate for a node's `:Label` set. Lowered as a

@@ -597,6 +597,19 @@ fn optional_match_continues_from_a_bound_variable() {
 }
 
 #[test]
+fn planning_is_deterministic_for_anonymous_node_queries() {
+    // The anon-node counter is per-plan() call (not process-global), so the same
+    // query lowers to a structurally equal LogicalPlan every time — keeping
+    // downstream EXPLAIN/golden and LogicalPlan-equality tests (T-0015/T-0019)
+    // stable. (BUG-flagged footgun from the Round-2 review, fixed here.)
+    let q = "MATCH (a:Person)-[:KNOWS]->()-[:KNOWS]->() RETURN a";
+    assert_eq!(planned(q), planned(q));
+    // And anonymous names within one plan are still distinct (no self-loop).
+    let p = planned(q);
+    assert_eq!(p.explain().matches("Expand").count(), 2);
+}
+
+#[test]
 fn unbound_variable_error_is_constructible_with_a_clear_message() {
     // FINDING: PlanError::UnboundVariable was declared + documented but never
     // constructed. It is now the defensive invariant guard on lower_expand's
