@@ -16,9 +16,16 @@
 //!   RPITIT stabilisation requirements is deferred until the engine actually
 //!   needs concurrent I/O on the hot path. The trait is synchronous and
 //!   object-safe. Wrappers that add async can be layered on top.
+//! - **Optional layering.** Because the trait is the single interface, optional
+//!   accelerators are layered *on top of* it as wrappers that themselves
+//!   implement [`ObjectStore`]. [`CachingStore`](cache::CachingStore) is one such
+//!   wrapper: a resource-aware read cache that is off by default and disabled by
+//!   a single config flag, never required for correctness or the cold-start SLA.
 
+pub mod cache;
 pub mod memory;
 
+pub use cache::{CacheConfig, CacheStats, CachingStore, DiskCacheConfig, EvictionPolicy};
 pub use memory::MemoryStore;
 
 /// Errors returned by [`ObjectStore`] operations.
