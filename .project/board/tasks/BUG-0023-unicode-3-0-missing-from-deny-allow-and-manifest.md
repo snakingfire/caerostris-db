@@ -2,15 +2,15 @@
 id: BUG-0023
 title: unicode-ident license (Unicode-3.0 conjunct) missing from deny.toml allow-list and misrecorded in manifest
 type: bug
-status: ready
+status: in_progress
 priority: P2
-assignee:
+assignee: implementer-wf_156e2b80-bb6-48
 epic: EPIC-001
 deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+3:42
-updated: T0+3:42
+updated: T0+3:50
 ---
 
 ## Context
