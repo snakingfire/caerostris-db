@@ -72,3 +72,21 @@ Status is `backlog` pending SPIKE-0001 ratification. Once SPIKE-0001 is done, th
   Value-digest privacy (per SPIKE-0004 Part 1.2): MCV/histogram entries store fixed-width
   collision-resistant digests (BLAKE3-truncated) + order-preserving truncated keys, **never raw
   property values** — keeps committed fixtures free of user data by construction (guardrails §3).
+- **T0+~3:40 (steering-storage) — RATIFIED-WITH-CONDITIONS; SPIKE-0003 DONE.**
+  Authored + falsification-tested + ratified in one pass under pace-marshal P0 keystone
+  authority. Artifact: `docs/adr/0008-storage-format.md` (status `accepted`; drafted as
+  0006, renumbered to 0008 to dodge the in-flight Python-bindings T-0030 ADR which had
+  claimed 0006/0007 — BUG-0010 collision class avoided). Sign-off:
+  `.project/decisions/0032-storage-domain-spike-0003-storage-format-ratification.md`.
+  Format: content-addressed columnar-node (`.ncol`) + banded CSR adjacency (`.adj`) +
+  partition-mapped manifest. `r ≤ 1` via manifest partition map + intra-object fixed-stride
+  offset directory + co-located projection set (ADR §3/§4); PS-1 K_min=8 held by co-locating
+  the returnable projection in the hop-6 block, with an explicit manifest-recorded K=9 fallback
+  (§3.3/§7.3); F1/F2 early-abort as a hard per-GET byte/row cap from the offset directory
+  (§3.4); inline OOE-critical stats incl. mandatory `max_deg` + referenced `db/stats/<hash>.stats`
+  + value-digest privacy (§5.3); reference-counted live-object-set GC satisfying decision 0027
+  BC-1 by construction (§7.2). Seven falsification attacks (r-secretly-2, PS-1→K9, super-hub
+  realized bytes, selective-scatter, torn-read/GC, hand-wavy budget, schema-evolution fail-open)
+  all survived with cited evidence — see ADR §Sign-off. Conditions C1–C6 are land-gates on
+  T-0007 (C3), T-0008 (C1/C2), T-0009 (C4/C5/C6), T-0010 (C5). **Unblocks T-0007/T-0008/T-0009/T-0010**
+  (T-0009 additionally gated on SPIKE-0004 ratification, tracked separately).
