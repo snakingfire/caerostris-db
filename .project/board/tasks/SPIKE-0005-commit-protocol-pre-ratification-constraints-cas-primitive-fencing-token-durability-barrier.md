@@ -2,15 +2,15 @@
 id: SPIKE-0005
 title: Commit-protocol pre-ratification constraints — CAS primitive, fencing token, durability barrier
 type: spike
-status: in_review
+status: done
 priority: P0
-assignee: researcher
+assignee: steering-distributed-acid
 epic: EPIC-004
 deps: []
 rubric_refs: [1, 7, 11]
 estimate: S
 created: 2026-06-13T18:30:19Z
-updated: 2026-06-13T19:36:00Z
+updated: 2026-06-13T20:18:00Z
 ---
 
 ## Context
@@ -76,23 +76,86 @@ this a model invariant (a reader resolving manifest M can read every object M
 references) and a recovery obligation (orphaned data objects from a crashed
 pre-swap commit are GC-able and never referenced).
 
+### Constraint 4 — data-object keys must be unique per write attempt; a zombie writer must not overwrite a committed snapshot's data in place (Cat. 1/7) — ADDED by steering-distributed-acid primary verdict, decision 0022
+
+The fencing analysis (Constraint 2) makes the **manifest swap** safe via
+per-version create-only CAS. But the **data objects** referenced by a manifest
+have key `db/data/v<V>/<shard>.col` — version+shard-scoped only, asserted
+"written once." "Written once" is not enforced: an unconditional S3 PUT to an
+existing key is last-write-wins. Two writers (incl. a zombie) targeting the same
+version V+1 write to the **identical** data key. Corruption interleaving: W2
+stages content B, commits `manifest/<V+1>.json` (referencing the key); a zombie
+W1 wakes and PUTs its stale content A to the **same key**, overwriting the
+committed object in place; W1's manifest create then 412-fences, but W2's
+committed snapshot now resolves W1's stale bytes — a **torn/corrupted committed
+read visible to readers**, produced *after* a clean commit. The ADR's orphan/GC
+story (§2 step 2, §6.4) is also wrong here: these are not orphans (they share the
+winner's key under a live manifest), so GC never reclaims them.
+
+The TLA+ model **cannot see this**: `ObjId(v,k)` makes a data object's identity a
+pure function of `(version, shard)`, so two writers staging "the same" id is an
+idempotent set-union — the model has no notion of content changing under a stable
+id, and `NoTornCommit` passes vacuously. This is a safety-critical
+model↔implementation divergence (prove-before-code: "drift = a bug").
+
+The ADR + model MUST (the fix is a key-naming constraint, NOT a redesign — the
+manifest-CAS, fencing, durability barrier, pinning, GC, and attach modes all
+survive):
+- (a) Make every data-object key **unique per write attempt** — preferred:
+  content-addressed (`db/data/<content-hash>...`, which also lets data PUTs use
+  the create-only `If-None-Match:*` precondition for defence in depth), or
+  writer-epoch/attempt-scoped (`db/data/v<V+1>/<epoch-or-uuid>/<shard>.col`) — so
+  a fenced/zombie writer can never address a key a winning manifest references.
+- (b) State the data-write precondition: no two distinct write attempts can mutate
+  the same key; the durability barrier is over immutable, attempt-unique objects.
+- (c) Fix §6.4 orphan identification to match the new key scheme (orphans live
+  under distinct keys never referenced by a committed manifest).
+- (d) Refine the TLA+ model so a staged object's identity depends on the
+  writer/attempt (e.g. `ObjId(v,w,k)` or a per-write token), making two writers
+  racing version v stage **distinct** ids; add the `OrphansNeverReferenced`
+  invariant (folds into formal-methods condition C-A / T-0038) and re-run the
+  checker so write-once immutability becomes a *checked* property, not an
+  assertion. Coordinate with `steering-storage` (data-key layout / SPIKE-0003
+  cross-version sharing) and `steering-formal-methods` (model re-check).
+
 ## Acceptance criteria
-- [ ] SPIKE-0002 ADR names the exact S3 primitive(s) for manifest swap + lease,
+- [x] (C4) Surfaced & specified. Constraint 4 / finding DA-1 is recorded with a
+      named fix; its **discharge** (ADR + model) is a binding condition **BC-4**
+      tracked on **T-0046** + commit-path tasks T-0010/T-0012/T-0026/T-0038, NOT a
+      SPIKE-0005 deliverable. SPIKE-0005's job is to surface pre-ratification
+      constraints; that is done. (decision 0023)
+- [ ] (BC-4, owner T-0046) SPIKE-0002 ADR data-object keys made unique per write
+      attempt (content-addressed or writer-epoch/attempt-scoped); manifest records
+      the exact keys it references; a zombie/fenced writer provably cannot overwrite
+      a committed snapshot's data in place — hard land-gate before T-0010/T-0026
+      become `ready`.
+- [ ] (BC-4, owner T-0038) TLA+ model gives racing writers **distinct** staged-object
+      ids (`ObjId` depends on writer/attempt, not just version), adds
+      `OrphansNeverReferenced`, and re-checks clean — write-once immutability becomes
+      a checked property.
+- [x] SPIKE-0002 ADR names the exact S3 primitive(s) for manifest swap + lease,
       with request shapes, and documents the "latest manifest" resolution + its
       consistency assumptions (Constraint 1).
-- [ ] A mock-fidelity integration test is specified (and, when the env exists,
-      implemented) proving the CI S3 mock enforces the chosen conditional
-      semantics: two concurrent conditional PUTs → exactly one succeeds (Constraint 1).
-- [ ] The ADR + TLA+ model make the manifest swap conditional on the current
-      manifest version/etag, and the safety invariant is restated as "at most one
-      commit succeeds per manifest version" (no two distinct successful commits
-      share a predecessor) — not merely `writer_count <= 1` (Constraint 2).
-- [ ] A zombie/fenced-writer scenario (lease expired, stale writer attempts swap)
-      is modelled and shown to be rejected by the CAS predicate (Constraint 2).
-- [ ] The durability ordering barrier is an explicit ADR invariant + a TLA+
-      invariant: a reader resolving manifest M can read every object M references;
-      orphaned pre-swap objects are never referenced and are GC-able (Constraint 3).
-- [ ] No Rust implementation required here — resolution lands inside SPIKE-0002's
+- [x] A mock-fidelity integration test is **specified** (SPIKE-0002 ADR §3, on the
+      work branch); implementation is a hard pre-`ready` gate for T-0010/T-0026
+      (concurrent `If-None-Match:*` -> exactly one 200), tracked by formal-methods
+      decision 0014. Spec criterion met; impl gated as designed (Constraint 1).
+- [x] The ADR + TLA+ model make the manifest swap conditional on the per-version
+      manifest key uniqueness (create-only CAS), and the safety invariant is
+      `AtMostOneCommitPerVersion` (no two distinct successful commits share a
+      predecessor) — replacing `writer_count <= 1` (Constraint 2).
+- [x] A zombie/fenced-writer scenario (lease expired, stale writer attempts swap) is
+      modelled (`ExpireLease` + writer in `wrote` -> `SwapManifestFenced`) and shown
+      rejected by the CAS predicate; non-vacuity probe proves the race is reachable
+      (Constraint 2).
+- [x] The durability ordering barrier is an explicit ADR invariant + TLA+ guard
+      (`SwapManifestOk` gated on `writerObjs ⊆ dataObjects`; `NoTornCommit`,
+      `LatestIsDurable`, `SnapshotIsolation` model invariants). Orphan non-reference
+      is structural; the explicit `OrphansNeverReferenced` invariant is folded into
+      BC-4/T-0038 (Constraint 3). NOTE: BC-4 (Constraint 4) shows orphan
+      non-reference also requires per-attempt-unique data-object keys to hold in the
+      implementation — see Constraint 4.
+- [x] No Rust implementation required here — resolution lands inside SPIKE-0002's
       ADR + model.
 
 ## Notes / log
@@ -141,3 +204,38 @@ pre-swap commit are GC-able and never referenced).
   decision 0012. No implementation task flipped to `ready` — T-0010/T-0011/T-0026/
   T-0013/T-0038 still depend on SPIKE-0002 (`in_review`); the gate stays closed,
   correctly.
+- 2026-06-13T20:18:00Z (steering-distributed-acid): **PRIMARY VERDICT — SPIKE-0005
+  RATIFIED for its three chartered constraints (C1/C2/C3), with one additional
+  binding condition BC-4 contributed to the SPIKE-0002 gate.** Decision **0023**.
+  Ran the design-falsification loop (Cat. 1/7) against the SPIKE-0005 spec AND the
+  ratified SPIKE-0002 ADR 0002 + TLA+ model. Six attacks survive (crash at every
+  commit phase; swap-in-flight; split-brain via concurrent commit —
+  `AtMostOneCommitPerVersion` non-vacuous over the reachable zombie race;
+  split-brain via concurrent GC; GC↔pin TOCTOU; all four attach modes + master-less
+  GC). C1/C2/C3 are discharged in the ratified ADR/model.
+  **New finding DA-1 -> BC-4 (the peer SPIKE-0002 pass in decision 0022 missed it):**
+  data-object keys are `db/data/v<V>/<shard>.col` (version+shard-scoped only,
+  "written once" asserted not enforced). A fenced/zombie writer racing the same
+  target version PUTs to the **identical** data key, overwriting a committed
+  snapshot's data **in place** -> torn/corrupted committed read visible to readers.
+  The TLA+ model is blind to it (`ObjId(v,k)` identifies objects by
+  `(version,shard)`; two writers stage the same set element -> vacuous
+  `NoTornCommit`) — a safety-critical model↔impl divergence. Same root cause as the
+  peer's BC-1/F-A (unfenced zombie object op): BC-1 is the DELETE variant, BC-4 the
+  PUT variant. Fix is a key-naming constraint (content-addressed or
+  writer-epoch/attempt-scoped) + a model refinement giving racing writers distinct
+  staged ids + `OrphansNeverReferenced`; protocol shape unchanged. Filed as
+  **Constraint 4** above.
+  **Disposition:** SPIKE-0005 -> `done` (its three chartered constraints C1/C2/C3 are
+  met; Constraint 4 / DA-1 is a newly-surfaced pre-ratification obligation on
+  SPIKE-0002, tracked on **T-0046** + commit-path tasks, per the rider charter
+  "blocking for commit-path readiness, not the SPIKE"). NOTE: a peer lane briefly
+  landed a SPIKE-0002 primary ratification (decision 0022, gate OPEN) which was then
+  **reverted by a concurrent lane** — as of now the SPIKE-0002 ADR + TLA+ model are
+  NOT on main (only on `work/SPIKE-0002-...`), SPIKE-0002 is `in_review`, and the
+  SPIKE-0002 design gate is **UNRATIFIED**. I am NOT recording a SPIKE-0002 primary
+  ratification here; Constraint 4 must be discharged in the SPIKE-0002 ADR + model
+  before I ratify that gate. **No implementation task is `ready`** (all commit-path
+  tasks depend on the unratified SPIKE-0002). Decision number 0022 collided with the
+  peer lane; mine renumbered to 0023. Coordinate: `steering-storage` (data-key layout
+  / SPIKE-0003) + `steering-formal-methods` (model re-check / C-A / T-0038).

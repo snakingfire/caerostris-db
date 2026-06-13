@@ -125,9 +125,11 @@ function orient(prevClaims) {
       `no other lane will touch them. Put every claimed id in claimed_ids.\n` +
       `4. Check .project/STOP (exists? → stop=true) and .project/.bootstrapped (exists? → bootstrapped=true).\n` +
       `5. Classify EACH claimed row into exactly one bucket with the right agent role (read the task file frontmatter/body if unsure):\n` +
-      `   • ratify_now — status=in_review design item (spike/ADR/spec) needing sign-off. steering_role by domain from rubric_refs: ` +
-      `{3→steering-perf-sla, 11→steering-formal-methods, 1|7→steering-distributed-acid, 2→steering-storage, 4|6→steering-query-cypher}.\n` +
-      `   • reland — status=blocked, signed-off but failed to merge (rebase conflict). Include its branch if known.\n` +
+      `   • ratify_now — in_review DESIGN item ONLY (type spike, or an ADR/spec with NO code branch) needing sign-off. steering_role by ` +
+      `domain from rubric_refs: {3→steering-perf-sla, 11→steering-formal-methods, 1|7→steering-distributed-acid, 2→steering-storage, 4|6→steering-query-cypher}.\n` +
+      `   • reland — a built CODE PR that needs landing: status=blocked (failed to merge / rebase conflict) OR status=in_review with an ` +
+      `existing work/<id>-<slug> branch or .worktrees/<id> (i.e. a task/bug that was implemented but never landed). Check with ` +
+      `\`git branch --list 'work/*'\` and match by id. The integrator rebases onto main + lands it. Include its branch. THIS IS HOW STUCK PRs LAND.\n` +
       `   • code_ready — status=ready, produces code → role implementer (default) | test-author (tests/TCK) | perf-engineer (benches).\n` +
       `   • design_ready — status=ready, produces a spec/model/research → role researcher | formal-prover | steering-* | dataset-scout | planner-decomposer.\n` +
       `Do NOT modify the board beyond the claim/release scripts above. Return the structured state.`,

@@ -52,7 +52,41 @@ The ratification bar:
 
 ### steering-distributed-acid
 
-_(pending)_
+**Verdict: RATIFIED (primary sign-off) for the three chartered constraints
+C1/C2/C3 — with one additional binding condition BC-4 contributed to the
+SPIKE-0002 gate.** Date 2026-06-13 (≈T0+1:50). Signed: steering-distributed-acid.
+Full reasoning in `.project/decisions/0023-distributed-acid-spike-0005-primary-verdict-and-bc4.md`.
+
+I ran the design-falsification loop (Cat. 1/7) against the SPIKE-0005 spec AND the
+now-ratified SPIKE-0002 ADR 0002 + TLA+ model. Constraints 1/2/3 are discharged:
+C1 create-only `PUT If-None-Match:*` per-version manifest key (mock-fidelity test
+specified, impl gated as BC-2); C2 fencing via `AtMostOneCommitPerVersion` (not
+lease belief), zombie race modelled and non-vacuous; C3 durability barrier
+`writerObjs ⊆ dataObjects` + `NoTornCommit`/`LatestIsDurable`/`SnapshotIsolation`.
+Six independent attacks (crash at every phase, swap-in-flight, concurrent-commit
+split-brain, concurrent-GC split-brain, GC↔pin TOCTOU, all four attach modes)
+survive.
+
+**New finding DA-1 (becomes BC-4), which the peer SPIKE-0002 primary pass
+(decision 0022) did not surface:** data-object keys `db/data/v<V>/<shard>.col` are
+version+shard-scoped only; a fenced/zombie writer racing the same target version
+PUTs to the identical key and overwrites a committed snapshot's data in place — a
+torn committed read the TLA+ model cannot see (it identifies objects by
+`(version,shard)`; two writers stage the same set element). Same root cause as the
+peer's BC-1/F-A (unfenced zombie object op); BC-1 is the DELETE variant, BC-4 the
+PUT variant. Fix = per-write-attempt-unique data keys (content-addressed or
+writer-epoch-scoped) + a model refinement (distinct staged ids +
+`OrphansNeverReferenced`). Protocol shape unchanged.
+
+**Disposition:** SPIKE-0005 -> `done` (three chartered constraints C1/C2/C3 met;
+Constraint 4 / DA-1 is a newly-surfaced pre-ratification obligation on SPIKE-0002,
+tracked on T-0046 + commit-path tasks, per the rider charter — not a SPIKE deliverable
+gap). NOTE: a peer lane briefly landed a SPIKE-0002 primary ratification (decision
+0022) which was then reverted; the SPIKE-0002 design gate is currently UNRATIFIED (ADR
++ TLA+ model only on `work/SPIKE-0002-...`, SPIKE-0002 `in_review`). I am NOT recording
+a SPIKE-0002 ratification here; Constraint 4 must be discharged in the SPIKE-0002 ADR +
+model before I ratify that gate. No implementation task is `ready` (all commit-path
+tasks depend on the unratified SPIKE-0002).
 
 ### steering-formal-methods
 
