@@ -89,6 +89,22 @@ latent defect that activates the moment a real engine plugs in.
   documented-gap+guard interim the AC permits), fill PR.md with real test
   evidence, re-request review. Pre-mortem sign-off withheld. Verdict block in
   `.worktrees/BUG-0009/PR.md`.
+- T0+3:18 (test-author): re-cut from latest `main` (`494a9e7`) on branch
+  `work/BUG-0009-expand-outlines-by-examples`. Implemented full outline
+  expansion: `expand_scenario` substitutes `<placeholder>` tokens in step text,
+  docstrings (setup + query), and step-table cells (result / side-effect
+  tables); `run_feature` expands every scenario before classifying. The harness
+  `total` over the parseable corpus is now **3884** (`(1339 plain + 2558
+  parser-true Examples rows) − 13 Literals6`). Corrected the original 3880/2541
+  figures: a naïve grep under-counts Examples rows by 17 because it terminates an
+  `Examples` block at the first inline `#`-commented row (`Precedence1.feature`);
+  the gherkin parser — the actual executor — ignores comments, so its count is
+  authoritative. Rewrote the guard as
+  `expanded_denominator_reconciles_and_is_guarded` (parser-vs-grep-vs-harness
+  three-way reconciliation, comment-aware). Added 10 unit tests + 2 runner tests
+  + 1 CLI e2e test. Full workspace `cargo nextest run`: **184 passed, 0 failed**.
+  `./format_code.sh` green. Decision 0013 updated to **resolved**. Status →
+  `in_review`.
 - T0+5:05 (adversarial-reviewer): **approve** on `work/BUG-0009-expand-outlines-by-examples`
   (worktree `wf_fe688db0-093-3`, merge-base `494a9e7`). The re-cut branch is clean and
   tightly scoped (9 files: `tck-runner` src/tests + Decision 0013 + board + PR.md; no
