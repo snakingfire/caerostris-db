@@ -32,8 +32,17 @@ instrumentation: a coverage report, a coverage gate, a TCK results path, and a
    `0` initially so the near-empty crate is not blocked; raised toward the rubric's
    ≥90% as tests land. Policy documented in `docs/process/ci-grader-inputs.md`.
 
-4. **TCK results path established now:** `.project/reports/tck-results-latest.json`
-   with a schema-versioned all-zero stub until the TCK runner (T-0002) overwrites it.
+4. **TCK results path is the canonical `.project/reports/tck-latest.json`.** The
+   board item suggested `tck-results-latest.json` *as an example* ("e.g."), but the
+   master-rubric (Cat. 4, line 76), the `rubric-grader` agent, and the already-
+   landed `test`-job TCK step all read/write `tck-latest.json`. Introducing a second
+   path would silently diverge (the runner writes one, the grader reads the other),
+   so the coverage job references the single canonical path and regenerates it via
+   the `tck-runner`. No committed stub: the file is generated per run and archived as
+   the `tck-results` artifact (a committed zero-count stub would shadow the live
+   grader numbers). `grader-inputs.sh` degrades to `0/0` if the file is absent. This
+   reconciliation is recorded so a future reader does not "fix" the path back to the
+   board's example wording.
 
 ## License check (open-source guardrails §5)
 

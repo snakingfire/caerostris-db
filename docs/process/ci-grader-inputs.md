@@ -18,7 +18,7 @@ summary). Its shape is fixed — the grader's scraper matches on it verbatim:
 GRADER_INPUTS:
   coverage_pct: <N>          # line coverage %, from cargo-llvm-cov JSON
   test_pass: <pass>/<total>  # from the libtest summary lines
-  tck_pass_rate: <X>/<Y>     # from .project/reports/tck-results-latest.json
+  tck_pass_rate: <X>/<Y>     # from .project/reports/tck-latest.json
 ```
 
 It is produced by [`scripts/ci/grader-inputs.sh`](../../scripts/ci/grader-inputs.sh),
@@ -50,26 +50,37 @@ target is **≥90%** (Cat. 10). Bump it in step with measured coverage so a
 regression below the established line fails CI. Never lower it to make a red build
 green; report the honest gap instead.
 
-## TCK results: `.project/reports/tck-results-latest.json`
+## TCK results: `.project/reports/tck-latest.json`
 
-The openCypher TCK runner (`T-0002`) writes its summary here; CI archives it as
-the `tck-results` artifact and the grader reads the pass-rate from it. Until the
-runner lands, a schema-versioned **stub** (all-zero counts) occupies the path so
-the grader and CI always have a well-formed file to read.
+This is the **one canonical path** the rubric grader reads for the Cat. 4 TCK
+pass-rate (master-rubric Cat. 4). The openCypher TCK runner
+(`caerostris_db`/`tck-runner`, wired by `T-0002`) writes its summary here. Both
+the `test` job and the `coverage` job regenerate it (each on its own runner) and
+archive it as a CI artifact, so the grader always has a well-formed, current file
+to read. The file itself is generated, never committed (it would otherwise shadow
+the live numbers); see `.gitignore`.
+
+> **Path note (drift avoidance):** the T-0005 board item suggested the name
+> `tck-results-latest.json` as an example. We use the **canonical**
+> `tck-latest.json` instead, because that is the exact path the master-rubric
+> (Cat. 4, line 76), the `rubric-grader` agent, and the existing `test`-job TCK
+> step already read/write. A second path would silently diverge (the runner
+> writes one, the grader reads the other). One path, no drift.
 
 ### Schema
 
-| Field            | Type    | Meaning                                            |
-|------------------|---------|----------------------------------------------------|
-| `schema_version` | integer | Schema version (currently `1`).                    |
-| `generated_at`   | string  | When the run was produced (`T+` marker or ISO).    |
-| `harness`        | string  | `"stub"` or the runner name once `T-0002` lands.   |
-| `total`          | integer | Total TCK scenarios considered.                    |
-| `pass`           | integer | Scenarios passing.                                 |
-| `pending`        | integer | Scenarios not yet implemented / skipped.           |
-| `fail`           | integer | Scenarios failing.                                 |
-| `pass_rate`      | number  | `pass / total` in `[0.0, 1.0]` (0.0 when `total=0`).|
-| `note`           | string  | Free-text context (optional).                      |
+The runner emits `caerostris_db::tck::TckSummary::to_json()`; the fields the
+grader and `grader-inputs.sh` depend on are:
+
+| Field        | Type    | Meaning                                             |
+|--------------|---------|-----------------------------------------------------|
+| `total`      | integer | Total TCK scenarios considered (`pass+pending+fail`).|
+| `pass`       | integer | Scenarios passing.                                  |
+| `pending`    | integer | Scenarios not yet implemented.                      |
+| `fail`       | integer | Scenarios failing (wrong result).                   |
+| `pass_rate`  | number  | `pass / total` in `[0.0, 1.0]` (0.0 when `total=0`).|
+| `tck_tag`    | string  | Pinned openCypher release tag (suite-shrinkage guard).|
+| `tck_commit` | string  | Pinned upstream commit the corpus was vendored from.|
 
 `grader-inputs.sh` reads `pass` and `total` from this file (degrading to `0/0` if
 the file is absent or unparseable) and emits `tck_pass_rate: <pass>/<total>`.
