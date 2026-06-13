@@ -2,15 +2,15 @@
 id: T-0025
 title: Stub a second index type against the trait to prove extensibility
 type: task
-status: blocked
+status: done
 priority: P3
-assignee:
+assignee: integrator
 epic: EPIC-005
 deps: [T-0022]
 rubric_refs: [5]
 estimate: S
 created: T0+0:20
-updated: T+5:35
+updated: T+5:40
 ---
 
 ## Context
@@ -47,3 +47,5 @@ T+4:10 — Two T-0025 implementations exist in flight:
   2. `work/T-0025-second-index-type-stub` (HashIndex) in `.claude/worktrees/wf_e9fceb87-27c-44` — adversarial reviewer found blockers (BUG-0020 conflict, stale rebase). Reland dispatched. Rebased onto main, conflicts resolved (kept main's stronger BUG-0020 fix, added HashIndex modules additively), 483 tests green, format_code.sh green. Landing now.
 
 T+5:35 (integrator) — Reland attempt for `work/T-0025-second-index-type-stub-for-extensibility` (FullTextIndex) BLOCKED. Status remains `blocked`.
+
+T+5:40 (integrator) — Landed `work/T-0025-second-index-type-stub` (HashIndex) in commit 80768e5. Rebased onto main (19f3edd), resolved additive conflict in src/index/mod.rs (kept main's capability-gated BUG-0020 fix, added hash modules purely additively), 483/483 tests green, format_code.sh green, cargo build green. Status: done.
