@@ -2,7 +2,7 @@
 id: T-0035
 title: License-clean synthetic graph dataset generator (1M nodes / 10M edges)
 type: task
-status: in_review
+status: done
 priority: P2
 assignee: implementer-wf_156e2b80-bb6-11
 epic: EPIC-009
@@ -10,7 +10,7 @@ deps: [T-0006]
 rubric_refs: [10]
 estimate: S
 created: T0+0:20
-updated: T0+3:37
+updated: T0+3:45
 ---
 
 ## Context
@@ -64,3 +64,4 @@ bench), and integration tests across epics.
   gitignored `data/`. Re-verified gates in-worktree: `./format_code.sh` green
   (exit 0), `cargo nextest run` 180/180 pass. No latent bug found — no BUG filed.
   Both review-gate sign-offs now `approve`; ready for the integrator.
+- T0+3:45 — Landed in commit 21c5008 at T+3:45. format_code.sh green, cargo nextest run 180/180 passed. Merged via `git merge --no-ff work/T-0035-synthetic-graph-dataset-generator`. Conflict: PR.md (delete/modify) resolved by removing PR.md (main deletes it). lib.rs auto-merged (union of pub mod declarations). cargo build sanity clean post-merge.
