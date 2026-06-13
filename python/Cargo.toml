@@ -1,0 +1,59 @@
+# Python embedded bindings (EPIC-007, Cat. 8).
+#
+# This is a *separate* workspace member whose only job is the PyO3 FFI surface.
+# Keeping it out of the core `caerostris-db` crate means PyO3 + its build-time
+# dependency tree never pollute the engine binary, the `cargo deny` graph for the
+# core crate, or the cold-start path. The crate compiles to a `cdylib` that
+# maturin packages as the importable `caerostris` extension module.
+#
+# Status (T-0030): scaffold only — exports `version()` and the exception-mapping
+# pattern. The real open/attach/query/ingest API is wired in T-0031 once the
+# engine exposes it; this crate then depends on `caerostris-db` directly.
+
+# The empty `[workspace]` table makes this its own isolated workspace (same
+# pattern as formal/latency-sim) so the root engine workspace never absorbs PyO3
+# into its Cargo.lock, license graph, or cold-start build.
+[workspace]
+
+[package]
+name = "caerostris-python"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+description = "PyO3 embedded bindings for caerostris-db"
+license = "MIT"
+repository = "https://github.com/caerostris/caerostris-db"
+publish = false
+
+[lib]
+# maturin imports this as the `caerostris` module; the cdylib is the Python
+# extension. `rlib` is kept so the crate's unit tests can link normally.
+name = "caerostris"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# PyO3: the idiomatic Rust<->Python FFI layer. Apache-2.0 (recorded in the
+# license manifest). `abi3-py39` builds a single forward-compatible wheel
+# (stable ABI) usable by CPython 3.9+, so CI does not rebuild per interpreter.
+#
+# `extension-module` is deliberately NOT a default feature: it tells the linker
+# to leave the libpython symbols unresolved (filled by the host interpreter at
+# import time), which is correct for the maturin-built wheel but breaks a plain
+# `cargo test` binary (it has no interpreter to resolve them against). maturin
+# turns it on at wheel-build time via `[tool.maturin] features` in pyproject.toml;
+# `cargo test` links libpython normally and runs the in-crate unit tests.
+pyo3 = { version = "0.27", features = ["abi3-py39"] }
+
+[features]
+# Opt-in linkage mode for the packaged wheel (set by maturin). See the comment
+# on the pyo3 dependency above.
+extension-module = ["pyo3/extension-module"]
+
+[dev-dependencies]
+# For `cargo test` only: `auto-initialize` spins up an embedded CPython on the
+# first GIL acquisition so unit tests that touch the Python runtime (creating a
+# `CaerostrisError`, using `Python::attach`) work without a manual
+# `Python::initialize()`. It is incompatible with `extension-module`, which is
+# why that one is gated off during tests (see the comment above). The wheel
+# never carries this feature.
+pyo3 = { version = "0.27", features = ["abi3-py39", "auto-initialize"] }

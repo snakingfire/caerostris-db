@@ -13,7 +13,11 @@ use std::path::PathBuf;
 use caerostris_db::licenses::{check, parse_lockfile, parse_manifest};
 
 /// Workspace members that are not third-party dependencies.
-const OWN_CRATES: &[&str] = &["caerostris-db"];
+///
+/// Includes the sibling `python/` workspace member (`caerostris-python`,
+/// T-0030): that crate has its own `Cargo.lock`, but it is our own code, not a
+/// third-party dependency needing a manifest entry.
+const OWN_CRATES: &[&str] = &["caerostris-db", "caerostris-python"];
 
 fn repo_root() -> PathBuf {
     // CARGO_MANIFEST_DIR is the crate root, which is the repo root for this
@@ -21,11 +25,12 @@ fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-#[test]
-fn lockfile_dependencies_are_all_recorded_and_permissive() {
+/// Assert that every third-party crate in `lockfile_rel` is recorded in the
+/// shared manifest with an approved, permissive SPDX id.
+fn assert_lockfile_recorded(lockfile_rel: &str) {
     let root = repo_root();
 
-    let lock_path = root.join("Cargo.lock");
+    let lock_path = root.join(lockfile_rel);
     let manifest_path = root.join("docs/licenses/manifest.toml");
 
     let lock = std::fs::read_to_string(&lock_path)
@@ -46,13 +51,29 @@ fn lockfile_dependencies_are_all_recorded_and_permissive() {
 
     assert!(
         violations.is_empty(),
-        "license-manifest check failed:\n{}",
+        "license-manifest check failed for {lockfile_rel}:\n{}",
         violations
             .iter()
             .map(|v| format!("  - {v}"))
             .collect::<Vec<_>>()
             .join("\n")
     );
+}
+
+#[test]
+fn lockfile_dependencies_are_all_recorded_and_permissive() {
+    assert_lockfile_recorded("Cargo.lock");
+}
+
+/// The `python/` bindings crate (T-0030) is its own isolated workspace with its
+/// own `Cargo.lock` (so PyO3's tree stays out of the engine lockfile). It is
+/// invisible to the root `cargo deny` job and the root lockfile check above, so
+/// audit its dependencies against the same shared manifest here. A new crate in
+/// the PyO3 tree that is not recorded — or carries a non-permissive license —
+/// fails CI just like a root-workspace dependency would.
+#[test]
+fn python_lockfile_dependencies_are_all_recorded_and_permissive() {
+    assert_lockfile_recorded("python/Cargo.lock");
 }
 
 /// The manifest must at minimum exist and be parseable so the guard above is

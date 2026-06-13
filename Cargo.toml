@@ -1,5 +1,10 @@
 [workspace]
 members = ["tck-runner"]
+# `python/` and `formal/latency-sim` are intentionally NOT members: each is its
+# own `[workspace]` with its own Cargo.lock so their dependency trees (PyO3 for
+# python; the latency-sim crates) stay out of the engine's lockfile, license
+# graph, and cold-start build. They are linted/tested explicitly in
+# `format_code.sh` and CI. See docs/adr/0004-python-bindings-pyo3-maturin.md.
 resolver = "2"
 
 # Dependencies shared across workspace crates are declared here once and

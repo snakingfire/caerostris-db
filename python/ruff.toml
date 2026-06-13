@@ -1,0 +1,17 @@
+# Ruff configuration for the caerostris Python binding test code (T-0030).
+#
+# CI runs `ruff check` and `ruff format --check` over python/ so the pytest
+# suite stays lint- and format-clean. Rule set is the default (pyflakes + a
+# pragmatic pycodestyle subset) plus import-order and a few correctness lints.
+target-version = "py39"
+line-length = 100
+
+[lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort (import ordering)
+  "W",   # pycodestyle warnings
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+]
