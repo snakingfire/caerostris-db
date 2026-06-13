@@ -2,7 +2,7 @@
 id: BUG-0008
 title: SPDX is_permissive misclassifies mixed AND/OR conjunctions as permissive
 type: bug
-status: in_progress
+status: in_review
 priority: P3
 assignee: implementer-wf_e9fceb87-27c-11
 epic: EPIC-010
@@ -10,7 +10,7 @@ deps: [T-0039]
 rubric_refs: [12]
 estimate: S
 created: T0+0:48
-updated: T0+3:07
+updated: T0+3:12
 ---
 
 ## Context
@@ -54,3 +54,12 @@ SPDX expression is recorded** in the manifest.
 ## Notes / log
 - Filed by adversarial-reviewer during T-0039 review. See the T-0039 PR.md
   "Adversarial Review" block for the reproduction and rationale.
+- T0+3:12 (implementer-wf_e9fceb87-27c-11): claimed + implemented TDD-first on
+  branch `work/BUG-0008-spdx-precedence-eval` (off latest main). Chose the
+  precedence-aware fix: replaced the ` OR `-before-` AND ` substring heuristic
+  in `is_permissive` with a recursive-descent SPDX evaluator
+  (`OR < AND < WITH < paren/atom`, parens overriding; malformed → conservative
+  `false`). 8 new tests (incl. the reported `(MIT OR Apache-2.0) AND GPL-3.0`
+  case) RED→GREEN; full suite 131/131 green; `./format_code.sh` clean.
+  Set `in_review`; PR.md in the worktree. Awaiting adversarial-reviewer +
+  premortem sign-off.
