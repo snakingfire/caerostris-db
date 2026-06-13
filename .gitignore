@@ -1,5 +1,8 @@
 # Rust build artifacts
 /target/
+# Nested cargo build dirs (e.g. the standalone formal/latency-sim crate, which
+# is its own workspace and so builds into its own target/).
+**/target/
 **/*.rs.bk
 
 # Nix / devenv / direnv

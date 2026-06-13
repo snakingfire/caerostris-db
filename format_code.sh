@@ -8,6 +8,12 @@ set -e
 cargo fmt --all
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 
+# formal/latency-sim is its own [workspace] and is invisible to the root cargo
+# commands above, so we lint it explicitly so local pre-commit catches drift
+# before CI does.
+cargo fmt --manifest-path formal/latency-sim/Cargo.toml --all
+cargo clippy --manifest-path formal/latency-sim/Cargo.toml --all-targets -- -D warnings
+
 # Format TOML with taplo if available. Pass explicit paths so taplo does not
 # glob-walk the whole tree following symlinks into the .devenv Nix-store links
 # (slow enough to read as a hang under tight timeouts).

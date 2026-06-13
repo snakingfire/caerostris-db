@@ -1,0 +1,34 @@
+# Standalone, self-contained discrete-event latency simulation for the
+# caerostris-db cold-start latency theorem (T-0014, Cat. 3 / Cat. 11).
+#
+# This is a FORMAL ARTIFACT, deliberately kept *out* of the engine crate:
+#   * it has ZERO external dependencies (own deterministic RNG + lognormal
+#     sampler), so it runs in CI with no network and adds nothing to the
+#     engine's dependency graph;
+#   * the empty `[workspace]` table makes it its own isolated workspace so the
+#     root `caerostris-db` package does not try to absorb it.
+#
+# Run it with:  cargo run --manifest-path formal/latency-sim/Cargo.toml --release
+# Test it with: cargo test --manifest-path formal/latency-sim/Cargo.toml
+
+[package]
+name = "caerostris-latency-sim"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Discrete-event cold-start latency simulation validating the caerostris-db selectivity-envelope theorem (ADR-0001)"
+license = "MIT"
+publish = false
+
+# Own isolated workspace so the root engine crate does not fold this in.
+[workspace]
+
+[[bin]]
+name = "latency-sim"
+path = "src/main.rs"
+
+[lib]
+name = "caerostris_latency_sim"
+path = "src/lib.rs"
+
+[dependencies]

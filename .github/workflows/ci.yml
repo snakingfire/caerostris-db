@@ -79,6 +79,30 @@ jobs:
         with:
           command: check licenses sources
 
+  # Latency simulation: the formal/latency-sim sub-workspace is its own [workspace]
+  # and is invisible to root `cargo` commands, so we gate it explicitly here.
+  # This keeps the Cat. 3 + Cat. 11 GATE proof live — it cannot silently rot.
+  latency-sim:
+    name: latency-sim (fmt + clippy + test + SLA assert)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: formal/latency-sim
+      - name: Format check
+        run: cargo fmt --manifest-path formal/latency-sim/Cargo.toml --all --check
+      - name: Clippy (deny warnings)
+        run: cargo clippy --manifest-path formal/latency-sim/Cargo.toml --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --manifest-path formal/latency-sim/Cargo.toml --all-features
+      - name: SLA assertion (exits non-zero if any envelope SLA is violated)
+        run: cargo run --manifest-path formal/latency-sim/Cargo.toml --release -- --trials 20000 --seed 1
+
   # Secondary signal: prove the Nix dev shell still builds (catches flake rot).
   nix:
     name: nix dev shell builds
