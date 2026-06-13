@@ -90,6 +90,11 @@ permissive enough for open-source distribution.
 - MPL-2.0 (Mozilla Public License) — compatible, with file-level copyleft
 - CC0-1.0 (for data/assets, not code)
 - Unlicense / Public Domain
+- Zlib
+- Unicode-3.0 (Unicode License v3) — permissive, OSI-approved; the license under
+  which Unicode data tables ship (e.g. `unicode-ident`, real SPDX `(MIT OR
+  Apache-2.0) AND Unicode-3.0`). No copyleft / no source-availability clause. See
+  `.project/decisions/0034-unicode-3-0-approved-license.md` (BUG-0023).
 
 ### Licenses that require steering sign-off before adding
 
