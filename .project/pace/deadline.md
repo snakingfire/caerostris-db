@@ -6,10 +6,10 @@
 
 ## Clock (filled at launch)
 
-- **T0 (autonomous run start):** `2026-06-13T18:18:30Z` (2026-06-13 11:18:30 PDT)
-- **BUILD_HOURS:** 4   → **feature-complete / rubric-green target: T0+4:00 = `2026-06-13T22:18:30Z`** (15:18:30 PDT)
-- **DEADLINE_HOURS:** 5 → **hard deadline (end of human testing window): T0+5:00 = `2026-06-13T23:18:30Z`** (16:18:30 PDT)
-- Human testing window: **T0+4:00 → T0+5:00** (22:18:30Z → 23:18:30Z).
+- **T0 (autonomous run start):** `2026-06-13T18:24:00Z` (2026-06-13 11:24:00 PDT)
+- **BUILD_HOURS:** 4   → **feature-complete / rubric-green target: T0+4:00 = `2026-06-13T22:24:00Z`** (15:24:00 PDT)
+- **DEADLINE_HOURS:** 5 → **hard deadline (end of human testing window): T0+5:00 = `2026-06-13T23:24:00Z`** (16:24:00 PDT)
+- Human testing window: **T0+4:00 → T0+5:00** (22:24:00Z → 23:24:00Z).
 
 > The launch command (`/launch`) computes and writes the absolute timestamps. If
 > you are reading placeholders, the run hasn't been launched yet.
@@ -21,14 +21,14 @@ reports expected-vs-actual; the pace-marshal reacts.
 
 | Marker | Wallclock | Expected overall | What should exist |
 |-------:|-----------|-----------------:|-------------------|
-| T0+0:20 | 18:38:30Z (11:38 PDT) | n/a (setup) | Steering ratified intent+rubric; board fully decomposed; `TASK-001` (latency envelope) in progress; crates skeleton building. |
-| T0+0:40 | 18:58:30Z (11:58 PDT) | ~10 | Latency envelope **defined** + commit-protocol TLA+ **drafted** (Cat 3/11 design done); storage format spec drafted; TCK harness wired (Cat 4 starts counting). |
-| T0+1:00 | 19:18:30Z (12:18 PDT) | ~20 | Storage writer/reader roundtrips a real graph on the mock; ACID commit happy-path; first hourly release. |
-| T0+1:40 | 19:58:30Z (12:58 PDT) | ~35 | P1 openCypher reads passing TCK; B-tree index used by planner; snapshot reads. |
-| T0+2:20 | 20:38:30Z (13:38 PDT) | ~50 | Latency cost-model+sim **proves** target on mock; aggregates; embedded read + writer modes. |
-| T0+3:00 | 21:18:30Z (14:18 PDT) | ~65 | P2 writes+txns in TCK; all four attach modes; Python read bindings; coverage climbing. |
-| T0+3:30 | 21:48:30Z (14:48 PDT) | ~78 | P3 breadth pushing TCK toward 100%; perf benches meet SLA; ≥90% coverage in sight. |
-| T0+4:00 | 22:18:30Z (15:18 PDT) | **≥90, all GATEs ≥90, Cat4=100** | **Feature-complete. Ready for human testing.** |
+| T0+0:20 | 18:44:00Z (11:44 PDT) | n/a (setup) | Steering ratified intent+rubric; board fully decomposed; `TASK-001` (latency envelope) in progress; crates skeleton building. |
+| T0+0:40 | 19:04:00Z (12:04 PDT) | ~10 | Latency envelope **defined** + commit-protocol TLA+ **drafted** (Cat 3/11 design done); storage format spec drafted; TCK harness wired (Cat 4 starts counting). |
+| T0+1:00 | 19:24:00Z (12:24 PDT) | ~20 | Storage writer/reader roundtrips a real graph on the mock; ACID commit happy-path; first hourly release. |
+| T0+1:40 | 20:04:00Z (13:04 PDT) | ~35 | P1 openCypher reads passing TCK; B-tree index used by planner; snapshot reads. |
+| T0+2:20 | 20:44:00Z (13:44 PDT) | ~50 | Latency cost-model+sim **proves** target on mock; aggregates; embedded read + writer modes. |
+| T0+3:00 | 21:24:00Z (14:24 PDT) | ~65 | P2 writes+txns in TCK; all four attach modes; Python read bindings; coverage climbing. |
+| T0+3:30 | 21:54:00Z (14:54 PDT) | ~78 | P3 breadth pushing TCK toward 100%; perf benches meet SLA; ≥90% coverage in sight. |
+| T0+4:00 | 22:24:00Z (15:24 PDT) | **≥90, all GATEs ≥90, Cat4=100** | **Feature-complete. Ready for human testing.** |
 
 ## Behind-pace doctrine
 
@@ -46,8 +46,13 @@ If actual < expected at a marker:
 ## Log
 <Append pace observations here each marker; the grader/marshal also link reports.>
 
-- **T0 stamped** `2026-06-13T18:18:30Z` by `/launch`. Markers filled; hard deadline
-  `2026-06-13T23:18:30Z`.
-- **Crons armed:** rubric-grader `93bfbe05` (`*/20 * * * *`); pace-marshal
-  `04c26baa` (`*/10 * * * *`). Both session-only (live with the launch session).
+- **First launch attempt** stamped T0 `2026-06-13T18:18:30Z` and armed crons
+  `93bfbe05` / `04c26baa`, but that launch session ended (crons are session-only,
+  so they died with it; `CronList`/`TaskList` confirmed nothing live). No work
+  landed — board still at scaffold state, no reports/decisions.
+- **Re-launched** `2026-06-13T18:24:00Z`: T0 re-stamped to now, markers refilled,
+  hard deadline `2026-06-13T23:24:00Z`. Crons + mainspring re-armed below.
+- **Crons armed (re-launch):** rubric-grader `<filled-below>` (`*/20 * * * *`);
+  pace-marshal `<filled-below>` (`*/10 * * * *`). Both session-only (live with this
+  launch session — if it ends, re-run `/launch`).
 - **Epoch 1 mainspring** kicked off at T0 by `/launch` (run id in launch hand-off).
