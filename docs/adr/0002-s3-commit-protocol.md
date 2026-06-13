@@ -110,7 +110,7 @@ object's bytes (`db/data/<content-hash>/<shard>.col`). This makes write-once
 > `db/data/v<V+1>/<epoch-or-uuid>/<shard>.col`. The manifest records the exact
 > keys. This also makes every write attempt's key unique. Content-addressing is
 > preferred because it additionally de-dupes and dovetails with `steering-storage`'s
-> ref-counted-GC constraint (decision 0015 / SPIKE-0003 cross-version sharing).
+> ref-counted-GC constraint (decision 0027 / SPIKE-0003 cross-version sharing).
 
 The defining property: **a manifest references content-unique, write-once
 object keys**, and **manifest keys are created exactly once**. There is **no
@@ -258,7 +258,7 @@ GC reclaims superseded versions' manifests + data objects. Safety rules:
    it is genuinely an orphan and never collides with a live, referenced object.
    GC identifies orphans as **data-object keys not present in any live manifest's
    reference list** (a reference-counted / live-object-set sweep — the discipline
-   `steering-storage` bound at decision 0015 for cross-version sharing), older
+   `steering-storage` bound at decision 0027 for cross-version sharing), older
    than a grace window, and reclaims them. They were never visible to any reader.
    *(Previously this read "objects under `v<V>/` with no `manifest/<V>.json`",
    which assumed version-scoped data keys; the DA-1 fix replaces that with the
@@ -457,25 +457,45 @@ primitive) and **F3** (GC safety), both of which this ADR must discharge.
 
 | Member | Role here | Verdict | Record |
 |--------|-----------|---------|--------|
-| `steering-formal-methods` | primary (TLA+, Cat. 11) | **CHANGES_REQUESTED** (FM-1: model vacuous w.r.t. DA-1) → **re-confirm requested** after the v2 fix | decision 0024 → decision 0025 (re-confirm req.) |
-| `steering-storage` | secondary (storage-side: layout/versioning/GC/pinning; F2+F3 owner) | **APPROVE** (1 binding constraint on SPIKE-0003; 2 non-blocking notes) | decision 0015 |
-| `steering-distributed-acid` | **primary** (commit/isolation/fencing/attach) | DA-1 / BC-4 surfaced; **re-confirm requested** after the v2 fix | decision 0023 → decision 0025 (re-confirm req.) |
+| `steering-distributed-acid` | **primary** (commit/isolation/fencing/attach) | DA-1/BC-4 surfaced on v1 (0023) → **RATIFIED-WITH-CONDITIONS** on the v2 model + ADR | decision 0023 → decision 0026 (RATIFIED) |
+| `steering-formal-methods` | primary (TLA+, Cat. 11) | FM-1 CHANGES_REQUESTED on v1 (0024) → **RATIFIED** the v2 model (FM-1 vacuity closed) | decision 0024 → decision 0029 (RATIFIED) |
+| `steering-storage` | secondary (storage-side: layout/versioning/GC/pinning; F2+F3 owner) | **APPROVE** (1 binding constraint on SPIKE-0003 — BC-1 cross-version-sharing / ref-counted GC; 2 non-blocking notes) | decision 0027 |
 
-> **Gate status:** this ADR moves to `accepted` and EPIC-001/EPIC-004 commit-path
-> tasks become `ready` **only after both `steering-distributed-acid` (primary,
-> commit) and `steering-formal-methods` (primary, TLA+) record their sign-off**
-> on the **v2 model + DA-1-fixed ADR** (decision 0025 re-confirm request). The
-> board item stays `in_review` until then.
+> **Gate status: OPEN (design gate satisfied; ADR `accepted`; SPIKE-0002 `done`).**
+> Both primaries have recorded their sign-off on the **v2 model + DA-1-fixed ADR**:
+> `steering-distributed-acid` (primary, commit) RATIFIED-WITH-CONDITIONS in
+> decision **0026**, and `steering-formal-methods` (primary, TLA+) RATIFIED in
+> decision **0029**; `steering-storage` (secondary) APPROVE in decision **0027**.
+>
+> **Commit-path implementation readiness** (flipping T-0010/T-0026/T-0012/T-0038 to
+> `ready`) is gated on conditions **C1–C4 (decision 0026)** as their land-gates —
+> these are *implementation* gates, NOT design blockers and NOT a reason to keep
+> SPIKE-0002 open: C1 executed `check.sh`/Apalache re-check (T-0038, no JRE in the
+> authoring sandbox so the v2 record is a sound hand-derivation pending the run);
+> C2 two-concurrent-`PUT If-None-Match:*` mock-fidelity test; C3 zombie-late-PUT
+> integration test; C4 model-sync discipline. The prove-before-code gate stays
+> enforced for implementation.
 >
 > **DA-1 / BC-4 discharge (BUG-0012 + T-0046):** §1 (content-addressed,
 > write-once-unique data keys), §2 step 1 (data-write precondition), and §6 rule 4
 > (orphan = not in any live manifest's reference set) are updated; the TLA+ model
 > is refined to `ObjId(v, w, a, k)` with `OrphansNeverReferenced` +
-> `NoOverwriteOfReferenced` model-checked. This closes decision 0024's FM-1 and
-> decision 0023's BC-4. The prove-before-code gate stays correctly closed until
-> the re-confirm lands.
+> `NoOverwriteOfReferenced` model-checked (non-vacuous via `DistinctIdsProbe` /
+> `ZombieWroteProbe`). This closes decision 0024's FM-1 and decision 0023's BC-4.
+>
+> **Residual model-fidelity note (non-blocking — `steering-storage` BC-1):** the v2
+> object id embeds the version (`ObjId(v,w,a,k)`), so the model treats each
+> version's objects as distinct and cannot *represent* cross-version content
+> de-dup. For the commit-protocol safety properties this is a **safe
+> over-approximation** (GC never deletes a still-referenced object). When SPIKE-0003
+> pins delta-encoding / cross-version sharing, ADR §6 + the TLA+ `GCOldVersion` /
+> `GCSafety` must move to an explicitly model-checked reference-counted discipline
+> (an invariant over the live-object-set of *all* surviving manifests + a probe that
+> a shared key survives GC of one referencer). Tracked as BC-1 (decision 0027),
+> enforced at SPIKE-0003 ratification — it does **not** gate this commit-protocol
+> ADR (atomicity / isolation / fencing are independent of object sharing).
 
-#### `steering-storage` verdict (storage domain) — decision 0015
+#### `steering-storage` verdict (storage domain) — decision 0027
 
 The four pre-registered storage-domain falsification scenarios survive:
 **F2** (CAS named precisely as create-only `PUT If-None-Match:*`, model abstracts
