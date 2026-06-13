@@ -2,7 +2,7 @@
 id: BUG-0008
 title: SPDX is_permissive misclassifies mixed AND/OR conjunctions as permissive
 type: bug
-status: in_review
+status: done
 priority: P3
 assignee: implementer-wf_e9fceb87-27c-11
 epic: EPIC-010
@@ -10,7 +10,7 @@ deps: [T-0039]
 rubric_refs: [12]
 estimate: S
 created: T0+0:48
-updated: T0+3:24
+updated: T0+3:30
 ---
 
 ## Context
@@ -106,3 +106,10 @@ SPDX expression is recorded** in the manifest.
   tests, `license_manifest` 2/2 (27 real entries), clippy clean. `land.sh` must
   rebase + re-run the gate before merge. Premortem block + checkbox in this
   branch's PR.md.
+- T0+3:30 (integrator): Landed branch `work/BUG-0008-spdx-precedence-eval` in
+  commit `8e01b24` on main. Both review gates verified (adversarial-reviewer
+  approve T+3:14, premortem-analyst approve T+3:18). format_code.sh green,
+  131/131 tests passed. PR.md merge conflict resolved by accepting main's
+  deletion (BUG-0013 had already untracked root PR.md — correct resolution).
+  src/licenses.rs merged cleanly. cargo build sanity passed. Other
+  `work/BUG-0008-*` parallel branches are superseded and should be dropped.
