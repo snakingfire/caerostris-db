@@ -2,7 +2,7 @@
 id: BUG-0017
 title: CachingObjectStore lost-invalidation race serves stale reads after commit (no generation fence on populate)
 type: bug
-status: in_progress
+status: in_review
 priority: P1
 assignee: implementer-wf_fe688db0-093-29
 epic: EPIC-008
@@ -10,7 +10,7 @@ deps: [T-0033]
 rubric_refs: [9, 1]
 estimate: S
 created: T0+3:20
-updated: T0+3:40
+updated: T0+3:50
 ---
 
 ## Context
@@ -70,3 +70,16 @@ committed).
 Filed by adversarial-reviewer during the T-0033 review gate. T-0033 receives
 `changes_requested` on this finding; fix can land in T-0033 itself or as this
 follow-up — but T-0033 must not land while criterion 4 is unmet.
+
+T0+3:50 — implementer-wf_fe688db0-093-29: claimed and implemented on
+`work/BUG-0017-cachingobjectstore-lost-invalidation-race-serves-s` (based on
+latest `main`, d4a9c70). `src/storage/cache.rs` is **not on `main`** (T-0033
+unlanded, ~94 commits stale), so the fix carries the cache module in — see
+Decision 0034 and ADR-0009. Fix = monotonic generation fence: cold read
+snapshots generation under the state lock before the backend fetch; invalidate /
+invalidate_all / delete / out-of-band put bump it; populate inserts only if
+generation unchanged. Reproduced the race deterministically (injected-window,
+no loom): RED with racy populate (2 race tests fail, stale v1/old served), GREEN
+with the fence. Full suite 252 passed; cache: 15 unit + 6 integration green;
+`./format_code.sh` exit 0. PR.md filled; status -> in_review; review gate
+requested (adversarial-reviewer + premortem-analyst).
