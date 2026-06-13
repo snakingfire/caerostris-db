@@ -2,15 +2,15 @@
 id: T-0017
 title: Implement openCypher lexer + parser to AST
 type: task
-status: in_progress
+status: done
 priority: P1
-assignee: implementer-wf_fe688db0-093-9
+assignee: integrator
 epic: EPIC-002
 deps: [T-0001]
 rubric_refs: [4]
 estimate: M
 created: T0+0:20
-updated: T0+3:10
+updated: T0+3:20
 ---
 
 ## Context
@@ -33,3 +33,7 @@ decision 0008. See `EPIC-002`, `docs/requirements/core-requirements.md` (R10).
 ## Notes / log
 Independent of storage format — ready from now. Write-clause AST (CREATE/MERGE/SET/
 DELETE/REMOVE) can extend this in a follow-up (T-0021).
+
+Landed in commit 91b934c at T+3:20. Branch work/T-0017-cypher-parser. Format green,
+176/176 tests pass (including 25 lexer + 19 parser unit tests, cypher corpus, and full
+TCK pass-rate suite). Pace-marshal direct land per dispatch T+3:15.

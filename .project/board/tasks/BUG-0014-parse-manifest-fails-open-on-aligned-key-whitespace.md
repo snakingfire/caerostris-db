@@ -2,15 +2,15 @@
 id: BUG-0014
 title: parse_manifest silently drops entries written with aligned-key whitespace (license gate fails open)
 type: bug
-status: ready
+status: in_review
 priority: P2
-assignee:
+assignee: implementer (wf_6a2f8faf-da3-7)
 epic: EPIC-010
 deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+2:45
-updated: T0+2:45
+updated: T0+3:25
 ---
 
 ## Context
@@ -66,3 +66,9 @@ defeats only the hand-rolled manifest cross-check, not all license enforcement.
 ## Notes / log
 - Filed by adversarial-reviewer during BUG-0008 review. See the BUG-0008 worktree
   PR.md "Adversarial-reviewer verdict" block (non_blocking_notes) for the probe.
+- Implemented in worktree wf_6a2f8faf-da3-7, branch work/BUG-0014-aligned-key-whitespace.
+- adversarial-reviewer signed off (commit 07f6617, T+3:20).
+- BLOCKED LANDING T+3:25: premortem-analyst sign-off is missing — checkbox unchecked,
+  no verdict appended in PR.md. Integrator returned to author. PR needs premortem-analyst
+  to run the pre-mortem loop and append their verdict + tick the checkbox before re-requesting
+  landing. See docs/process/adversarial-review-loops.md for the premortem protocol.
