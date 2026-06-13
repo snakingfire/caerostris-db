@@ -45,3 +45,14 @@ decisions, reports, and board items.)
   ratification (decision `0015`). Non-blocking for the latency-envelope ratification.
   Owner: docs-memory-curator. Do NOT renumber `0001-latency-selectivity-envelope.md`
   (it is the canonical, widely-referenced artifact).
+- 2026-06-13 `integrator`: RELAND BLOCKED — PR.md review gate checkboxes are unchecked.
+  Both `adversarial-reviewer sign-off` and `premortem-analyst sign-off` are missing.
+  The `land.sh` script enforces these as a hard gate. The implementation is complete
+  and all acceptance criteria are marked done. A rebase onto current main is also
+  needed to resolve the `src/lib.rs` additive conflict (`pub mod tck;` added by
+  BUG-0007 must be kept; BUG-0010 branch pre-dates that merge). Action required:
+  (1) adversarial-reviewer agent must review and append approve verdict to PR.md,
+  (2) premortem-analyst agent must review and append approve verdict to PR.md,
+  (3) rebase onto main keeping BOTH `pub mod query;` and `pub mod tck;` sorted,
+  (4) re-run ./format_code.sh + cargo nextest run green,
+  (5) re-request integrator landing. Branch: work/BUG-0010-adr-numbering-collision-two-adrs-share-0001-latenc. Worktree: .worktrees/BUG-0010.
