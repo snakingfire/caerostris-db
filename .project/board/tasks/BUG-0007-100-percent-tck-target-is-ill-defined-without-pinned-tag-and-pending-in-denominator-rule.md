@@ -2,15 +2,15 @@
 id: BUG-0007
 title: 100 percent TCK target is ill-defined without pinned tag and pending-in-denominator rule
 type: bug
-status: in_progress
+status: done
 priority: P0
-assignee: implementer-wf_3a7aff59-f20-11
+assignee: integrator
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 estimate: S
 created: 2026-06-13T18:24:00Z
-updated: T+01:35
+updated: 2026-06-13T20:26:40Z
 ---
 
 ## Context
@@ -49,16 +49,16 @@ launch**; it constrains how T-0002 computes and reports the number.
 
 ## Acceptance criteria
 
-- [ ] Rubric Cat. 4 and T-0002 amended to state explicitly:
+- [x] Rubric Cat. 4 and T-0002 amended to state explicitly:
       `pass_rate = pass / total`, `total = pass + pending + fail`, no scenario
       excluded from `total`; reaching 100 requires `pending == 0 && fail == 0`.
-- [ ] A specific openCypher TCK release tag is pinned and recorded (in T-0002 and a
+- [x] A specific openCypher TCK release tag is pinned and recorded (in T-0002 and a
       decision doc); the expected `total` scenario count for that tag is recorded.
-- [ ] Harness emits the pinned tag and `total` in its machine-readable output so
+- [x] Harness emits the pinned tag and `total` in its machine-readable output so
       the rubric grader can assert the suite was not shrunk.
-- [ ] A guard test fails if the loaded scenario count differs from the recorded
+- [x] A guard test fails if the loaded scenario count differs from the recorded
       pinned `total` (catches accidental or deliberate suite shrinkage).
-- [ ] `./format_code.sh` green.
+- [x] `./format_code.sh` green.
 
 ## Notes / log
 - T0 `steering-query-cypher`: filed during ratification. Decision recorded at
@@ -88,3 +88,9 @@ launch**; it constrains how T-0002 computes and reports the number.
   2 doctests green; clippy `-D warnings` clean; `./format_code.sh` green. Both
   review-gate checkboxes reset to unchecked per the conflict-handling protocol;
   re-requesting adversarial review + pre-mortem. Status -> in_review.
+- 2026-06-13T20:26:40Z `integrator`: RELAND — rebased work/BUG-0007-tck-passrate-pin
+  onto main (clean, no conflicts; both pub mod query; and pub mod tck; present
+  sorted). Updated PR.md with correct BUG-0007 content and confirmed review
+  sign-offs (adversarial-reviewer + premortem-analyst both approve, recorded in
+  board at T+~1:45). format_code.sh green, all 36 tests pass (21 unit + 10 tck_passrate_contract
+  + 3 tck_side_effects + 2 doctests). Landed in commit c3f54c0 at 2026-06-13T20:26:40Z.
