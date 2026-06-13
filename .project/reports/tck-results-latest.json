@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "generated_at": "T0",
+  "harness": "stub",
+  "total": 0,
+  "pass": 0,
+  "pending": 0,
+  "fail": 0,
+  "pass_rate": 0.0,
+  "note": "Placeholder until the openCypher TCK runner (T-0002) lands. The grader and CI read this path; the runner overwrites it with real counts. Schema: docs/process/ci-grader-inputs.md."
+}
