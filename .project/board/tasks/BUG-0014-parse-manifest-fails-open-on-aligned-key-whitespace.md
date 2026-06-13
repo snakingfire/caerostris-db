@@ -2,15 +2,15 @@
 id: BUG-0014
 title: parse_manifest silently drops entries written with aligned-key whitespace (license gate fails open)
 type: bug
-status: ready
+status: in_progress
 priority: P2
-assignee:
+assignee: implementer-wf_e9fceb87-27c-6
 epic: EPIC-010
 deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+2:45
-updated: T0+2:45
+updated: T0+3:05
 ---
 
 ## Context
@@ -66,3 +66,14 @@ defeats only the hand-rolled manifest cross-check, not all license enforcement.
 ## Notes / log
 - Filed by adversarial-reviewer during BUG-0008 review. See the BUG-0008 worktree
   PR.md "Adversarial-reviewer verdict" block (non_blocking_notes) for the probe.
+- T+3:05 — claimed by implementer-wf_e9fceb87-27c-6 on branch
+  `work/BUG-0014-parse-manifest-whitespace`. NOTE: at claim time a concurrent lane
+  (wf_6a2f8faf-da3-7, branch `work/BUG-0014-aligned-key-whitespace`) also held a
+  `board: claim BUG-0014` commit on its own feature branch (not landed to main; the
+  canonical board on main still showed `ready`). Proceeding per explicit dispatch +
+  canonical-board-unclaimed; the fix is small and landing is integrator-serialized,
+  so whichever PR lands first wins and the other rebases to a no-op / is dropped.
+- Context correction: the manifest is no longer empty — `docs/licenses/manifest.toml`
+  now records ~25 third-party deps (tck-runner, T-0002). They are written in
+  single-space style so they parse today, but the fail-open path is now one
+  aligned-key entry away from going live. Fix is timely, not speculative.
