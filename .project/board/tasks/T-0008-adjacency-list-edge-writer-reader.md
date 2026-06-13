@@ -59,3 +59,18 @@ cost-model bytes budget from SPIKE-0001 / BUG-0004.
 - T0+4:10 (integrator): Landed in commit 3c0bd9c. Resolved additive conflict in
   src/storage/mod.rs (union pub mod adjacency + cache + memory; kept both pub use
   blocks). format_code.sh green; 340/340 tests pass. Branch merged to origin/main.
+- T0+4:10 (adversarial-reviewer): verdict = **changes_requested** (review-gate
+  box left UNCHECKED). Verified on the landed tree: 25 module + 7 integration
+  tests pass, clippy/-D-warnings + fmt clean, no new deps, no `unsafe`, format
+  faithful to ADR 0008 §3.2, round-trip exact (incl. u64::MAX wrapping deltas,
+  NaN/inf, nested maps, multigraph), super-hub byte cap holds. BLOCKING:
+  **BUG-0028** — `expand`'s byte-cap early-abort returns `Err(BadVarint)` instead
+  of truncating when the remaining byte budget is below a block's leading degree
+  varint (`ExpandCap::bytes(0)`, or `bytes(1)` for degree>=128). That violates
+  ADR 0008 §3.4 / condition C2 / AC #2 (the latency-theorem early-abort path) and
+  is untested. NB this PR was **landed before the adversarial+premortem gate
+  completed** — a deviation from simulated-pr-workflow.md (both review-gate boxes
+  were unchecked at merge). The defect (BUG-0028, filed `ready`, P1) must be fixed
+  regardless of the already-landed state. Full verdict + 4 non-blocking notes
+  (C1 r<=1 scope-split escalation, open() full-GET vs cap-test honesty, mock-vs-S3
+  range semantics, block_off internal-consistency guard) in the worktree PR.md.

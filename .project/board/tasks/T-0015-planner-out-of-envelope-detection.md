@@ -2,8 +2,7 @@
 id: T-0015
 title: Implement plan-time out-of-envelope detection (reject/warn/degrade)
 type: task
-status: backlog
-priority: P1
+status: readypriority: P1
 assignee:
 epic: EPIC-003
 deps: [SPIKE-0001, SPIKE-0004, T-0009]

@@ -2,8 +2,7 @@
 id: T-0010
 title: Implement atomic manifest-swap commit with CAS predicate + durability barrier
 type: task
-status: backlog
-priority: P1
+status: readypriority: P1
 assignee:
 epic: EPIC-004
 deps: [SPIKE-0002, SPIKE-0005, T-0009]

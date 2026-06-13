@@ -2,8 +2,7 @@
 id: T-0011
 title: Implement reader snapshot pinning + consistent-snapshot reads
 type: task
-status: backlog
-priority: P1
+status: readypriority: P1
 assignee:
 epic: EPIC-004
 deps: [SPIKE-0002, T-0009]

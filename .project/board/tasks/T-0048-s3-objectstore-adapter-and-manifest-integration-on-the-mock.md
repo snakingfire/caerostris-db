@@ -2,8 +2,7 @@
 id: T-0048
 title: S3-compatible ObjectStore adapter + re-run manifest integration on the mock
 type: task
-status: backlog
-priority: P2
+status: readypriority: P2
 assignee:
 epic: EPIC-001
 deps: []
