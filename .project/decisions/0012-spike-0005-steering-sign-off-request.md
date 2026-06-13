@@ -56,7 +56,87 @@ _(pending)_
 
 ### steering-formal-methods
 
-_(pending)_
+**Verdict: APPROVE (secondary sign-off).** Date 2026-06-13 (≈T0+1:10). Signed: steering-formal-methods.
+
+I ran the design-falsification loop (Loop A) against the SPIKE-0005 spec
+(`docs/specs/SPIKE-0005-commit-protocol-pre-ratification-constraints.md`) **and**
+against the artifacts that realize it: the SPIKE-0002 commit-protocol ADR
+(`docs/adr/0002-s3-commit-protocol.md`) and TLA+ model
+(`formal/commit-protocol/commit_protocol.tla` + `.cfg` + checker record
+`formal/results/commit_protocol_check.txt`), currently on branch
+`work/SPIKE-0002-design-s3-commit-protocol-and-tla-model-for-atomic`. SPIKE-0005
+ratification is meaningless unless the obligations it names are *modelable* and
+*modelled*, so I verified both.
+
+Within my domain (Cat. 11 TLA+ obligations + their faithful encoding), the three
+constraint resolutions survive. My attacks and why each failed:
+
+1. **Constraint 1 (CAS primitive / mock fidelity).** The spec's looser Option-A
+   prose (a mutable `manifest/HEAD` pointer managed by create + delete/re-PUT —
+   which is NOT atomic CAS) is *not* what the ADR adopts: the ADR (§2/§3) makes
+   the commit the create-only `PUT If-None-Match:*` of the per-version key
+   `manifest/<V+1>.json`, with `_latest` purely advisory and re-validated. That
+   is the strictly stronger, correct design, and the model abstracts S3 to
+   create-only semantics only (`SwapManifestOk` guarded by
+   `~IsCommitted(target)`). The mock-fidelity test is *specified* (ADR §3);
+   SPIKE-0005's AC permits "specified now, implemented when the env exists." OK.
+   Note: a stale LIST resolving an older committed version is a *freshness*
+   concern, not a torn read — `LatestIsDurable` + immutability make any resolved
+   committed version a complete snapshot. Not a safety falsification.
+
+2. **Constraint 2 (fencing must not rest on lease belief; restate
+   `writer_count<=1`).** The swap actions gate solely on version-key uniqueness
+   (`~IsCommitted` / `IsCommitted`), with NO lease predicate; the lease epoch is
+   documented as an optimisation, not a safety lever. The invariant is restated
+   as `AtMostOneCommitPerVersion`. Crucially, the checker's non-vacuity probe
+   proves the zombie-writer concurrent-same-version race is **reachable** (trace:
+   W1 acquires+stages v1, ExpireLease, W2 acquires+stages v1), and the safety run
+   shows the invariant holds *across* that race. The invariant is therefore not
+   vacuously satisfied by `manifests` being a function. This is the exact shape I
+   asked for. Survives.
+
+3. **Constraint 3 (durability ordering barrier).** `SwapManifestOk` is guarded by
+   `writerObjs[w] \subseteq dataObjects` (all data durable before swap);
+   `NoTornCommit`, `LatestIsDurable`, and the reader-facing `SnapshotIsolation`
+   are model invariants. Reader-safety (a pinned reader's manifest objects are
+   always durable) is encoded. **One non-blocking gap:** the spec asked for an
+   explicit orphan-non-reference invariant; the model instead guarantees this
+   *structurally* (a fenced/crashed writer's staged objects enter `dataObjects`
+   but are never written into any `manifests[v].objs`, so they can never reach a
+   reader). That is sound for safety; orphan reclamation is a liveness/storage
+   concern handled in ADR §6.4/§7. T-0038 should add an explicit
+   `OrphansNeverReferenced` invariant when checking the *implemented* protocol.
+
+**Model-check evidence.** TLC (tla2tools 1.7.4, EPL-2.0): SANY parse OK; safety
+exhaustive over 7406 distinct states, **no invariant violations** for all of
+`TypeOK, NoTornCommit, SnapshotIsolation, AtMostOneCommitPerVersion,
+ManifestImmutable, GCSafety, LatestIsDurable`; liveness `WriterEventuallyCommits`
+holds under weak fairness; non-vacuity confirmed. I could **not** independently
+re-execute TLC (no JRE / no `tla2tools.jar` / no Apalache in this environment);
+I assessed the committed checker record, the config bound, and the spec text for
+internal consistency, and they are mutually consistent. Conditions below.
+
+**Conditions (non-blocking, tracked, not gating this sign-off):**
+- C-A: Apalache is deferred to T-0038 (Apalache not yet in the Nix shell). T-0038
+  must (i) re-run on the *implemented* commit phase sequence, (ii) add the
+  `OrphansNeverReferenced` invariant, (iii) consider raising `MaxVersion` to 3 so
+  GC of a pinned old version while two newer versions exist exercises `GCSafety`
+  more deeply. Model-sync (model ↔ T-0010 code) is a BUG if broken.
+- C-B: The mock-fidelity integration test (two concurrent `PUT If-None-Match:*`
+  → exactly one 200) is a hard gate for any commit-path task becoming `ready`;
+  it must be green in CI on the configured mock before T-0010/T-0026 are `ready`.
+
+**Scope of this sign-off and board effect.** I sign the formal-methods (Cat. 11)
+dimension of SPIKE-0005 *and* of SPIKE-0002's TLA+ model — the obligations are
+identical. This is the **secondary** of two required sign-offs. SPIKE-0005 does
+**not** move to `done`, SPIKE-0002 does **not** ratify, and **no** dependent
+implementation task (T-0010, T-0011, T-0026, T-0038, T-0013) moves to `ready`
+until `steering-distributed-acid` records the **primary** sign-off here and on
+decision 0013, AND SPIKE-0002 lands + its other deps (SPIKE-0003, SPIKE-0004,
+T-0009) clear. I am explicitly NOT flipping any implementation task to `ready`;
+doing so would be false (SPIKE-0002 is still `in_review`) and would violate the
+prove-before-code gate. Decision recorded in
+`.project/decisions/0014-formal-methods-spike-0005-0002-ratification.md`.
 
 ## What happens after ratification
 

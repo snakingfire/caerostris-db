@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [1, 7, 11]
 estimate: S
 created: 2026-06-13T18:30:19Z
-updated: 2026-06-13T19:15:00Z
+updated: 2026-06-13T19:36:00Z
 ---
 
 ## Context
@@ -122,3 +122,22 @@ pre-swap commit are GC-able and never referenced).
     - Constraint 3: All data object PUTs acked before manifest swap issued;
       client ack = swap ack. TLA+ must include DataObjectDurable predicate,
       reader-safety invariant, and recovery invariant for orphaned objects.
+- 2026-06-13T19:36:00Z (steering-formal-methods): **APPROVE — secondary
+  sign-off** recorded in `.project/decisions/0012-spike-0005-steering-sign-off-request.md`
+  and `.project/decisions/0014-formal-methods-spike-0005-0002-ratification.md`.
+  Ran the design-falsification loop against the SPIKE-0005 spec AND the
+  SPIKE-0002 ADR + TLA+ model (branch
+  `work/SPIKE-0002-design-s3-commit-protocol-and-tla-model-for-atomic`) that
+  realizes it. All three constraints survive: create-only `PUT If-None-Match:*`
+  CAS (C1), fencing via `AtMostOneCommitPerVersion` not lease belief — non-vacuous
+  zombie-race probe (C2), durability barrier `writerObjs ⊆ dataObjects` + reader
+  safety (C3). TLC: 7406 distinct states, no invariant violations; liveness holds.
+  Two non-blocking conditions tracked: C-A Apalache + `OrphansNeverReferenced`
+  invariant on the implemented protocol (T-0038); C-B mock-fidelity test
+  (concurrent `If-None-Match:*` → exactly one 200) green in CI before any
+  commit-path task is `ready`.
+  **Status stays `in_review`**: this is the secondary of two sign-offs. SPIKE-0005
+  reaches `done` only after `steering-distributed-acid` (primary) signs off in
+  decision 0012. No implementation task flipped to `ready` — T-0010/T-0011/T-0026/
+  T-0013/T-0038 still depend on SPIKE-0002 (`in_review`); the gate stays closed,
+  correctly.
