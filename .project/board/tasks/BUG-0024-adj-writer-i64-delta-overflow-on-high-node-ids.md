@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [2, 3]
 estimate: S
 created: T0+4:12
-updated: T0+4:52
+updated: T0+5:02
 ---
 
 ## Context
@@ -82,3 +82,13 @@ production code changes; test-only diff.
 variant and GREEN against the canonical `wrapping_sub` in both debug and release. Full suite
 476/476 pass (was 475); `./format_code.sh` exit 0. Dispatching adversarial-reviewer +
 premortem-analyst.
+
+**T0+5:02 — premortem-analyst sign-off: approve.** Verified the diff is test-only (zero
+production lines), so every P0 lens (corruption / SLA / split-brain / blast-radius / OSS
+hygiene) is provably N/A. Confirmed landed code encodes the dst-id delta in the `u64`
+domain (`adjacency.rs:355` `wrapping_sub`, `:787` `wrapping_add` — no `as i64` on the
+neighbour path; buggy `AdjShardWriter` absent). Reproduced the guard's teeth: patched
+production to the signed variant → test RED (`subtract with overflow` at `:355`), reverted
+clean. Boundary test green in debug **and** release; full `adjacency_storage` suite 8/8;
+`./format_code.sh` exit 0. Non-blocking: stale PR.md test-evidence prose; `drop`→`guard`
+repurposing (a strict improvement, accepted). Pre-mortem box ticked in PR.md. Clear to land.
