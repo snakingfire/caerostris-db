@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [11, 1]
 estimate: S
 created: T+~2:00
-updated: T+~2:30
+updated: 2026-06-13T23:40:00Z
 ---
 
 ## Context
@@ -99,3 +99,14 @@ Cat. 11 ratification of SPIKE-0002.
   in decision 0025. Branch `work/BUG-0012-tla-model-da1-torn-read` (based on the
   SPIKE-0002 branch tip so the model files are present). SPIKE-0002 stays
   `in_review` until both primaries re-confirm.
+- **2026-06-13T23:40Z (integrator, reland attempt):** BLOCKED. Reland attempted
+  per pace-marshal dispatch. Merge into main encountered conflicts (PR.md add/add,
+  SPIKE-0002 board file, EPIC-004 board file) that were aborted cleanly. More
+  critically, the review gate in PR.md is NOT cleared: `adversarial-reviewer
+  sign-off` and `premortem-analyst sign-off` checkboxes are unchecked; the
+  design-specific steering re-confirms (`steering-formal-methods` + 
+  `steering-distributed-acid` for v2 model) are also pending (decision 0025).
+  Landing is blocked until both primaries re-confirm via Loop A. When re-confirms
+  arrive, also add `[x] adversarial-reviewer sign-off` and 
+  `[x] premortem-analyst sign-off` to PR.md (or waive per steering sign-off
+  policy for design PRs). Then the integrator can reland.
