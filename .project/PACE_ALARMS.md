@@ -414,3 +414,17 @@ Diagnosed the multi-lane failure: lanes were TRIPLICATING work (all 3 ratifying 
 Fix committed: `scripts/board/claim.sh` (atomic, lock-serialized, main-worktree via git-common-dir) — concurrent lanes get DISJOINT batches; release frees a batch; stale claims (>30min) self-GC. Verified laneA/laneB claim non-overlapping P0-first sets. `mainspring.js` v3: orient releases prior claims → claims a disjoint batch via the script → processes → repeats. Work agents no longer self-claim.
 
 Cleaned orphaned worktrees (down to main only). Relaunched 3 lanes: lane1 `wf_5ea74b89-683`, lane2 `wf_d44011fb-4d5`, lane3 `wf_2def35c9-c9f` (roundCap 6). Cron `366ea28f` maintains the 3-lane pool. Expect: lane1 ratifies SPIKE-0001/0002/0005 (unblocks the 47-task cascade) while lanes 2/3 take distinct code; then all 3 fill as the backlog opens. Watch claims: `scripts/board/claim.sh list`.
+
+---
+
+## STATUS — T+1:38 (RED on pace; recovery live; pool healthy)
+
+**Level:** RED on pace (grader T+1:38: overall 15 vs ~35 expected, −20) — but cause understood and recovery verified.
+**Wallclock:** 2026-06-13T20:03:30Z. Deadline 23:24Z (no STOP).
+**Pool:** 3 lanes active — lane1 `wf_5ea74b89-683` (spinning up, 1 agent), lane2 `wf_d44011fb-4d5` (11 agents, hot), lane3 `wf_2def35c9-c9f` (11 agents, hot). **No relaunch needed.**
+**Parallelism VERIFIED working:** 10 disjoint claims via claim.sh (each owned once); in_progress on distinct items (BUG-0004, SPIKE-0003, T-0000); SPIKE-0001/0002/0005 ratification in flight. The triplication bug is fixed.
+**Env (1b):** MinIO healthy; no stale land-lock. No action.
+**Grooming (1):** cascade gate (SPIKE-0001/0002) is being ratified by the lanes right now — highest-leverage work in flight, nothing to unblock manually (the 47 backlog is correctly gated on that ratification).
+**Scaling decision:** HOLD at 3 lanes this tick. Claimable work is limited (~10 items) until the cascade opens; a 4th/5th lane now would idle-and-exit (wasteful). **Next tick: once SPIKE-0001/0002 are `done` and the 47-task backlog opens to `ready`, scale to 5 lanes** (update cron target) for max throughput.
+**⚠️ Hard checkpoint T+1:58 (20:23Z):** need SPIKE-0001/0002 done + cascade open + ≥2-3 new merges on main. Else P0 emergency on the T+4:00 target (would need ~75 pts in ~2h25m). Likely intervention then: directly land the built PRs (T-0002, T-0005) + force-ratify.
+**Cosmetic:** claim `lane` log files are empty (claim.sh echo miss); disjointness holds via atomic mkdir. Defer fix.
