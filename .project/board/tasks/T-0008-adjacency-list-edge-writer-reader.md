@@ -2,7 +2,7 @@
 id: T-0008
 title: Implement compressed adjacency-list edge writer + chunked range reader
 type: task
-status: in_review
+status: done
 priority: P1
 assignee: implementer-wf_fe688db0-093-33
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: [SPIKE-0003, T-0006]
 rubric_refs: [2, 3]
 estimate: M
 created: T0+0:20
-updated: T0+3:55
+updated: T0+4:10
 ---
 
 ## Context
@@ -56,3 +56,6 @@ cost-model bytes budget from SPIKE-0001 / BUG-0004.
   dependency-free choices (FNV-1a trailer checksum, SplitMix64 property gen) vs.
   pulling blake3/proptest mid-cascade. Awaiting adversarial-reviewer +
   premortem-analyst sign-off, then integrator.
+- T0+4:10 (integrator): Landed in commit 3c0bd9c. Resolved additive conflict in
+  src/storage/mod.rs (union pub mod adjacency + cache + memory; kept both pub use
+  blocks). format_code.sh green; 340/340 tests pass. Branch merged to origin/main.
