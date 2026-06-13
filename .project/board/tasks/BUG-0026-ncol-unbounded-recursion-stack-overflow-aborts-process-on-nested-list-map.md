@@ -2,15 +2,15 @@
 id: BUG-0026
 title: .ncol encode/decode of nested List/Map recurses unbounded — deep nesting aborts the process (SIGABRT), not fail-closed
 type: bug
-status: ready
+status: in_progress
 priority: P1
-assignee:
+assignee: implementer-wf_3215ee4a-fcf-27
 epic: EPIC-001
 deps: [T-0007]
 rubric_refs: [2, 1, 10]
 estimate: S
 created: T0+~3:58
-updated: T0+~3:58
+updated: T0+~4:27
 ---
 
 ## Context
