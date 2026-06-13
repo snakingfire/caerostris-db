@@ -252,6 +252,26 @@ impl SpdxParser<'_> {
     }
 }
 
+/// If `line` is a `key = value` assignment for `key`, return its unquoted value.
+///
+/// Splits on the **first** `=` and trims whitespace on both sides, so the key is
+/// matched regardless of the spacing around `=` — single-space (`name = "x"`),
+/// aligned (`name    = "x"`), tab-separated, or no-space (`name="x"`) all parse
+/// identically. The key comparison is exact on the trimmed left-hand side, so
+/// look-alike keys (`namespace`, `spdx_note`) are not mistaken for `name`/`spdx`.
+/// Surrounding double quotes are stripped from the value (TOML string form).
+///
+/// Returning the spacing to the rigid `strip_prefix("name = ")` form is what
+/// caused BUG-0014: a dependency recorded in the manifest's own documented
+/// aligned style was silently dropped, failing the license gate *open*.
+fn parse_key_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {
+    let (lhs, rhs) = line.split_once('=')?;
+    if lhs.trim() != key {
+        return None;
+    }
+    Some(rhs.trim().trim_matches('"'))
+}
+
 /// Parse the crate entries out of a `Cargo.lock` file body.
 ///
 /// `own_crates` are names of workspace members (e.g. the crate itself), which
@@ -289,10 +309,10 @@ pub fn parse_lockfile(contents: &str, own_crates: &[&str]) -> Vec<LockedCrate> {
         if !in_package {
             continue;
         }
-        if let Some(rest) = trimmed.strip_prefix("name = ") {
-            name = Some(rest.trim_matches('"').to_string());
-        } else if let Some(rest) = trimmed.strip_prefix("version = ") {
-            version = Some(rest.trim_matches('"').to_string());
+        if let Some(value) = parse_key_value(trimmed, "name") {
+            name = Some(value.to_string());
+        } else if let Some(value) = parse_key_value(trimmed, "version") {
+            version = Some(value.to_string());
         }
     }
     // Flush the final package block.
@@ -304,7 +324,9 @@ pub fn parse_lockfile(contents: &str, own_crates: &[&str]) -> Vec<LockedCrate> {
 ///
 /// The manifest is a TOML-ish table list, but to avoid a TOML dependency we
 /// parse the small, well-defined subset we write ourselves: blocks introduced
-/// by `[[dependency]]` with `name = "..."` and `spdx = "..."` keys.
+/// by `[[dependency]]` with `name = "..."` and `spdx = "..."` keys. Key spacing
+/// is irrelevant — single-space, aligned, tab, and no-space forms all parse the
+/// same (see [`parse_key_value`]) so the gate cannot fail open on aligned style.
 #[must_use]
 pub fn parse_manifest(contents: &str) -> Vec<ManifestEntry> {
     let mut out = Vec::new();
@@ -331,10 +353,10 @@ pub fn parse_manifest(contents: &str) -> Vec<ManifestEntry> {
         if !in_dep {
             continue;
         }
-        if let Some(rest) = trimmed.strip_prefix("name = ") {
-            name = Some(rest.trim_matches('"').to_string());
-        } else if let Some(rest) = trimmed.strip_prefix("spdx = ") {
-            spdx = Some(rest.trim_matches('"').to_string());
+        if let Some(value) = parse_key_value(trimmed, "name") {
+            name = Some(value.to_string());
+        } else if let Some(value) = parse_key_value(trimmed, "spdx") {
+            spdx = Some(value.to_string());
         }
     }
     flush(&mut name, &mut spdx, &mut out);
@@ -565,6 +587,102 @@ note = "Permissive."
         assert_eq!(parsed[0].name, "serde");
         assert_eq!(parsed[0].spdx, "MIT OR Apache-2.0");
         assert_eq!(parsed[1].name, "thiserror");
+    }
+
+    /// Regression for BUG-0014: the manifest's own documented format example
+    /// uses *aligned* keys (`name    = "..."`), and taplo formats TOML that way.
+    /// The old `strip_prefix("name = ")` required exactly one space and silently
+    /// dropped such entries — a fail-open license gate. Parsing must be robust to
+    /// arbitrary whitespace around `=`.
+    #[test]
+    fn parse_manifest_handles_aligned_key_whitespace() {
+        let manifest = r#"
+# License manifest
+[[dependency]]
+name    = "serde"
+version = "1.0.210"
+spdx    = "MIT OR Apache-2.0"
+note    = "Permissive; ubiquitous."
+"#;
+        let parsed = parse_manifest(manifest);
+        assert_eq!(
+            parsed,
+            vec![ManifestEntry {
+                name: "serde".into(),
+                spdx: "MIT OR Apache-2.0".into(),
+            }],
+            "aligned-key block must parse, not be silently dropped"
+        );
+    }
+
+    /// The fail-open hazard end-to-end: an aligned-key dependency carrying a
+    /// non-permissive (copyleft) license must be parsed AND flagged by `check`,
+    /// proving the license gate no longer passes it silently. This is the exact
+    /// acceptance criterion for BUG-0014.
+    #[test]
+    fn parse_manifest_aligned_non_permissive_entry_is_flagged_by_check() {
+        let manifest_src = r#"
+[[dependency]]
+name    = "copyleft-crate"
+version = "1.0.0"
+spdx    = "GPL-3.0"
+note    = "Recorded in aligned style."
+"#;
+        let manifest = parse_manifest(manifest_src);
+        // First: it must actually be parsed (the bug dropped it entirely).
+        assert_eq!(manifest.len(), 1, "aligned entry must be parsed");
+
+        let locked = vec![LockedCrate {
+            name: "copyleft-crate".into(),
+            version: "1.0.0".into(),
+        }];
+        let violations = check(&locked, &manifest);
+        assert_eq!(
+            violations,
+            vec![LicenseViolation::NonPermissiveLicense {
+                crate_name: "copyleft-crate".into(),
+                spdx: "GPL-3.0".into()
+            }],
+            "gate must flag the non-permissive aligned entry, not fail open"
+        );
+    }
+
+    /// Whitespace handling must be symmetric: no spaces around `=`, and a tab as
+    /// the separator, must both parse identically to the single-space form.
+    #[test]
+    fn parse_manifest_handles_no_space_and_tab_around_equals() {
+        let manifest = "[[dependency]]\nname=\"a\"\nspdx\t=\t\"MIT\"\n";
+        let parsed = parse_manifest(manifest);
+        assert_eq!(
+            parsed,
+            vec![ManifestEntry {
+                name: "a".into(),
+                spdx: "MIT".into(),
+            }]
+        );
+    }
+
+    /// Keys that merely *start with* `name`/`spdx` (e.g. `namespace`,
+    /// `spdx_note`) must NOT be mistaken for the real keys — splitting on the
+    /// first `=` must compare the trimmed key exactly.
+    #[test]
+    fn parse_manifest_does_not_match_lookalike_keys() {
+        let manifest = r#"
+[[dependency]]
+namespace = "not-a-name"
+spdx_note = "not-a-license"
+name = "real"
+spdx = "MIT"
+"#;
+        let parsed = parse_manifest(manifest);
+        assert_eq!(
+            parsed,
+            vec![ManifestEntry {
+                name: "real".into(),
+                spdx: "MIT".into(),
+            }],
+            "look-alike keys must not be parsed as name/spdx"
+        );
     }
 
     #[test]
