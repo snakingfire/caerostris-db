@@ -236,6 +236,169 @@ fn labels_round_trip_including_empty_label_set() {
     assert!(back[0].labels.is_empty());
 }
 
+// ---- bounded nesting depth (BUG-0026) ------------------------------------
+//
+// The `Plain` value codec recurses once per nesting level for List/Map. Without
+// a bound, a value nested deep enough overflows the stack and aborts the process
+// (SIGABRT) instead of failing closed — a remote, unauthenticated DoS on the
+// reader (a poisoned/corrupt object), and a non-recoverable abort on the writer
+// for legitimately deep ingest. The codec must instead enforce an explicit,
+// documented [`MAX_NESTING_DEPTH`] and return a typed error (ADR 0008 §2.3).
+
+/// Build a [`PropertyValue`] that is a `List` nested exactly `depth` levels deep:
+/// `depth == 0` is a scalar; `depth == n` is `List[ List[ … scalar … ] ]`.
+fn nested_list(depth: usize) -> PropertyValue {
+    let mut v = PropertyValue::Integer(1);
+    for _ in 0..depth {
+        v = PropertyValue::List(vec![v]);
+    }
+    v
+}
+
+/// Build a `Map` nested exactly `depth` levels deep (same shape, map containers).
+fn nested_map(depth: usize) -> PropertyValue {
+    let mut v = PropertyValue::Integer(1);
+    for _ in 0..depth {
+        let mut m = BTreeMap::new();
+        m.insert("k".to_string(), v);
+        v = PropertyValue::Map(m);
+    }
+    v
+}
+
+#[test]
+fn encode_value_at_max_depth_round_trips() {
+    // A value whose nesting equals the bound must encode and decode cleanly.
+    for build in [nested_list, nested_map] {
+        let v = build(MAX_NESTING_DEPTH);
+        let mut buf = Vec::new();
+        encode_value(&mut buf, &v, 0).expect("encode at max depth");
+        let mut at = 0usize;
+        let back = decode_value(&buf, &mut at, 0).expect("decode at max depth");
+        assert_eq!(back, v);
+        assert_eq!(at, buf.len(), "decode must consume the whole buffer");
+    }
+}
+
+#[test]
+fn encode_value_past_max_depth_is_typed_error_not_abort() {
+    // The writer must reject an over-deep value with a typed error — never abort.
+    for build in [nested_list, nested_map] {
+        let v = build(MAX_NESTING_DEPTH + 1);
+        let mut buf = Vec::new();
+        let err = encode_value(&mut buf, &v, 0).unwrap_err();
+        assert!(
+            matches!(err, NcolError::NestingTooDeep { limit } if limit == MAX_NESTING_DEPTH),
+            "expected NestingTooDeep, got {err:?}"
+        );
+    }
+}
+
+#[test]
+fn serialize_node_with_over_deep_value_fails_closed() {
+    // End-to-end on the writer: ingest of an over-deep property value returns a
+    // typed NcolError, mid-transaction, instead of aborting the process.
+    let node = Node::new(NodeId(1)).with_property("deep", nested_list(MAX_NESTING_DEPTH + 1));
+    let err = NcolWriter
+        .serialize(std::slice::from_ref(&node))
+        .unwrap_err();
+    assert!(
+        matches!(err, NcolError::NestingTooDeep { .. }),
+        "expected NestingTooDeep, got {err:?}"
+    );
+}
+
+#[test]
+fn decode_value_past_max_depth_is_typed_error_not_abort() {
+    // The reader's hardening case: a *hostile* byte stream that encodes nesting
+    // past the bound (more LIST tags than the writer would ever emit) must
+    // fail-closed with a typed error — not overflow the stack / abort. We craft
+    // the bytes directly to model a poisoned/corrupt object the writer's own
+    // bound would never have produced.
+    let depth = MAX_NESTING_DEPTH + 1;
+    let mut buf = Vec::new();
+    for _ in 0..depth {
+        buf.push(tag::LIST);
+        buf.extend_from_slice(&1u64.to_le_bytes()); // length: one nested item
+    }
+    buf.push(tag::INT);
+    buf.extend_from_slice(&7u64.to_le_bytes());
+
+    let mut at = 0usize;
+    let err = decode_value(&buf, &mut at, 0).unwrap_err();
+    assert!(
+        matches!(err, NcolError::NestingTooDeep { limit } if limit == MAX_NESTING_DEPTH),
+        "expected NestingTooDeep, got {err:?}"
+    );
+}
+
+#[test]
+fn decode_value_fails_closed_on_pathologically_deep_hostile_stream() {
+    // The DoS scenario from BUG-0026: a hostile object nested *thousands* of
+    // levels deep (the original repro aborted at depth ~8000). The reader must
+    // reject it after a bounded number of frames — never recurse to exhaustion.
+    // Because the bound is checked *before* recursing, only MAX_NESTING_DEPTH
+    // LIST tags are ever consumed regardless of how deep the attacker goes.
+    let depth = 100_000usize;
+    let mut buf = Vec::new();
+    for _ in 0..depth {
+        buf.push(tag::LIST);
+        buf.extend_from_slice(&1u64.to_le_bytes());
+    }
+    buf.push(tag::INT);
+    buf.extend_from_slice(&7u64.to_le_bytes());
+
+    let mut at = 0usize;
+    let err = decode_value(&buf, &mut at, 0).unwrap_err();
+    assert!(
+        matches!(err, NcolError::NestingTooDeep { .. }),
+        "expected NestingTooDeep, got {err:?}"
+    );
+}
+
+#[test]
+fn read_column_fails_closed_on_over_deep_poisoned_object() {
+    // The reader path that matters for the DoS: read_column must surface a typed
+    // error for a column chunk whose value nests past the bound, rather than
+    // aborting the whole process. We poison a real shard's column chunk in-place
+    // by overwriting its single value with hand-built over-deep LIST bytes.
+    let node = Node::new(NodeId(1)).with_property("p", PropertyValue::Integer(0));
+    let shard = NcolWriter
+        .serialize(std::slice::from_ref(&node))
+        .expect("serialize");
+
+    // Build the hostile value bytes (depth past the bound).
+    let depth = MAX_NESTING_DEPTH + 1;
+    let mut poison = Vec::new();
+    for _ in 0..depth {
+        poison.push(tag::LIST);
+        poison.extend_from_slice(&1u64.to_le_bytes());
+    }
+    poison.push(tag::INT);
+    poison.extend_from_slice(&0u64.to_le_bytes());
+
+    // Splice the poison into the "p" column chunk and rebuild the directory so
+    // the chunk length matches (a self-consistent but hostile object).
+    let entry = shard.dir.column("p").expect("p column").clone();
+    let mut bytes = shard.bytes.clone();
+    let chunk_start = entry.chunk_off as usize;
+    let chunk_end = (entry.chunk_off + entry.chunk_len) as usize;
+    // Replace the value region with the poison, growing the object.
+    bytes.splice(chunk_start..chunk_end, poison.iter().copied());
+
+    // Decode just that column directly (the read_column inner path) from the
+    // spliced bytes: bitmap is one byte (row present) then the poison values.
+    let bitmap_len = (entry.chunk_off - entry.present_bitmap_off) as usize;
+    let bm_start = entry.present_bitmap_off as usize;
+    let bitmap = &bytes[bm_start..bm_start + bitmap_len];
+    let values = &bytes[chunk_start..chunk_start + poison.len()];
+    let err = decode_column(bitmap, values, 1).unwrap_err();
+    assert!(
+        matches!(err, NcolError::NestingTooDeep { .. }),
+        "expected NestingTooDeep, got {err:?}"
+    );
+}
+
 // ---- generative round-trip fidelity (AC3) --------------------------------
 //
 // AC3 calls for property-based round-trip fidelity over "arbitrary node sets

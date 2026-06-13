@@ -95,6 +95,19 @@ pub const HEADER_LEN: usize = 46;
 /// Fixed trailer length: `8 (column_dir_off) + 8 (blake3 prefix) = 16`.
 pub const TRAILER_LEN: usize = 16;
 
+/// Maximum container nesting depth the `Plain` value codec accepts, as a
+/// **first-class format contract** (ADR 0008 §2.3). The codec serialises and
+/// reconstructs `List`/`Map` values by recursing once per nesting level; an
+/// unbounded recursion overflows the stack and aborts the process (SIGABRT)
+/// instead of failing closed (BUG-0026). Both the writer ([`encode_value`]) and
+/// the reader ([`decode_value`]) reject a value (or a hostile byte stream)
+/// nesting past this depth with [`NcolError::NestingTooDeep`]: the reader stays
+/// fail-closed on untrusted bytes (ADR 0008 §8.2; BUG-0014 lesson), and the
+/// writer never aborts mid-ingest. A scalar is depth 0; a top-level `List`/`Map`
+/// is depth 1. The bound (64) is far beyond any realistic openCypher literal yet
+/// small enough that the recursion can never exhaust the stack.
+pub const MAX_NESTING_DEPTH: usize = 64;
+
 /// The on-disk codec id for a column chunk. Only the spec's floor codec
 /// ([`Codec::Plain`]) is implemented in T-0007; the slot is `u8` so `dict` /
 /// `delta-varint` (ADR 0008 §2.3) are forward-compatible additions (open
@@ -180,6 +193,14 @@ pub enum NcolError {
     /// The encoded bytes were internally inconsistent (a malformed length, a
     /// directory offset out of range, etc.).
     Malformed(&'static str),
+    /// A `List`/`Map` value nested deeper than [`MAX_NESTING_DEPTH`]. Raised
+    /// fail-closed by both the writer (over-deep ingest) and the reader (a
+    /// hostile/corrupt object) so deep nesting can never overflow the stack and
+    /// abort the process (BUG-0026; ADR 0008 §2.3).
+    NestingTooDeep {
+        /// The maximum accepted depth ([`MAX_NESTING_DEPTH`]).
+        limit: usize,
+    },
     /// The requested property key is not a column in this shard.
     NoSuchColumn(String),
     /// The requested node id falls outside this shard's id band.
@@ -202,6 +223,9 @@ impl std::fmt::Display for NcolError {
             NcolError::WrongObjectKind(k) => write!(f, "object_kind {k} is not an .ncol object"),
             NcolError::UnknownCodec(c) => write!(f, "unknown column codec id {c}"),
             NcolError::Malformed(why) => write!(f, "malformed .ncol object: {why}"),
+            NcolError::NestingTooDeep { limit } => {
+                write!(f, "value nesting exceeds the maximum depth of {limit}")
+            }
             NcolError::NoSuchColumn(k) => write!(f, "no column for property key {k:?}"),
             NcolError::IdOutOfBand { id, band } => {
                 write!(
@@ -309,7 +333,13 @@ mod tag {
 }
 
 /// Encode one [`PropertyValue`] with the self-describing `Plain` framing.
-fn encode_value(buf: &mut Vec<u8>, v: &PropertyValue) {
+///
+/// `depth` is the nesting level of `v` (a top-level value is encoded with
+/// `depth == 0`; each container recurses with `depth + 1`). A value whose
+/// nesting would exceed [`MAX_NESTING_DEPTH`] is rejected fail-closed with
+/// [`NcolError::NestingTooDeep`] **before** any recursion, so an over-deep value
+/// can never overflow the stack and abort the process (BUG-0026).
+fn encode_value(buf: &mut Vec<u8>, v: &PropertyValue, depth: usize) -> Result<(), NcolError> {
     match v {
         PropertyValue::Null => buf.push(tag::NULL),
         PropertyValue::Boolean(false) => buf.push(tag::BOOL_FALSE),
@@ -328,26 +358,47 @@ fn encode_value(buf: &mut Vec<u8>, v: &PropertyValue) {
             buf.extend_from_slice(s.as_bytes());
         }
         PropertyValue::List(items) => {
+            // A container occupies one nesting level; its elements live one
+            // deeper. Reject before recursing so the stack is never exhausted.
+            if depth >= MAX_NESTING_DEPTH {
+                return Err(NcolError::NestingTooDeep {
+                    limit: MAX_NESTING_DEPTH,
+                });
+            }
             buf.push(tag::LIST);
             put_u64(buf, items.len() as u64);
             for it in items {
-                encode_value(buf, it);
+                encode_value(buf, it, depth + 1)?;
             }
         }
         PropertyValue::Map(m) => {
+            if depth >= MAX_NESTING_DEPTH {
+                return Err(NcolError::NestingTooDeep {
+                    limit: MAX_NESTING_DEPTH,
+                });
+            }
             buf.push(tag::MAP);
             put_u64(buf, m.len() as u64);
             for (k, val) in m {
                 put_u64(buf, k.len() as u64);
                 buf.extend_from_slice(k.as_bytes());
-                encode_value(buf, val);
+                encode_value(buf, val, depth + 1)?;
             }
         }
     }
+    Ok(())
 }
 
 /// Decode one [`PropertyValue`] from `b` starting at `*at`, advancing `*at`.
-fn decode_value(b: &[u8], at: &mut usize) -> Result<PropertyValue, NcolError> {
+///
+/// `depth` is the nesting level being decoded (the top-level call passes 0; each
+/// container recurses with `depth + 1`). A byte stream that nests `List`/`Map`
+/// past [`MAX_NESTING_DEPTH`] — which the bounded [`encode_value`] would never
+/// emit, so it can only be a corrupt or hostile object — is rejected fail-closed
+/// with [`NcolError::NestingTooDeep`] **before** recursing, so an untrusted
+/// object can never overflow the stack and abort the process (BUG-0026; the
+/// reader fail-closes per ADR 0008 §8.2 / the BUG-0014 lesson).
+fn decode_value(b: &[u8], at: &mut usize, depth: usize) -> Result<PropertyValue, NcolError> {
     let t = *b.get(*at).ok_or(NcolError::Truncated {
         context: "value tag",
     })?;
@@ -378,15 +429,27 @@ fn decode_value(b: &[u8], at: &mut usize) -> Result<PropertyValue, NcolError> {
             Ok(PropertyValue::String(s))
         }
         tag::LIST => {
+            // Reject before recursing — never read the length / recurse on an
+            // over-deep object (fail-closed; no stack growth past the bound).
+            if depth >= MAX_NESTING_DEPTH {
+                return Err(NcolError::NestingTooDeep {
+                    limit: MAX_NESTING_DEPTH,
+                });
+            }
             let n = get_u64(b, *at)? as usize;
             *at += 8;
             let mut items = Vec::with_capacity(n);
             for _ in 0..n {
-                items.push(decode_value(b, at)?);
+                items.push(decode_value(b, at, depth + 1)?);
             }
             Ok(PropertyValue::List(items))
         }
         tag::MAP => {
+            if depth >= MAX_NESTING_DEPTH {
+                return Err(NcolError::NestingTooDeep {
+                    limit: MAX_NESTING_DEPTH,
+                });
+            }
             let n = get_u64(b, *at)? as usize;
             *at += 8;
             let mut m = BTreeMap::new();
@@ -399,7 +462,7 @@ fn decode_value(b: &[u8], at: &mut usize) -> Result<PropertyValue, NcolError> {
                 *at += klen;
                 let k = String::from_utf8(kb.to_vec())
                     .map_err(|_| NcolError::Malformed("non-utf8 map key"))?;
-                let v = decode_value(b, at)?;
+                let v = decode_value(b, at, depth + 1)?;
                 m.insert(k, v);
             }
             Ok(PropertyValue::Map(m))
@@ -517,7 +580,7 @@ impl NcolWriter {
                         Some(prev) if prev == this => prev,
                         Some(_) => LogicalType::Mixed,
                     });
-                    encode_value(&mut values, &v);
+                    encode_value(&mut values, &v, 0)?;
                 }
             }
             encoded.push(EncodedColumn {
@@ -901,7 +964,7 @@ fn decode_column(
         let byte = bitmap.get(row / 8).copied().unwrap_or(0);
         let present = (byte >> (row % 8)) & 1 == 1;
         if present {
-            out.push(Some(decode_value(values, &mut at)?));
+            out.push(Some(decode_value(values, &mut at, 0)?));
         } else {
             out.push(None);
         }
