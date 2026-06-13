@@ -2,7 +2,7 @@
 id: BUG-0022
 title: GRADER_INPUTS CI-log block has no automated consumer; wire it or write a coverage-*.md evidence file
 type: bug
-status: ready
+status: blocked
 priority: P2
 assignee:
 epic: EPIC-009
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [10, 12]
 estimate: S
 created: T+3:30
-updated: T+3:30
+updated: T+4:10
 ---
 
 ## Context
@@ -58,3 +58,14 @@ only. Reference: PR pre-mortem in `.claude/worktrees/wf_156e2b80-bb6-3/PR.md`
   T-0005 itself approved (no P0 blocker); this is the non-blocking follow-up. The
   coverage *gate* and the TCK file path are correct and fail-safe; only the log
   block's consumer wiring and two cosmetic metrics refinements remain.
+- **T+4:10 (integrator):** BLOCKED — reland of `work/BUG-0022-coverage-report-consumer`
+  attempted but halted. The adversarial reviewer filed **changes_requested** (T+4:07,
+  branch worktree `.claude/worktrees/wf_156e2b80-bb6-47`). Core finding: the
+  `coverage-ci-*.md` evidence file is gitignored+artifact-only; the `rubric-grader`
+  reads only the committed working tree; no artifact-download/commit-back mechanism
+  exists — GRADER_INPUTS numbers still reach no automated consumer. AC (a)
+  "make the producer/consumer agree" is unmet. `./format_code.sh` green; 368 tests
+  pass; conflict is additive-only — but the review gate is the blocker.
+  Author must address the adversarial finding, commit a fix in the worktree, and
+  re-request both adversarial-reviewer and premortem-analyst sign-off (checkboxes
+  reset to unchecked). Branch preserved in `.claude/worktrees/wf_156e2b80-bb6-47`.
