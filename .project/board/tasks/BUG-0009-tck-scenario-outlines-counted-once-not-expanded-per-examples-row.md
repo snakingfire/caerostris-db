@@ -9,7 +9,7 @@ epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+0:58
-updated: T0+5:30
+updated: T0+5:35
 ---
 
 ## Context
@@ -164,3 +164,23 @@ latent defect that activates the moment a real engine plugs in.
   resolved (all log entries from both sides preserved); PR.md removed from tree (tracked by
   BUG-0016). Push to remote requires manual push (`git push origin main`). Duplicate
   BUG-0009 branches left for pace-marshal to clean up. Status: done.
+- T0+5:35 (premortem-analyst): **changes_requested / DROP-AS-DUPLICATE** on the
+  leftover branch `work/BUG-0009-expand-examples-rows` (worktree
+  `.worktrees/BUG-0009-expand-examples-rows`, HEAD `7ac21a3`, merge-base `ef1b2c0`).
+  BUG-0009 is already `done` — landed at `e0104f9` via `work/BUG-0009-outline-expansion`
+  (`tck-runner/src/outline.rs`). This branch is a *second* implementation of the same
+  feature in `tck-runner/src/expand.rs`; it is one of the ~9 parallel duplicates the
+  integrator flagged for cleanup. Pre-mortem (incident-backwards) finds **no intrinsic
+  P0** in the diff (harness-only, no engine/storage/commit/cache surface, no new dep,
+  no `unsafe`; `cargo test -p tck-runner` 21 green, `clippy -D warnings` exit 0 on the
+  stale base) — but **three blocking PROCESS findings**: (1) duplicate of landed work;
+  (2) cannot rebase onto current `main` — trial `git rebase main` aborts on commit 1,
+  6 overlapping files (`runner.rs`/`vendored_corpus.rs`/`lib.rs`/`report.rs` + board +
+  decision 0013); force-resolving would put two competing outline-expansion paths on the
+  Cat. 4 GATE denominator; (3) decision-file collision — branch adds `0030-tck-outline-
+  expansion-landed.md` but `0030` is taken on `main` (`0030-spike-0004-statistics-...`,
+  same class as BUG-0010). Premortem checkbox left **unchecked** in the worktree PR.md;
+  verdict block appended there. Recommended action: **drop this branch + worktree**
+  (no land); BUG-0009 remains `done` against `e0104f9`. No new BUG filed — the latent
+  substitution risk is already BUG-0021 and the grader-pin mismatch is already BUG-0018,
+  both inherited by the landed `outline.rs`.

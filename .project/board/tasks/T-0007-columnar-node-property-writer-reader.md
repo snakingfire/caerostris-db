@@ -2,8 +2,7 @@
 id: T-0007
 title: Implement columnar node-property object writer + range-read reader
 type: task
-status: backlog
-priority: P1
+status: readypriority: P1
 assignee:
 epic: EPIC-001
 deps: [SPIKE-0003, T-0006]

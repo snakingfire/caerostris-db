@@ -2,8 +2,7 @@
 id: T-0008
 title: Implement compressed adjacency-list edge writer + chunked range reader
 type: task
-status: backlog
-priority: P1
+status: readypriority: P1
 assignee:
 epic: EPIC-001
 deps: [SPIKE-0003, T-0006]

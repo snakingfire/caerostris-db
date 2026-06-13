@@ -10,7 +10,7 @@ deps: [T-0001]
 rubric_refs: [8, 10]
 estimate: M
 created: T0+0:20
-updated: T0+0:52
+updated: T0+3:42
 ---
 
 ## Context
@@ -43,3 +43,17 @@ that T-0031 builds the real API on.
   `tests/license_manifest.rs` to cover `python/Cargo.lock` (14 new permissive deps
   recorded). ADR 0004 added. `./format_code.sh` green; 124 root tests still pass.
   Status → `in_review`; dispatching adversarial-reviewer + premortem-analyst.
+- **T0+3:42 — adversarial review: `changes_requested`** (branch
+  `work/T-0030-pyo3-maturin-scaffold-importable-package-pytes`, tip `82be1ac`).
+  Blocking: CI `test` (`cargo test --workspace --all-features`) and `coverage`
+  (`cargo llvm-cov --all-features --workspace`) jobs fail to **link** — `--all-features`
+  enables pyo3's `extension-module`, which omits the libpython link directive, so a
+  normal cargo test/cov build leaves Python symbols undefined (reproduced locally with
+  the exact CI commands). Masked by the author's `nextest`/default-feature evidence and
+  by `land.sh` also using `nextest`, so it would land green then turn `main` CI red.
+  Fix: exclude the crate from the all-features test/cov runs (or gate the maturin-only
+  feature out of `--all-features`) and verify with the exact CI commands. License
+  hygiene + FFI/typed-exception scaffold reviewed and sound (14 new deps match real
+  crate metadata; allow-lists correct). Reviewer checkbox left unchecked. Verdict +
+  surviving-attacks log in PR.md. Filed BUG-0023 (pre-existing `Unicode-3.0` deny.toml
+  gap, out of scope for T-0030).

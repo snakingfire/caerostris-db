@@ -2,8 +2,7 @@
 id: T-0009
 title: Implement manifest object, statistics block, and latest-version resolution
 type: task
-status: backlog
-priority: P1
+status: readypriority: P1
 assignee:
 epic: EPIC-001
 deps: [SPIKE-0002, SPIKE-0003, SPIKE-0004]

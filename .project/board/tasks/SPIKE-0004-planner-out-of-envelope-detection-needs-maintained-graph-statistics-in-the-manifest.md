@@ -2,7 +2,7 @@
 id: SPIKE-0004
 title: Planner out-of-envelope detection needs maintained graph statistics in the manifest
 type: spike
-status: in_review
+status: done
 priority: P0
 assignee: researcher
 epic: EPIC-003
@@ -10,7 +10,7 @@ deps: [SPIKE-0001]
 rubric_refs: [3, 4, 5]
 estimate: M
 created: 2026-06-13T18:24:00Z
-updated: 2026-06-13T20:05:00Z
+updated: 2026-06-13T22:00:00Z
 ---
 
 ## Context
@@ -160,3 +160,24 @@ statistics (EPIC-001 / SPIKE-0003) move to `in_progress`.
   **Confidence:** high. Every acceptance-criterion bullet and every ADR 0001 F2 / decision
   0015 condition is discharged; the one genuinely open knob (R1, inline-vs-referenced) is a
   storage-layout refinement that does not move the feasible region.
+
+- **T+~3:30 `steering-perf-sla` — RATIFIED (3-of-5 cross-cutting quorum). SPIKE-0004 → `done`.**
+  Ran the design-falsification + sign-off pass per my Cat. 3 mandate. Decision record:
+  `.project/decisions/0033-perf-sla-spike-0004-statistics-contract-ratification.md`.
+  Spec status → `accepted` (`docs/specs/SPIKE-0004-manifest-statistics-contract.md`).
+  Independent re-derivation of every load-bearing figure (super-hub 2.56 GB / 890×; p99 trap
+  1.65 MB; Part 5 size 1016 B inline ≤ 4096 B reserve / 360.8 KB referenced blobs — all match)
+  plus eight targeted falsification attacks — **all survived**: the two-term estimator (p99 for
+  total-byte acceptance, `max_deg` for the single-GET super-hub gate) is sound; the
+  missing/stale rule has **no optimistic-accept leg** (cannot produce a silent SLA miss);
+  incremental `max_deg` is sound under deletion (over-rejects, never under-rejects); the
+  contract is cache-independent; no stats read busts the cold-start K_min floor. Quorum:
+  `steering-storage` (decision 0032 / ADR 0006 §5.3 — manifest home + R1 cut, binding) +
+  `steering-formal-methods` (decision 0015 / ADR 0001 F2 — `max_deg` mandatory) +
+  `steering-perf-sla` (this) = 3-of-5. Conditions C1 (lazy-blob fetch must not add a hidden
+  serial round-trip; K=9 fallback closes), C2 (α-corrected thresholds + two-term estimator,
+  re-affirms F1/F2), C3 (cache-OFF cold-start benchmark evidence, re-affirms PS-2) bound to
+  T-0015 / T-0009 / SPIKE-0003 / T-0016 — the tasks that already own them. **Unblocks:** T-0009
+  and T-0015 clear their `SPIKE-0004` dependency. Recommended non-blocking follow-up:
+  `steering-query-cypher` (primary) may append a confirming counter-signature; its founding
+  finding (decision 0009) is fully discharged.

@@ -2,15 +2,15 @@
 id: SPIKE-0003
 title: Specify on-object storage format layout
 type: spike
-status: in_progress
+status: done
 priority: P0
-assignee: researcher
+assignee: steering-storage
 epic: EPIC-001
 deps: [SPIKE-0001]
 rubric_refs: [2]
 estimate: M
 created: T0
-updated: 2026-06-13T21:00:00Z
+updated: T0+3:40
 ---
 
 ## Context
@@ -31,13 +31,13 @@ Steering sign-off: **steering-storage** must approve the format spec before T-00
 
 ## Acceptance criteria
 
-- [ ] Format spec committed to `docs/adr/` (e.g. `docs/adr/0003-storage-format.md`): describes all object types (manifest, node-property column objects, adjacency-list objects, index objects), their naming conventions, internal binary layout (field order, encoding, alignment), and the range-read access pattern for a representative query.
-- [ ] Byte-budget analysis in the spec: shows that for the in-envelope selectivity from SPIKE-0001, a 6-hop query reads ≤ B_max total bytes across ≤ K phases given the chosen partition sizes.
-- [ ] Versioning and GC strategy specified: manifest structure, how a reader pins a version, how GC identifies and deletes unreferenced objects safely.
-- [ ] Schema evolution strategy documented: how new property columns are added without rewriting existing data objects.
-- [ ] Format spec cross-referenced from EPIC-001 and from SPIKE-0001 output.
-- [ ] Steering-storage sign-off recorded in `.project/decisions/`.
-- [ ] No Rust implementation required — specification only.
+- [x] Format spec committed to `docs/adr/` (`docs/adr/0008-storage-format.md`): describes all object types (manifest, columnar node-property `.ncol`, CSR adjacency `.adj`, `.idx`, `.stats`), naming conventions, internal binary layout (§2.2/§3.2 framing — field order, codecs, alignment, footer/trailer), and the range-read access pattern for a representative query (§2.4, §4, §6).
+- [x] Byte-budget analysis in the spec: §6 reduces exactly to ADR 0001 §2.2's in-envelope inequality; worked 50 Mbps point closes at 1.31 MB ≤ B_max = 2.88 MB across K_min = 8 phases.
+- [x] Versioning and GC strategy specified: §5 (manifest = root, partition map), §7 (content-addressed commit via ADR 0002 CAS, TTL'd reader pins, reference-counted live-object-set GC — satisfies decision 0027 BC-1).
+- [x] Schema evolution strategy documented: §8 (new column = new chunk in new shards only; absent = null via self-describing directory; readers fail-closed on unknown version/codec).
+- [x] Format spec cross-referenced from EPIC-001 and ADR 0001 (Cross-references section); F1/F2/F3 (decision 0001) discharged §3.4/§7.
+- [x] Steering-storage sign-off recorded in `.project/decisions/0032-storage-domain-spike-0003-storage-format-ratification.md` (and ADR §Sign-off).
+- [x] No Rust implementation required — specification only.
 
 ## Notes / log
 
