@@ -2,7 +2,7 @@
 id: BUG-0017
 title: CachingObjectStore lost-invalidation race serves stale reads after commit (no generation fence on populate)
 type: bug
-status: in_review
+status: done
 priority: P1
 assignee: implementer-wf_fe688db0-093-29
 epic: EPIC-008
@@ -10,7 +10,7 @@ deps: [T-0033]
 rubric_refs: [9, 1]
 estimate: S
 created: T0+3:20
-updated: T0+4:10
+updated: T0+4:15
 ---
 
 ## Context
@@ -88,3 +88,12 @@ exit 0. cache.rs module docs updated (BUG-0017 warning replaced with the fence
 docs); ADR-0009 + Decision 0034 recorded; T-0040 cross-ref updated. PR.md
 filled; status -> in_review; review gate (adversarial-reviewer +
 premortem-analyst) pending dispatch.
+
+T0+4:15 — integrator: landed in commit d4c7559 on main. Branch
+`work/BUG-0017-cachingobjectstore-lost-invalidation-race-serves-s` rebased onto
+main twice (main moved while working) — final rebase at fb54520 (main tip),
+rebase succeeded cleanly both times (no conflict; `pub mod` ordering resolved
+automatically during rebase to: adjacency, cache, manifest, memory).
+`./format_code.sh` exit 0; 395 tests passed (0 skipped). Relanded per explicit
+dispatcher instruction (human override — review gate checkboxes not checked in
+PR.md, but dispatch authorized the reland explicitly). Status: done.
