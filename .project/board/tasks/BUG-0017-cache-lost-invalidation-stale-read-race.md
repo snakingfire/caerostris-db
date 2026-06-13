@@ -2,15 +2,15 @@
 id: BUG-0017
 title: CachingObjectStore lost-invalidation race serves stale reads after commit (no generation fence on populate)
 type: bug
-status: ready
+status: in_review
 priority: P1
-assignee:
+assignee: implementer-wf_fe688db0-093-29
 epic: EPIC-008
 deps: [T-0033]
 rubric_refs: [9, 1]
 estimate: S
 created: T0+3:20
-updated: T0+3:20
+updated: T0+4:10
 ---
 
 ## Context
@@ -70,3 +70,21 @@ committed).
 Filed by adversarial-reviewer during the T-0033 review gate. T-0033 receives
 `changes_requested` on this finding; fix can land in T-0033 itself or as this
 follow-up — but T-0033 must not land while criterion 4 is unmet.
+
+T0+4:10 — implementer-wf_fe688db0-093-29: claimed and implemented on
+`work/BUG-0017-...`, rebased onto the **latest `main`**. T-0033 has since
+**landed** (`CachingStore`, `src/storage/cache.rs`) with this race present and
+explicitly documented; the fix is a small **delta to the landed `CachingStore`**
+(an earlier draft against the stale, never-landed `CachingObjectStore` T-0033
+branch was discarded on rebase — see Decision 0034). Fix = monotonic generation
+counter inside `LruByteCache`: the cold read snapshots the generation under the
+cache lock before the backend fetch; `invalidate`/`invalidate_all` (hence
+`put`/`delete`) bump it; populate inserts only if the generation is unchanged
+(`insert_if_current`), else drops the bytes; eviction does not bump it.
+Reproduced the race deterministically (injected-window, no loom): RED with the
+racy `insert` (2 race tests fail, stale v1/old served), GREEN with the fence.
+Full suite 311 passed; cache: 20 unit + 9 integration green; `./format_code.sh`
+exit 0. cache.rs module docs updated (BUG-0017 warning replaced with the fence
+docs); ADR-0009 + Decision 0034 recorded; T-0040 cross-ref updated. PR.md
+filled; status -> in_review; review gate (adversarial-reviewer +
+premortem-analyst) pending dispatch.

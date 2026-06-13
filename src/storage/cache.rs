@@ -38,36 +38,28 @@
 //! per-object `invalidate`) when it observes a newer manifest version, keeping
 //! the cache *version-correct*.
 //!
-//! ## Concurrency warning — BUG-0017 (must be fixed before enabling in production)
-//!
-//! **Do not use an enabled `CachingStore` concurrently with a writer that calls
-//! `invalidate` / `invalidate_all` until BUG-0017 is resolved.**
+//! ## Concurrency: the generation fence (BUG-0017)
 //!
 //! The miss-populate path in [`CachingStore::get`] fetches bytes from the backend
-//! under the inner-store lock, drops that lock, and then re-acquires the cache-state
-//! lock to insert. There is a window between the two lock acquisitions during which
-//! a concurrent `invalidate` / `invalidate_all` / `put` / `delete` executes against
-//! an empty cache slot (the entry is not yet inserted), so the invalidation is a
-//! no-op. The reader then populates the cache with **pre-commit bytes** and every
-//! subsequent read serves the stale version indefinitely — a snapshot-isolation
+//! while holding **no** cache-state lock (so concurrent cold readers are not
+//! serialised behind one another), and then re-acquires the cache lock to insert.
+//! Naively, a concurrent `invalidate` / `invalidate_all` / `put` / `delete`
+//! executing in that window against an empty cache slot is a no-op (the entry is
+//! not yet inserted); the reader would then populate the cache with **pre-commit
+//! bytes** and serve the stale version indefinitely — a snapshot-isolation
 //! violation (Cat. 1 / ACID gate).
 //!
-//! **Safe use cases today:**
-//! - `CacheConfig::disabled()` (the default): all reads pass through; no staleness
-//!   possible. This is the only wiring mode until BUG-0017 is fixed.
-//! - An enabled cache used **without any concurrent invalidator** (e.g. a
-//!   single-threaded warm-read benchmark): the race window is never entered.
-//!
-//! **Unsafe use case (blocked by BUG-0017):** an enabled `CachingStore` shared via
-//! `Arc` across a single writer + multiple readers where the writer calls
-//! `invalidate_all` on commit. This is exactly the multi-reader wiring target
-//! (T-0040). **T-0040 must not wire an enabled cache until BUG-0017 is fixed.**
-//! BUG-0017 is a hard dependency of T-0040 (see board item
-//! `.project/board/tasks/T-0040-cache-config-surface-and-engine-wiring.md`).
-//!
-//! The fix (a monotonic generation counter snapshotted before the backend fetch,
-//! rechecked on populate, bumped by every invalidate) is small and local; it is
-//! tracked in BUG-0017 with full acceptance criteria.
+//! That window is closed by a **monotonic generation counter** held inside the
+//! cache state (so it moves under the very lock that guards the map). A cold read
+//! snapshots the generation under the cache lock *before* the backend fetch;
+//! every coherence-affecting mutation (`invalidate`, `invalidate_all`, and the
+//! `invalidate` issued by `put`/`delete`) bumps it; the populate re-acquires the
+//! lock and inserts the fetched bytes **only if the generation is unchanged**. If
+//! a commit raced the fetch, the bytes are dropped rather than poisoning the
+//! cache. The racing read still returns the bytes it fetched (a read serializable
+//! *before* the commit), but the cache is never left holding a superseded
+//! version. This makes the Arc-shared single-writer / multi-reader wiring target
+//! (T-0040) safe to enable. See `docs/adr/0009-optional-resource-aware-cache.md`.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -187,6 +179,14 @@ struct LruByteCache {
     clock: u64,
     map: HashMap<String, CacheEntry>,
     evictions: u64,
+    /// Monotonic generation counter, bumped by every coherence-affecting
+    /// mutation (`remove` / `clear`, i.e. the invalidation paths). A cold read
+    /// snapshots it before the backend fetch and only populates if it is
+    /// unchanged afterwards — the lost-invalidation fence (BUG-0017). Eviction
+    /// (`evict_one`) deliberately does **not** bump it: evicting a stale-or-fresh
+    /// entry to reclaim space is not an invalidation and must not fence out an
+    /// in-flight populate of a *different* key.
+    generation: u64,
 }
 
 #[derive(Debug)]
@@ -204,12 +204,41 @@ impl LruByteCache {
             clock: 0,
             map: HashMap::new(),
             evictions: 0,
+            generation: 0,
         }
     }
 
     fn tick(&mut self) -> u64 {
         self.clock += 1;
         self.clock
+    }
+
+    /// Current generation. Snapshotted (under the cache lock) before a backend
+    /// fetch so the populate can detect a racing invalidation.
+    fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    /// Bump the generation, fencing out any in-flight populate that snapshotted
+    /// an earlier value. Called by the invalidation paths only.
+    fn bump_generation(&mut self) {
+        self.generation = self.generation.wrapping_add(1);
+    }
+
+    /// Populate the cache on a cold-read miss, but only if no invalidation has
+    /// run since `snapshot` was taken. Returns `true` if the bytes were cached.
+    ///
+    /// This is the BUG-0017 fence: if a commit's `invalidate`/`invalidate_all`
+    /// (or the `invalidate` issued by a concurrent `put`/`delete`) bumped the
+    /// generation while the reader was fetching from the backend, the fetched
+    /// bytes are dropped rather than caching a version that has just been
+    /// superseded.
+    fn insert_if_current(&mut self, key: &str, value: Arc<Vec<u8>>, snapshot: u64) -> bool {
+        if self.generation != snapshot {
+            return false;
+        }
+        self.insert(key, value);
+        true
     }
 
     /// Fetch a cached object, refreshing its recency. Returns `None` on a miss.
@@ -367,14 +396,23 @@ impl CachingStore {
     /// Invalidate a single key, dropping any cached bytes for it.
     ///
     /// Call this when an object is mutated outside this wrapper (e.g. the writer
-    /// committed a new version) so readers never serve stale data.
+    /// committed a new version) so readers never serve stale data. Also bumps the
+    /// cache generation so an in-flight cold-read populate is fenced out
+    /// (BUG-0017).
     pub fn invalidate(&self, key: &str) {
-        self.cache.lock().expect("cache mutex poisoned").remove(key);
+        let mut cache = self.cache.lock().expect("cache mutex poisoned");
+        cache.remove(key);
+        cache.bump_generation();
     }
 
     /// Invalidate the entire cache (e.g. on observing a newer manifest version).
+    ///
+    /// Bumps the generation so any in-flight cold-read populate is fenced out
+    /// (BUG-0017).
     pub fn invalidate_all(&self) {
-        self.cache.lock().expect("cache mutex poisoned").clear();
+        let mut cache = self.cache.lock().expect("cache mutex poisoned");
+        cache.clear();
+        cache.bump_generation();
     }
 
     /// Current cache activity snapshot.
@@ -423,10 +461,17 @@ impl ObjectStore for CachingStore {
                 .get(key);
         }
 
-        if let Some(bytes) = self.cache.lock().expect("cache mutex poisoned").get(key) {
-            self.record_hit();
-            return Ok((*bytes).clone());
-        }
+        // Snapshot the generation under the cache lock before releasing it for
+        // the (slow) backend fetch. On a hit we return immediately; on a miss we
+        // carry the snapshot through to the populate below (BUG-0017 fence).
+        let snapshot = {
+            let mut cache = self.cache.lock().expect("cache mutex poisoned");
+            if let Some(bytes) = cache.get(key) {
+                self.record_hit();
+                return Ok((*bytes).clone());
+            }
+            cache.generation()
+        };
 
         self.record_miss();
         let bytes = self
@@ -435,10 +480,12 @@ impl ObjectStore for CachingStore {
             .expect("inner store mutex poisoned")
             .get(key)?;
         let shared = Arc::new(bytes);
+        // Populate only if no invalidation raced the fetch; otherwise drop the
+        // bytes rather than caching a superseded version.
         self.cache
             .lock()
             .expect("cache mutex poisoned")
-            .insert(key, Arc::clone(&shared));
+            .insert_if_current(key, Arc::clone(&shared), snapshot);
         Ok((*shared).clone())
     }
 

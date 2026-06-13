@@ -13,8 +13,8 @@
 //! `scripts/env/bucket.sh <ID>` (per `CLAUDE.md`); these trait-level tests do
 //! not require it to be running, so they are part of the default suite.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use caerostris_db::storage::{CacheConfig, CachingStore, MemoryStore, ObjectStore, StoreError};
@@ -176,4 +176,158 @@ fn shared_backend_invalidate_propagates() {
     backend.lock().unwrap().put("k", b"v2".to_vec()).unwrap(); // writer commits v2
     reader.invalidate("k"); // reader observes the new manifest version
     assert_eq!(reader.get("k").unwrap(), b"v2");
+}
+
+// ---- BUG-0017: lost-invalidation race on the miss-populate path -----------
+//
+// A cold read misses the cache, releases the cache lock, and fetches from the
+// backend. In the window before it re-acquires the lock to populate, a
+// committing writer advances the backend and calls invalidate / invalidate_all.
+// Without the generation fence the reader caches the pre-commit bytes and every
+// subsequent read serves the stale version forever. These tests reproduce that
+// window **deterministically** (no `loom`): the backend's `get()` fires the
+// racing commit+invalidate at exactly the populate window, on the same
+// Arc-shared cache the reader is populating.
+
+/// Backend over a **shared** [`MemoryStore`] whose `get()` runs a one-shot hook
+/// after reading the bytes but before returning them — opening the post-fetch /
+/// pre-populate window. The shared store is the same one the commit hook writes
+/// to, so the post-commit version is visible to subsequent reads (which is what
+/// makes a poisoned cache observable as a stale read).
+struct WindowInjectingStore {
+    inner: Arc<Mutex<MemoryStore>>,
+    hook: Mutex<Option<Box<dyn FnOnce() + Send>>>,
+}
+
+impl WindowInjectingStore {
+    fn new(inner: Arc<Mutex<MemoryStore>>, hook: Box<dyn FnOnce() + Send>) -> Self {
+        Self {
+            inner,
+            hook: Mutex::new(Some(hook)),
+        }
+    }
+}
+
+impl ObjectStore for WindowInjectingStore {
+    fn put(&mut self, key: &str, bytes: Vec<u8>) -> Result<(), StoreError> {
+        self.inner.lock().unwrap().put(key, bytes)
+    }
+    fn get(&self, key: &str) -> Result<Vec<u8>, StoreError> {
+        // Read the version live *now* — models S3 returning the bytes that were
+        // current when the GET was issued.
+        let bytes = self.inner.lock().unwrap().get(key)?;
+        // Fire the racing commit + invalidation once, while the cache wrapper
+        // holds no cache lock.
+        if let Some(hook) = self.hook.lock().unwrap().take() {
+            hook();
+        }
+        Ok(bytes)
+    }
+    fn get_range(&self, key: &str, start: usize, end: usize) -> Result<Vec<u8>, StoreError> {
+        self.inner.lock().unwrap().get_range(key, start, end)
+    }
+    fn delete(&mut self, key: &str) -> Result<(), StoreError> {
+        self.inner.lock().unwrap().delete(key)
+    }
+    fn list(&self, prefix: &str) -> Result<Vec<String>, StoreError> {
+        self.inner.lock().unwrap().list(prefix)
+    }
+}
+
+#[test]
+fn miss_populate_raced_by_invalidate_never_serves_stale() {
+    // One shared backend that both the reader and the commit hook operate on.
+    let backend: Arc<Mutex<MemoryStore>> = Arc::new(Mutex::new(MemoryStore::new()));
+    backend
+        .lock()
+        .unwrap()
+        .put("manifest", b"v1".to_vec())
+        .unwrap();
+
+    // The cache is cloneable and shares its state via Arc, so the hook can
+    // invalidate the SAME cache the reader is about to populate.
+    let cache_slot: Arc<Mutex<Option<CachingStore>>> = Arc::new(Mutex::new(None));
+
+    let cache_slot_for_hook = Arc::clone(&cache_slot);
+    let backend_for_hook = Arc::clone(&backend);
+    let hook = Box::new(move || {
+        backend_for_hook
+            .lock()
+            .unwrap()
+            .put("manifest", b"v2".to_vec())
+            .unwrap();
+        if let Some(cache) = cache_slot_for_hook.lock().unwrap().as_ref() {
+            cache.invalidate("manifest");
+        }
+    });
+
+    let reader_backend = WindowInjectingStore::new(Arc::clone(&backend), hook);
+    let cache = CachingStore::new(reader_backend, CacheConfig::with_memory_budget(1 << 20));
+    *cache_slot.lock().unwrap() = Some(cache.clone());
+
+    // Cold read: fetches v1, the hook commits v2 + invalidates, the fence drops
+    // v1 (generation moved). The bytes returned to THIS read are v1 (a read
+    // serializable before the commit), but the cache is NOT poisoned.
+    assert_eq!(
+        cache.get("manifest").unwrap(),
+        b"v1",
+        "the racing read itself sees the pre-commit bytes"
+    );
+    // Decisive: the next read must reflect the committed version. With the bug
+    // this returns the stale v1 forever.
+    assert_eq!(
+        cache.get("manifest").unwrap(),
+        b"v2",
+        "after commit+invalidate raced the populate, reads must reflect v2"
+    );
+    assert_eq!(cache.get("manifest").unwrap(), b"v2");
+}
+
+#[test]
+fn miss_populate_raced_by_invalidate_all_never_serves_stale() {
+    let backend: Arc<Mutex<MemoryStore>> = Arc::new(Mutex::new(MemoryStore::new()));
+    backend.lock().unwrap().put("k", b"old".to_vec()).unwrap();
+
+    let cache_slot: Arc<Mutex<Option<CachingStore>>> = Arc::new(Mutex::new(None));
+    let cache_slot_for_hook = Arc::clone(&cache_slot);
+    let backend_for_hook = Arc::clone(&backend);
+    let hook = Box::new(move || {
+        backend_for_hook
+            .lock()
+            .unwrap()
+            .put("k", b"new".to_vec())
+            .unwrap();
+        if let Some(cache) = cache_slot_for_hook.lock().unwrap().as_ref() {
+            cache.invalidate_all();
+        }
+    });
+
+    let reader_backend = WindowInjectingStore::new(Arc::clone(&backend), hook);
+    let cache = CachingStore::new(reader_backend, CacheConfig::with_memory_budget(1 << 20));
+    *cache_slot.lock().unwrap() = Some(cache.clone());
+
+    assert_eq!(cache.get("k").unwrap(), b"old");
+    assert_eq!(
+        cache.get("k").unwrap(),
+        b"new",
+        "invalidate_all racing the populate must not leave a stale entry"
+    );
+}
+
+#[test]
+fn unraced_miss_still_populates_and_warms() {
+    // The fence must not over-fire: a cold read with no racing invalidation
+    // still caches, so the second read is a hit.
+    let backend: Arc<Mutex<MemoryStore>> = Arc::new(Mutex::new(MemoryStore::new()));
+    backend.lock().unwrap().put("k", b"v".to_vec()).unwrap();
+    let reader = CachingStore::from_arc(
+        Arc::clone(&backend) as Arc<Mutex<dyn ObjectStore + Send>>,
+        CacheConfig::with_memory_budget(1 << 20),
+    );
+    assert_eq!(reader.get("k").unwrap(), b"v"); // miss → populate
+    assert_eq!(reader.get("k").unwrap(), b"v"); // hit
+    let s = reader.stats();
+    assert_eq!(s.hits, 1, "second read was a cache hit");
+    assert_eq!(s.misses, 1, "only the first read missed");
+    assert_eq!(s.entries, 1, "the unraced object was cached");
 }
