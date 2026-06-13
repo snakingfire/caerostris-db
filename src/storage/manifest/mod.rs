@@ -44,7 +44,10 @@ pub mod stats;
 
 use serde::{Deserialize, Serialize};
 
-pub use resolve::{ManifestStoreError, read_manifest, resolve_latest};
+pub use resolve::{
+    ManifestStoreError, read_manifest, read_referenced_objects, resolve_latest,
+    resolve_latest_hint, resolve_latest_version,
+};
 pub use stats::{DegreeStats, Direction, Freshness, LabelStats, StatsBlobRef, StatsBlock};
 
 /// The S3 key prefix every manifest object lives under (ADR 0002 §1).
