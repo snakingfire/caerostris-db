@@ -2,7 +2,7 @@
 id: T-0033
 title: Optional resource-aware cache wrapper around ObjectStore (LRU, bounded)
 type: task
-status: in_review
+status: done
 priority: P2
 assignee: implementer-wf_156e2b80-bb6-10
 epic: EPIC-008
@@ -10,7 +10,7 @@ deps: [T-0001]
 rubric_refs: [9]
 estimate: M
 created: T0+0:20
-updated: T0+3:35
+updated: T0+3:38
 ---
 
 ## Context
@@ -59,3 +59,8 @@ proof is T-0034 (depends on the benchmark T-0016).
   BUG-0017` to `src/storage/cache.rs` module doc (documents race, names safe/unsafe
   use cases, blocks T-0040 on BUG-0017); (3) added BUG-0017 as hard dep of T-0040.
   Pre-mortem sign-off checkbox checked. Proceeding to land per commander's dispatch.
+- T+3:38 — Landed in commit 5ab73a7. format_code.sh green; 274/274 tests passed.
+  Rebase resolved: board/T-0033 log conflict (union), Cargo.toml bench table +
+  serde_json dev-dep conflict (kept bench, dropped redundant dev-dep), lib.rs
+  auto-merged (storage description updated + all modules from main kept). PR.md
+  untracked (BUG-0013 hygiene). Status -> done.
