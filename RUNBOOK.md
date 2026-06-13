@@ -25,11 +25,16 @@ This is the human's guide. The agents' guide is
 
 1. Open a **fresh Claude Code session** in this repo (Opus-tier recommended; the
    swarm dispatches its own per-task models).
-2. Make sure the environment is ready:
-   - Toolchain available (`direnv allow`, or rustup via `rust-toolchain.toml`).
-   - A local S3 mock for integration tests (MinIO or moto/localstack) — see
-     [`docs/process/testing-and-benchmarks.md`](docs/process/testing-and-benchmarks.md).
-     Real AWS S3 / EC2 are optional and wired later when you supply credentials.
+2. Host requirements are minimal — **the swarm provisions its own environment**
+   (you do **not** set up a mock):
+   - A Rust toolchain (`direnv allow`, or rustup via `rust-toolchain.toml`).
+   - **Docker _or_ Python** available somewhere on the host — the swarm stands up
+     its own local S3 mock from these (Docker MinIO → moto, auto-detected, with
+     fallback). No manual mock, no manual bucket; concurrent agents are isolated
+     automatically. See
+     [`docs/process/parallel-execution-and-environment.md`](docs/process/parallel-execution-and-environment.md).
+   - Real AWS S3 / EC2 are optional and wired later when you supply credentials
+     (via the environment — never the repo).
 3. Run the launch command:
 
    ```

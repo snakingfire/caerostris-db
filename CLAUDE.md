@@ -61,6 +61,13 @@ cargo bench                                  # criterion benches
   warnings + taplo). CI enforces fmt, clippy, and tests.
 - **Clippy warnings are errors.** Keep the tree warning-clean.
 - **≥90% line coverage**, integration tests on the S3 mock, criterion benches.
+- **Parallel-safe by construction.** The swarm **self-provisions** its own local
+  S3 mock — no human setup. Before integration tests, run `scripts/env/up.sh`
+  (idempotent) and `eval "$(scripts/env/bucket.sh <ID>)"` for an isolated
+  bucket/prefix. Every shared resource is namespaced: one worktree per work item,
+  per-item S3 bucket/prefix, single-writer landing on `main`. Never start your own
+  mock or assume a clean bucket. See
+  [`docs/process/parallel-execution-and-environment.md`](docs/process/parallel-execution-and-environment.md).
 - **Open source, public repo: never commit secrets or data.** gitleaks runs in
   pre-commit; `.env*`, keys, `/target`, and large datasets/artifacts are
   gitignored. License-clean deps + datasets only. See

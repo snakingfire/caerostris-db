@@ -6,7 +6,7 @@ status: ready
 priority: P0
 assignee:
 epic: EPIC-001
-deps: []
+deps: [T-0000]
 rubric_refs: [2, 12]
 estimate: M
 created: T0

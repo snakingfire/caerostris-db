@@ -89,7 +89,9 @@ const state = await agent(
     `.project/board/tasks/ (use scripts/board/ls.sh or rg over frontmatter), the latest report in .project/reports/, ` +
     `and .project/pace/deadline.md. Return: whether to stop, whether bootstrap has happened, the READY items (highest ` +
     `priority first, cap ~30) each tagged with the best agentType 'role' to handle it and whether it needs steering sign-off, ` +
-    `any items stuck in_review, whether we are behind pace, and a one-line summary. Do not modify anything.`,
+    `any items stuck in_review, whether we are behind pace, and a one-line summary. You MAY run scripts/env/up.sh ` +
+    `(idempotent) to ensure the shared local S3 mock is provisioned and healthy for this epoch's integration work ` +
+    `(see docs/process/parallel-execution-and-environment.md); otherwise do not modify the repo or board.`,
   { label: 'orient', phase: 'Orient', model: 'sonnet', agentType: 'pace-marshal', schema: ORIENT_SCHEMA }
 )
 

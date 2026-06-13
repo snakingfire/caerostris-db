@@ -53,8 +53,11 @@ agent to read the canon docs + its agent definition.
 > .project/pace/deadline.md, docs/process/autonomous-operating-model.md. (1) Groom
 > the board: unblock items whose deps are done, re-prioritize toward the lowest
 > GATE rubric categories if behind pace, split stuck L tasks, nudge items stuck
-> in_review. (2) If the current wallclock is past T0+5:00 (hard deadline), create
-> the `.project/STOP` sentinel (gitignored, run-local) and stop relaunching.
+> in_review. (1b) Keep the environment healthy: run `scripts/env/up.sh`
+> (idempotent) — it re-provisions the shared local S3 mock if it died; file a P0
+> if provisioning fails (see docs/process/parallel-execution-and-environment.md).
+> (2) If the current wallclock is past T0+5:00 (hard deadline), create the
+> `.project/STOP` sentinel (gitignored, run-local) and stop relaunching.
 > (3) Otherwise, check active
 > tasks/workflows (TaskList): if **no** `mainspring` workflow is currently running
 > and `.project/STOP` is absent, relaunch one epoch with

@@ -141,28 +141,35 @@ tests/
 Large datasets are **never committed** — see [`datasets.md`](datasets.md) and
 [`open-source-guardrails.md`](open-source-guardrails.md).
 
-### Running integration tests
+### Running integration tests (self-provisioned, parallel-safe)
+
+**There is no manual setup step** — the swarm provisions its own shared S3 mock
+and isolates every agent's data. The full contract is in
+[`parallel-execution-and-environment.md`](parallel-execution-and-environment.md);
+the short version a test (or a human) runs:
 
 ```bash
-# Start MinIO (Docker):
-docker run -d -p 9000:9000 -p 9001:9001 \
-  -e MINIO_ROOT_USER=minioadmin \
-  -e MINIO_ROOT_PASSWORD=minioadmin \
-  quay.io/minio/minio server /data --console-address ":9001"
-
-# Create the test bucket:
-mc alias set local http://127.0.0.1:9000 minioadmin minioadmin
-mc mb local/caerostris-test
-
-# Run integration tests:
-CAEROSTRIS_S3_ENDPOINT=http://127.0.0.1:9000 \
-CAEROSTRIS_S3_REGION=us-east-1 \
-CAEROSTRIS_S3_BUCKET=caerostris-test \
-AWS_ACCESS_KEY_ID=minioadmin \
-AWS_SECRET_ACCESS_KEY=minioadmin \
-CAEROSTRIS_S3_FORCE_PATH_STYLE=true \
-cargo nextest run --test integration
+scripts/env/up.sh                             # idempotent: starts the shared mock if not already up
+source "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.project/env/local.env"
+eval "$(scripts/env/bucket.sh integration)"   # unique CAEROSTRIS_S3_BUCKET + CAEROSTRIS_S3_PREFIX
+cargo nextest run --test integration          # uses the env vars sourced above
 ```
+
+Many agents run this **concurrently and safely**: one shared mock (no port wars),
+a per-item bucket/prefix (no data cross-talk), worktree-isolated source. `up.sh`'s
+provision ladder is **Docker MinIO → `moto_server` → `pip install moto[server]`
+→ in-process memory backend** (unit-only). Under the hood the Docker path is
+equivalent to:
+
+```bash
+docker run -d --name caerostris-minio -p 9000:9000 \
+  -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+  quay.io/minio/minio server /data    # minioadmin = MinIO's PUBLIC local-mock default, never a real secret
+```
+
+`integration/mod.rs` shared setup follows the same rule: call `up.sh`
+(idempotent), source `local.env`, allocate a unique bucket/prefix, and tear down
+its own namespace — never assume a clean shared bucket.
 
 ### Same code path against real S3
 

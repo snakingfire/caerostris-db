@@ -28,6 +28,9 @@
 .project/.bootstrapped
 .project/.mainspring.lock
 .project/STOP
+# Self-provisioned local environment state (endpoint, creds, locks, pidfiles).
+# Lives in the MAIN worktree; shared across all worktrees; never committed.
+.project/env/
 
 # Datasets & large fixtures are fetched/generated, never committed (release
 # notes in releases/*.md ARE committed; built binaries/wheels are not).

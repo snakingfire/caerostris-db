@@ -23,6 +23,13 @@ You do **not** wait for the whole design to finish before building. Split work:
 the clear part ships now; the unclear part is a spike. **Blocking the board is the
 cardinal sin.**
 
+Running this many agents at once only works because the run **self-provisions its
+own environment** (no human setup) and **isolates every shared resource** so
+parallel work never conflicts — one worktree per item, a per-item S3
+bucket/prefix on one shared mock, single-writer landing on `main`. This is
+mandatory; see
+[`parallel-execution-and-environment.md`](parallel-execution-and-environment.md).
+
 ## Roles (see `.claude/agents/` for the dispatchable definitions)
 
 | Role | Agent def | Mandate |
