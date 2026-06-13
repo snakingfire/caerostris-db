@@ -5,6 +5,50 @@
 
 ---
 
+## ALARM — T+01:23 (RED P1 — score 13 vs checkpoint ~20 missed; T+1:40 checkpoint in 17 min; review queue choked; grader overdue)
+
+**Level:** RED P1
+**Wallclock:** 2026-06-13T19:47:20Z (T+01:23)
+**Expected overall at T+1:00 (19:24Z):** ~20 — MISSED
+**Expected overall at T+1:40 (20:04Z):** ~35 — at risk (17 min away)
+**Last known actual score:** 13 (T+0:37 grade — no new rubric report in 46 min; grader OVERDUE)
+**Delta vs. T+1:00 checkpoint:** -7 points (RED threshold: ≥5 behind)
+
+**Condition:** The in_review queue (SPIKE-0001, SPIKE-0002, SPIKE-0005, T-0002, T-0005) has
+NOT cleared. None have landed on main yet. Grader missed the T+0:57 and T+1:17 cycles. S3 env healthy.
+
+**Critical bottlenecks (priority order):**
+1. In-review queue choked: SPIKE-0001 (Cat 3 w14), SPIKE-0002 (TLA+, Cat 1/11 w6+14), SPIKE-0005
+   (Cat 1/7/11), T-0002 (TCK Cat 4 w12), T-0005 (coverage Cat 10 w8) all built but not merged.
+   Landing T-0002 alone takes Cat 4 off floor 0. Action: integrator must land all five NOW.
+2. T-0000 (env hardening) still ready/unclaimed — blocks T-0001 (crate skeleton) → all Cat 1/2 code.
+   Action: claim and complete T-0000.
+3. BUG-0007 + T-0039 blocked on src/lib.rs rebase conflicts. Action: rebase-resolve both.
+4. Rubric grader overdue (46 min since last grade). Action: dispatch rubric-grader immediately.
+5. Hourly release at T+1:00 missed. Cat 12 requires ≥1/hour. Action: cut manual tag.
+
+**Board grooming — no unblocks possible this tick:**
+Done set = {SPIKE-0006, SPIKE-0007, SPIKE-0008, BUG-0006, T-0003}. SPIKE-0003/0004 gate on SPIKE-0001
+(in_review, not done). T-0001 gates on T-0000 (ready, not done). No backlog item has all deps met.
+
+**Score projection if in-review clears this cycle:**
+- T-0002 lands: Cat 4 0→10+ (~+1.2 overall)
+- SPIKE-0002 lands: Cat 11 20→35+ (~+0.9 overall)
+- T-0000+T-0001 claimed: Cat 1/2/10 begin real progress
+- Projected overall: ~22–25 (partial recovery toward T+1:40 checkpoint of ~35)
+
+**Epoch 3 dispatch manifest — T+01:23 (highest rubric weight first):**
+1. SPIKE-0001 → integrator (ratify + land; unblocks SPIKE-0003/0004 and Cat 3 evidence)
+2. SPIKE-0002 → integrator (TLA+ + ADR; Cat 1/11 tree unlock)
+3. T-0002 → integrator (TCK harness; Cat 4 w12 off floor 0)
+4. SPIKE-0005 → integrator (commit constraints; Cat 1/7/11)
+5. T-0005 → integrator (coverage CI; Cat 10)
+6. T-0000 → implementer (env hardening; unlocks entire storage tree)
+7. BUG-0007 → implementer (rebase-resolve; re-review)
+8. rubric-grader → researcher (grade current state; overdue)
+
+---
+
 ## ALARM — T+01:21 (AMBER→RED watch — last grade 13, checkpoint ~20 at T+1:00 missed)
 
 **Level:** AMBER (escalating toward RED if no new grade shows ≥20 this cycle)
