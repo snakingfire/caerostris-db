@@ -2,8 +2,7 @@
 id: T-0022
 title: Define pluggable secondary-index trait (insert/delete/lookup/range)
 type: task
-status: backlog
-priority: P2
+status: readypriority: P2
 assignee:
 epic: EPIC-005
 deps: [T-0006]

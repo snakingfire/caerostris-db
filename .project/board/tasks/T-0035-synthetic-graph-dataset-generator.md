@@ -2,8 +2,7 @@
 id: T-0035
 title: License-clean synthetic graph dataset generator (1M nodes / 10M edges)
 type: task
-status: backlog
-priority: P2
+status: readypriority: P2
 assignee:
 epic: EPIC-009
 deps: [T-0006]
