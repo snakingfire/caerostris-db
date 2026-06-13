@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [10, 12]
 estimate: S
 created: T0
-updated: T+3:12
+updated: T+3:18
 ---
 
 ## Context
@@ -75,3 +75,16 @@ No dep on T-0001 or T-0002 — this task can run in parallel or even before them
   grader numbers); the `coverage` job now regenerates the file via `tck-runner`
   and archives it. Updated `ci.yml`, `docs/process/ci-grader-inputs.md`, decision
   `0012`, and this item. `./format_code.sh` + tests green; gitleaks clean.
+
+- **T+3:18 (implementer-wf_156e2b80-bb6-3):** `main` advanced to `0d2875e`
+  (BUG-0010 ADR renumber, SPIKE-0004, BUG-0008 in_review) mid-build; **re-rebased
+  onto current `main`** and dropped the now-obsolete BUG-0008 revert (main owns it)
+  and a stale `PACE_ALARMS.md` artifact. Final diff vs `main` is **10 files, all
+  T-0005-only** (ci.yml, .gitignore, flake.nix, scripts/ci/grader-inputs.sh[+test],
+  tests/ci_grader_inputs.rs, decision 0012, docs/process/ci-grader-inputs.md, this
+  item, PR.md) — no foreign reversals. Verified in the reloaded devenv shell:
+  `cargo llvm-cov --json` clean (line% = 96.29), `grader-inputs.sh` emits the full
+  GRADER_INPUTS block from real numbers, canonical-path TCK round-trip (0/1602).
+  `./format_code.sh` exit 0; 176/176 nextest; gitleaks clean. Worktree
+  `.claude/worktrees/wf_156e2b80-bb6-3`. Requesting adversarial-reviewer +
+  premortem-analyst.
