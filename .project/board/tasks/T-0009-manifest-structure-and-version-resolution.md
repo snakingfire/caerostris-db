@@ -2,14 +2,15 @@
 id: T-0009
 title: Implement manifest object, statistics block, and latest-version resolution
 type: task
-status: readypriority: P1
-assignee:
+status: in_progress
+priority: P1
+assignee: implementer-wf_156e2b80
 epic: EPIC-001
 deps: [SPIKE-0002, SPIKE-0003, SPIKE-0004]
 rubric_refs: [1, 2, 3]
 estimate: M
 created: T0+0:20
-updated: T0+0:20
+updated: T0+3:45
 ---
 
 ## Context
