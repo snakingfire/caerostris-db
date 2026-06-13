@@ -1,0 +1,29 @@
+# Install with `pre-commit install` (the `pre-commit` binary is in the Nix dev
+# shell). Non-Nix users: `pip install pre-commit` or `cargo`/system equivalents.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.1
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --all --
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy (deny warnings)
+        entry: cargo clippy --all-targets --all-features -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: taplo-fmt
+        name: taplo format (TOML)
+        entry: taplo format
+        language: system
+        files: \.toml$

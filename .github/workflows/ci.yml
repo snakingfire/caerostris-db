@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Primary signal: the standard rustup/cargo path most contributors use.
+  test:
+    name: fmt + clippy + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Format check
+        run: cargo fmt --all --check
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Test
+        run: cargo test --all-features --verbose
+
+  # Secondary signal: prove the Nix dev shell still builds (catches flake rot).
+  nix:
+    name: nix dev shell builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            accept-flake-config = true
+            extra-substituters = https://devenv.cachix.org
+            extra-trusted-public-keys = devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=
+      - name: Build dev shell and report toolchain
+        run: nix develop --impure --command bash -c "rustc --version && cargo --version"

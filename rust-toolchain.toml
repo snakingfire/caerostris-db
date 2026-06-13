@@ -1,0 +1,7 @@
+# Pins the Rust toolchain for non-Nix users — rustup reads this file
+# automatically, and CI honours it too. Nix users get an equivalent stable
+# toolchain via flake.nix (devenv `languages.rust`).
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy", "rust-analyzer"]
+profile = "default"

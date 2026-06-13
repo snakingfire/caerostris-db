@@ -1,0 +1,15 @@
+[package]
+name = "caerostris-db"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+description = "A graph database engine backed by commodity durable object storage"
+license = "MIT"
+repository = "https://github.com/caerostris/caerostris-db"
+readme = "README.md"
+keywords = ["database", "graph", "object-storage", "s3"]
+categories = ["database-implementations"]
+
+[dependencies]
+
+[dev-dependencies]

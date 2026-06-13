@@ -1,0 +1,24 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+
+# Nix / devenv / direnv
+.devenv/
+.direnv/
+.devenv.flake.nix
+
+# Secrets / credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# NOTE: Cargo.lock IS committed — this crate ships a binary, so we pin the
+# exact dependency graph for reproducible builds.
