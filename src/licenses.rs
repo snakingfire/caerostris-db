@@ -112,6 +112,7 @@ pub fn is_permissive(spdx: &str) -> bool {
     let mut parser = SpdxParser {
         tokens: &tokens,
         pos: 0,
+        depth: 0,
     };
     match parser.parse_or() {
         // A well-formed parse that consumed the whole expression.
@@ -175,12 +176,25 @@ fn spdx_tokenize(input: &str) -> Option<Vec<SpdxToken>> {
     Some(tokens)
 }
 
+/// Maximum parenthesis-nesting depth the recursive-descent evaluator will
+/// descend into before refusing to continue. Real SPDX expressions nest a
+/// handful of levels at most; a far higher bound than any legitimate
+/// expression needs, yet low enough that the bounded recursion cannot overflow
+/// the stack. Input nested deeper than this is rejected conservatively
+/// (`false`) rather than aborting the process — fixes BUG-0015, where ~200k
+/// nested parens overflowed the stack and SIGABRT-ed the whole binary.
+const MAX_PAREN_DEPTH: usize = 64;
+
 /// Recursive-descent evaluator over SPDX tokens. Each `parse_*` returns the
 /// permissive verdict of the sub-expression it consumed, or `None` on a parse
 /// error (which the caller turns into a conservative `false`).
 struct SpdxParser<'a> {
     tokens: &'a [SpdxToken],
     pos: usize,
+    /// Current parenthesis-nesting depth, bounded by [`MAX_PAREN_DEPTH`] so a
+    /// pathologically deep expression is rejected instead of overflowing the
+    /// stack (BUG-0015).
+    depth: usize,
 }
 
 impl SpdxParser<'_> {
@@ -233,8 +247,16 @@ impl SpdxParser<'_> {
     fn parse_atom(&mut self) -> Option<bool> {
         match self.peek() {
             Some(SpdxToken::LParen) => {
+                // Bound the recursion: refuse to descend past MAX_PAREN_DEPTH so
+                // a pathologically deep expression is rejected conservatively
+                // (`false`) instead of overflowing the stack (BUG-0015).
+                if self.depth >= MAX_PAREN_DEPTH {
+                    return None;
+                }
                 self.pos += 1;
+                self.depth += 1;
                 let inner = self.parse_or()?;
+                self.depth -= 1;
                 if matches!(self.peek(), Some(SpdxToken::RParen)) {
                     self.pos += 1;
                     Some(inner)
@@ -483,6 +505,65 @@ mod tests {
         ));
         // (MIT AND (GPL-3.0 OR AGPL-3.0)) -> second conjunct unsatisfiable -> not permissive.
         assert!(!is_permissive("MIT AND (GPL-3.0 OR AGPL-3.0)"));
+    }
+
+    // --- BUG-0015: parenthesis-nesting depth cap (no unbounded recursion) ----
+
+    /// Wrap `inner` in `depth` layers of parentheses: `(((... inner ...)))`.
+    fn nest(inner: &str, depth: usize) -> String {
+        format!("{}{inner}{}", "(".repeat(depth), ")".repeat(depth))
+    }
+
+    #[test]
+    fn deeply_nested_parens_are_rejected_without_aborting() {
+        // The reported repro: 200_000 nested parens overflowed the stack and
+        // aborted the process (SIGABRT). It must now return a conservative
+        // `false` and the process must survive.
+        let expr = nest("MIT", 200_000);
+        assert!(!is_permissive(&expr));
+        // Reaching here at all proves we did not overflow the stack.
+    }
+
+    #[test]
+    fn nesting_at_the_depth_cap_still_classifies_correctly() {
+        // A permissive identifier wrapped to exactly the maximum allowed depth
+        // must still be honored — the cap rejects only *beyond* the bound.
+        let at_cap = nest("MIT", MAX_PAREN_DEPTH);
+        assert!(is_permissive(&at_cap));
+        // A copyleft identifier at the cap stays non-permissive.
+        let at_cap_copyleft = nest("GPL-3.0", MAX_PAREN_DEPTH);
+        assert!(!is_permissive(&at_cap_copyleft));
+    }
+
+    #[test]
+    fn nesting_one_past_the_cap_is_conservatively_rejected() {
+        // One level deeper than the cap is rejected conservatively (`false`),
+        // even for an otherwise-permissive identifier — we never guess
+        // permissive when we refuse to evaluate.
+        let past_cap = nest("MIT", MAX_PAREN_DEPTH + 1);
+        assert!(!is_permissive(&past_cap));
+    }
+
+    #[test]
+    fn modest_realistic_nesting_is_honored() {
+        // Realistic SPDX expressions never nest beyond a handful of levels;
+        // depths well within the cap must classify exactly as the un-nested
+        // expression would.
+        for depth in [1usize, 4, 8, 16] {
+            assert!(
+                is_permissive(&nest("MIT", depth)),
+                "permissive ident at depth {depth} should be permissive"
+            );
+            assert!(
+                !is_permissive(&nest("GPL-3.0", depth)),
+                "copyleft ident at depth {depth} should not be permissive"
+            );
+            // A nested disjunction is still evaluated under the precedence rules.
+            assert!(
+                is_permissive(&nest("MIT OR GPL-3.0", depth)),
+                "nested disjunction with an approved branch should be permissive"
+            );
+        }
     }
 
     #[test]
