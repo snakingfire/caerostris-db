@@ -2,15 +2,15 @@
 id: T-0000
 title: Self-provision the local environment and guarantee parallel-safe isolation
 type: task
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: implementer-wf_365f5b82-d76-3
 epic: EPIC-009
 deps: []
 rubric_refs: [10, 12]
 estimate: M
 created: T0
-updated: T0
+updated: T+1:24
 ---
 
 ## Context
