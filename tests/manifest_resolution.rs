@@ -36,7 +36,11 @@ use caerostris_db::storage::{MemoryStore, ObjectStore};
 
 /// Build a manifest for `version` referencing the given data/stats object keys,
 /// with a small but realistic inline statistics block.
-fn make_manifest(version: ManifestVersion, data_keys: &[(&str, ObjectKind)], stats_blob: Option<&str>) -> Manifest {
+fn make_manifest(
+    version: ManifestVersion,
+    data_keys: &[(&str, ObjectKind)],
+    stats_blob: Option<&str>,
+) -> Manifest {
     let mut m = Manifest::genesis("2026-06-13T18:24:00Z");
     m.manifest_version = version;
     m.stats.as_of_version = version;
@@ -70,7 +74,10 @@ fn commit(store: &mut dyn ObjectStore, manifest: &Manifest) {
             .expect("stage object");
     }
     store
-        .put(&manifest.key(), manifest.to_bytes().expect("serialise manifest"))
+        .put(
+            &manifest.key(),
+            manifest.to_bytes().expect("serialise manifest"),
+        )
         .expect("write manifest");
 }
 
@@ -149,7 +156,10 @@ fn ooe_critical_stats_are_readable_from_the_pinned_manifest() {
     let m = resolve_latest(&store).expect("resolve");
     assert_eq!(m.stats.total_node_count, 12);
     assert_eq!(m.stats.node_count("Person"), Some(12));
-    let d = m.stats.degree("FOLLOWS", Direction::Out).expect("degree present");
+    let d = m
+        .stats
+        .degree("FOLLOWS", Direction::Out)
+        .expect("degree present");
     assert_eq!(d.edge_count, 20);
     assert_eq!(d.p99_deg, 4);
     assert_eq!(d.max_deg, 7); // the mandatory super-hub safety term
@@ -191,7 +201,11 @@ fn stale_reader_keeps_a_consistent_snapshot_after_newer_commits() {
     let reread = read_manifest(&store, ManifestVersion(1)).expect("re-read pinned");
     assert_eq!(pinned, reread);
     let objs = read_referenced_objects(&store, &pinned).expect("read pinned objects");
-    assert_eq!(objs.len(), 1, "pinned snapshot sees exactly its own object set");
+    assert_eq!(
+        objs.len(),
+        1,
+        "pinned snapshot sees exactly its own object set"
+    );
 
     // Meanwhile the latest resolver sees V=2.
     assert_eq!(
@@ -215,7 +229,9 @@ fn no_raw_property_values_appear_in_a_committed_manifest() {
     );
     commit(&mut store, &m);
 
-    let manifest_bytes = store.get(&manifest_key(ManifestVersion(1))).expect("get manifest");
+    let manifest_bytes = store
+        .get(&manifest_key(ManifestVersion(1)))
+        .expect("get manifest");
     let manifest_text = String::from_utf8(manifest_bytes).expect("utf8");
     // Property *values* (a user's name, a country code) must never appear; the
     // manifest only holds keys, kinds, counts, degrees, and digests.
