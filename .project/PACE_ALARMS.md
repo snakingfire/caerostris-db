@@ -521,3 +521,10 @@ No GATE sliding (Cat3=78/Cat11=65 strong). Env OK. ~1h50m to deadline. Action: n
 done:19 (stuck ~15min) ready:9 in_review:3 backlog:38. MAIN GREEN (on main @ 0d2875e, builds 0.02s) — no P0. 5/5 lanes alive + ~43 worktrees building, BUT no new done landings since the 5-lane relaunch — same pattern: lanes BUILD well, don't LAND. Focused integrators remain the only reliable landers (T-0001/0002/0006/0014 all landed that way).
 ACTION: reclaimed + dispatched 3 focused landers (safe-merge the already-BUILT branches): T-0017 cypher lexer/parser (Cat 4 keystone), T-0005 coverage (Cat 10 GATE), T-0022 index trait (Cat 5). Lanes keep building breadth; focused integrators land. Land-lock serializes all merges.
 Env OK; cascade gated on SPIKE-0003 (storage format spec, in-progress → unblocks T-0007/0008/0009). ~1h45m to deadline. Next: verify the 3 land + dispatch the next built batch (storage, commit, python).
+
+---
+
+## STATUS — T+3:20 (Cat-4 keystone landed: lexer/parser on main)
+MAIN GREEN. T-0017 openCypher lexer+parser→AST LANDED (91b934c) — the first query-engine piece (Cat 4 path opens: next planner T-0018 → executor T-0019 → TCK reads start passing). T-0005 coverage + T-0022 index landers still in flight. Board done=19 (status commit lagging the code merge; →20+ shortly). 5/5 lanes building breadth.
+Focused-lander pattern working: lanes build (43 worktrees), focused integrators land (T-0001/0002/0006/0014/0017). Land-lock serializes merges; main stays green.
+Env OK, lock free, cascade gated on SPIKE-0003 (storage format spec). ~1h40m to deadline. Next: verify T-0005/0022 land + dispatch the query-chain next (planner/executor) and storage once SPIKE-0003 lands.
