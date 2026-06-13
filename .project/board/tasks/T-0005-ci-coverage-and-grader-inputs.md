@@ -2,7 +2,7 @@
 id: T-0005
 title: Add cargo-llvm-cov coverage reporting and ensure CI emits grader-readable outputs
 type: task
-status: in_progress
+status: in_review
 priority: P0
 assignee: implementer-wf_84c0f0c7-752-17
 epic: EPIC-009
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [10, 12]
 estimate: S
 created: T0
-updated: T+0:33
+updated: T+0:40
 ---
 
 ## Context
@@ -49,3 +49,15 @@ This task operates on CI configuration and `Cargo.toml` / `flake.nix` — minima
 ## Notes / log
 
 No dep on T-0001 or T-0002 — this task can run in parallel or even before them. The coverage% will be 0 or N/A initially; that is fine. The infrastructure is what matters here, not the number.
+
+- **T+0:40 (implementer-wf_84c0f0c7-752-17):** claimed, built TDD-first on branch
+  `work/T-0005-add-cargo-llvm-cov-coverage-reporting-and-ensure-c`. Added
+  `scripts/ci/grader-inputs.sh` (+ test harness `grader-inputs.test.sh`, 10
+  assertions, run RED→GREEN) emitting the `GRADER_INPUTS` block + coverage gate;
+  CI `coverage` job (cargo-llvm-cov LCOV+JSON, artifacts retention 14d);
+  `flake.nix` adds cargo-llvm-cov (Apache-2.0/MIT) + llvm-tools-preview; TCK stub
+  at `.project/reports/tck-results-latest.json`; docs `docs/process/ci-grader-inputs.md`;
+  decision `0012`. Verified `cargo llvm-cov --json` locally in the devenv shell
+  (line% = 60 via the CI jq query). `./format_code.sh` + `cargo nextest run` green;
+  gitleaks clean. Status → `in_review`; PR at `.worktrees/T-0005/PR.md`. Pending
+  adversarial-reviewer + premortem-analyst sign-off, then integrator land.
