@@ -2,15 +2,15 @@
 id: BUG-0028
 title: Adjacency expand() errors (BadVarint) instead of early-aborting when the byte cap is below a block's leading degree varint
 type: bug
-status: ready
+status: in_progress
 priority: P1
-assignee:
+assignee: implementer-wf_3215ee4a-fcf-29
 epic: EPIC-001
 deps: []
 rubric_refs: [2, 3]
 estimate: S
 created: T0+4:10
-updated: T0+4:10
+updated: T0+4:28
 ---
 
 ## Context
