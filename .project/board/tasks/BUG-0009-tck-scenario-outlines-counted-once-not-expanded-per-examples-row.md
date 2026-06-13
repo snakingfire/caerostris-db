@@ -2,14 +2,14 @@
 id: BUG-0009
 title: TCK Scenario Outlines counted once, not expanded per Examples row (denominator ~2.4x too small; <placeholders> unsubstituted)
 type: bug
-status: ready
+status: in_review
 priority: P1
-assignee:
+assignee: test-author-wf_156e2b80-bb6-4
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+0:58
-updated: T0+1:31
+updated: T0+3:05
 ---
 
 ## Context
@@ -89,3 +89,22 @@ latent defect that activates the moment a real engine plugs in.
   documented-gap+guard interim the AC permits), fill PR.md with real test
   evidence, re-request review. Pre-mortem sign-off withheld. Verdict block in
   `.worktrees/BUG-0009/PR.md`.
+- T0+3:05 (test-author): re-cut clean from latest `main` (`494a9e7`) on branch
+  `work/BUG-0009-outline-expansion`. Implemented the **real fix** (not the
+  interim): `tck_runner::outline::expand_scenario` expands each `Scenario
+  Outline` into one concrete scenario per `Examples` data row, substituting
+  `<placeholder>` tokens into the name, every step value, every docstring
+  (query + setup), and every data-table cell; `runner::all_scenarios` expands
+  before `classify`. Harness `total` is now the expanded **3884** (= 1326
+  parseable plain + 2558 expanded outline cases), up from the unexpanded 1602.
+  Rewrote the `vendored_corpus.rs` guard
+  (`outline_expansion_total_is_reconciled`) to pin the expanded denominator from
+  the authoritative `gherkin` parser and assert no `<placeholder>` survives.
+  Found+fixed a latent counter bug: the old grep heuristic dropped 17
+  commented-out (`#| |`) example rows in `Precedence1.feature` (so the corrected
+  example-row count is 2558, not 2541). Decision 0013 updated to **RESOLVED**.
+  61 tck-runner tests (+11), 184 workspace, all green; `./format_code.sh` green.
+  Status → `in_review`. Reviewer note in PR.md flags a *pre-existing* (not
+  introduced here) inconsistency: `src/tck.rs::PINNED_TCK_SCENARIOS=1615`
+  (definition count) is not wired to the harness `total` and must use the
+  expanded count when a real shrinkage guard is wired in EPIC-002.
