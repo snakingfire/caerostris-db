@@ -2,15 +2,15 @@
 id: T-0039
 title: License manifest, gitleaks pre-commit, and hourly-release automation
 type: task
-status: blocked
+status: in_progress
 priority: P2
-assignee:
+assignee: integrator
 epic: EPIC-010
 deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+0:20
-updated: T0+1:05
+updated: T0+2:10
 ---
 
 ## Context
