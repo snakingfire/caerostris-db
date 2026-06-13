@@ -428,3 +428,14 @@ Cleaned orphaned worktrees (down to main only). Relaunched 3 lanes: lane1 `wf_5e
 **Scaling decision:** HOLD at 3 lanes this tick. Claimable work is limited (~10 items) until the cascade opens; a 4th/5th lane now would idle-and-exit (wasteful). **Next tick: once SPIKE-0001/0002 are `done` and the 47-task backlog opens to `ready`, scale to 5 lanes** (update cron target) for max throughput.
 **⚠️ Hard checkpoint T+1:58 (20:23Z):** need SPIKE-0001/0002 done + cascade open + ≥2-3 new merges on main. Else P0 emergency on the T+4:00 target (would need ~75 pts in ~2h25m). Likely intervention then: directly land the built PRs (T-0002, T-0005) + force-ratify.
 **Cosmetic:** claim `lane` log files are empty (claim.sh echo miss); disjointness holds via atomic mkdir. Defer fix.
+
+---
+
+## STATUS — T+1:43 (cascade opening; cascade-opener deployed)
+
+**Wallclock:** 2026-06-13T20:07Z. No STOP (deadline 23:24Z).
+**Progress since T+1:38:** SPIKE-0001 **RATIFIED → done** (latency envelope accepted — major); a TLA+ model landed in `formal/`; SPIKE-0003 (storage spec) → in_progress; done 6→8.
+**ROOT-CAUSE FIX this tick:** found the cascade was throttled because nothing flipped `backlog→ready` as deps completed (claim.sh only claims ready/in_review/blocked). Built **`scripts/board/unblock.sh`** (flips deps-satisfied backlog→ready, commits) — ran it (opened SPIKE-0004, T-0014); wired it into the orchestrator orient (every round) AND the cron (every 5 min) so the cascade now opens continuously.
+**Board:** done:8 in_review:2 in_progress:3 blocked:2 ready:6 backlog:45. Lanes 1/2/3 all hot (11-12 agents), disjoint claims.
+**Cron** replaced 366ea28f→`670ebfac` (every 5 min: unblock + claim-gc + env + maintain 3 lanes, scale to 5 when ready>12).
+**Still RED on pace** (grader T+1:38: 15 vs ~35). The fixes are landing the right way; watch for SPIKE-0002 ratify + the backlog cascade + code merges over the next 15 min. T+1:58 remains the hard checkpoint.
