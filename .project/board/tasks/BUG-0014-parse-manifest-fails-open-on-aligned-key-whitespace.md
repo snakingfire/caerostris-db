@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+2:45
-updated: T0+3:18
+updated: T0+3:24
 ---
 
 ## Context
@@ -94,3 +94,13 @@ defeats only the hand-rolled manifest cross-check, not all license enforcement.
   also did this work — integrator-serialized landing resolves the duplication (first lands;
   others rebase to no-op / drop). main has not touched src/licenses.rs since merge-base 494a9e7,
   so this branch rebases cleanly onto current main (3889aa9).
+- T+3:24 — adversarial-reviewer sign-off: **approve** (verdict block appended to PR.md;
+  reviewer checkbox ticked). Independently re-ran the suite (`licenses` 16/16, `license_manifest`
+  2/2 against the real Cargo.lock + manifest, `./format_code.sh` exit 0, worktree clean) and
+  attacked the rewritten parser with edge inputs (inline comment, CRLF, multi-`=`, empty value,
+  `checksum = "abc=def="`, look-alike/non-key lines): every error mode degrades fail-CLOSED, no
+  new fail-open vector, no crate dropped from `parse_lockfile`. No new dependency; no GATE surface
+  touched. Confirmed `main` unchanged on `src/licenses.rs` since merge-base → clean rebase. Both
+  gates (adversarial + pre-mortem) are now `approve`; ready for the integrator. One non-blocking
+  doc note: the "taplo produces aligned style" wording overstates taplo (default taplo emits
+  single-space and `format_code.sh` does not format manifest.toml) — does not affect the fix.

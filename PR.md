@@ -94,7 +94,7 @@ no-`=`, quote-strip) is exercised by the new and existing tests through both
 
 ## Review gate
 
-- [ ] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
+- [x] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
 - [x] premortem-analyst sign-off (see docs/process/adversarial-review-loops.md)
 - [x] `./format_code.sh` green
 - [x] `cargo nextest run` green (127 passed)
@@ -163,4 +163,58 @@ storage/commit/latency/concurrency surface, adds no dependency, ships four targe
 all GATE-category invariants are out of scope and untouched. Approving.
 
 **Signed:** premortem-analyst  T+3:18
+
+## Adversarial Review
+
+**Verdict:** approve
+
+**Blocking findings** (must be fixed before landing):
+- None.
+
+**Non-blocking observations** (consider in a follow-up):
+- [DOC] PR.md and the board item state taplo "naturally produces aligned style." I tested
+  default `taplo format` on a `[[dependency]]` block and it emits single-space form, and
+  `format_code.sh` only runs taplo over a fixed file list (`Cargo.toml`, `tck-runner/Cargo.toml`,
+  `rustfmt.toml`, `rust-toolchain.toml`) — it does NOT format `docs/licenses/manifest.toml`. So
+  the "one aligned-key entry away" premise rests on a hand-edited/aligned manifest, not on taplo
+  output. This does not weaken the fix at all (robustness to arbitrary whitespace is strictly
+  correct and matches the board item's own documented aligned example), but the rationale wording
+  overstates taplo's role. Worth a one-line correction in a follow-up, not blocking.
+
+**Attacks attempted and survived** (mandatory):
+- New fail-OPEN vector via the rewritten `parse_key_value` (the one real risk class for a license
+  gate): probed inline trailing comment (`spdx = "GPL-3.0" # x`), CRLF + trailing whitespace,
+  multiple `=` in the value (`GPL-3.0 WITH x = y`), and empty value — directly against the compiled
+  parser. Every garbled/edge value degrades **fail-closed**: it parses to a token outside
+  `APPROVED_SPDX`, so `check` raises `NonPermissiveLicense` (or `MissingManifestEntry`), never a
+  silent pass. SURVIVED — the change strictly tightens vs. the old `strip_prefix`.
+- Look-alike / non-key over-matching: `namespace`, `spdx_note`, `dependencies = [`, `source = "..."`,
+  `checksum = "abc=def="`, dotted keys. Exact trimmed-LHS comparison rejects all of them; the
+  embedded-`=` value (`checksum`) is handled by `split_once('=')` on the FIRST `=`. SURVIVED
+  (covered by `parse_manifest_does_not_match_lookalike_keys` + my direct probe).
+- Crate silently dropped from `parse_lockfile` (a distinct fail-open: a dropped crate skips the
+  manifest-presence check): built a realistic `Cargo.lock` with `source`/`checksum`/`dependencies`
+  array lines; all locked crates were extracted, none dropped. SURVIVED.
+- Existing-style regression: re-ran `tests/license_manifest.rs` against the real `Cargo.lock` +
+  the real 27-block `docs/licenses/manifest.toml` (single-space style) — 2/2 green. Single-space
+  parsing unchanged. SURVIVED.
+- Dependency / license-hygiene attack: diff adds no dependency (`Cargo.toml` untouched, confirmed
+  by `git diff --name-only`); pure parsing logic. `cargo-deny` defense-in-depth unaffected. SURVIVED.
+- Scope / blast-radius: diff touches only `src/licenses.rs`, `PR.md`, the board item. No storage,
+  commit-protocol, manifest-swap, snapshot-isolation, latency-envelope, or concurrency surface —
+  none of the GATE invariants (Cat 1/2/3/7) are in the change. SURVIVED.
+- Claim verification (anti-"looks fine"): re-ran in the worktree myself — `licenses` 16/16,
+  `license_manifest` 2/2, `./format_code.sh` exit 0, `git status` clean, and confirmed `main` has
+  NOT modified `src/licenses.rs` since merge-base (`git log <merge-base>..main -- src/licenses.rs`
+  empty) so the code rebases cleanly. All PR claims hold. SURVIVED.
+
+**Rationale:** This is a textbook fail-closed fix. I tried to find a new path by which a copyleft
+crate could slip past the hand-rolled manifest gate (the only consequential failure mode for this
+code) and could not: the rewritten parser matches a superset of legitimate key spellings while
+every error mode degrades to a flagged violation, never a silent pass — verified by direct edge-case
+probing, not just by the four committed TDD tests. It meets every acceptance criterion, adds no
+dependency, touches no GATE-category invariant, and `format_code.sh` + the full suite are green in
+the worktree. Approving; the single non-blocking note (taplo wording) does not affect correctness.
+
+**Signed:** adversarial-reviewer  T+3:24
 
