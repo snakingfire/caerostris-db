@@ -2,7 +2,7 @@
 id: BUG-0028
 title: Adjacency expand() errors (BadVarint) instead of early-aborting when the byte cap is below a block's leading degree varint
 type: bug
-status: in_progress
+status: in_review
 priority: P1
 assignee: implementer-wf_3215ee4a-fcf-29
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [2, 3]
 estimate: S
 created: T0+4:10
-updated: T0+4:28
+updated: T0+4:30
 ---
 
 ## Context
@@ -88,3 +88,13 @@ miss it — there is **no test for `max_bytes` below a block's degree prefix**.
   the review gate completed (merge 3c0bd9c with the adversarial/premortem boxes
   unchecked) — flagged separately as a process deviation; this BUG fixes the code
   defect regardless.
+- T0+4:30 (implementer-wf_3215ee4a-fcf-29): fixed on `work/BUG-0028-adjacency-byte-cap-below-degree-prefix-early-abort`
+  (based on latest `main`). TDD: 3 RED byte-cap tests reproduced `Err(BadVarint)`
+  on the landed code, then GREEN. `decode_block_prefix` now takes a `buffer_capped`
+  flag; on a capped buffer a degree-varint that runs off the end returns
+  `Ok((vec![], truncated))`; on a full buffer it still fails closed (checksum guards
+  open()). Added `full_buffer_corrupt_degree_varint_fails_closed` (decoder-direct,
+  pins the `!buffer_capped` Err arm) + integration test
+  `exhausted_budget_on_last_source_early_aborts_not_errors`. Full suite 480/480
+  green; `./format_code.sh` exit 0. PR.md filled; status → in_review; dispatching
+  adversarial-reviewer + premortem-analyst.
