@@ -2,15 +2,15 @@
 id: T-0007
 title: Implement columnar node-property object writer + range-read reader
 type: task
-status: ready
+status: in_progress
 priority: P1
-assignee:
+assignee: implementer-wf_fe688db0-093-32
 epic: EPIC-001
 deps: [SPIKE-0003, T-0006]
 rubric_refs: [2, 3]
 estimate: M
 created: T0+0:20
-updated: T0+0:20
+updated: T0+3:45
 ---
 
 ## Context
@@ -35,3 +35,12 @@ owned by `SPIKE-0003` (lands under `docs/adr/`).
 ## Notes / log
 Design-before-code: blocked on SPIKE-0003 (storage format spec) ratification.
 Flip to `ready` only when SPIKE-0003 is `done`.
+- T0+3:45 (implementer-wf_fe688db0-093-32): claimed; deps satisfied (SPIKE-0003
+  done → ADR 0008 `docs/adr/0008-storage-format.md`; T-0006 done; SPIKE-0001 done).
+  Branch `work/T-0007-columnar-node-property-writer-reader` off latest main
+  (`d4a9c70`). Also fixed a pre-existing frontmatter typo (`status: readypriority`
+  → split into `status` + `priority` lines). Implements ADR 0008 §2 (`.ncol`
+  columnar node-property objects) + §2.4 columnar range-read reader over the
+  `storage::ObjectStore` trait, honouring land-gate condition **C3** (a
+  single-property filter read fetches ≤ that column's chunk bytes, not whole node
+  records). TDD-first.
