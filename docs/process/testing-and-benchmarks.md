@@ -386,6 +386,35 @@ The SLA target (P99 ≤ 1 s) must hold under `nominal-s3` and should hold under
 `slow-s3` for queries inside the selectivity envelope. Failure under `nominal-s3`
 is a P0 Cat. 3 gap.
 
+**Acceptance bars (normative):**
+
+| SLA tier | Profile | Required outcome |
+|---|---|---|
+| Target | `nominal-s3` | P99 ≤ 1 s |
+| Hard ceiling | `slow-s3` | P99 ≤ 2 s |
+
+A result recorded under `loopback` or `fast-s3` **may not** be cited as Cat. 3
+primary evidence. See [`docs/adr/0001-cold-start-benchmark-protocol.md`](../adr/0001-cold-start-benchmark-protocol.md)
+for the full normative grader evidence rule.
+
+### Cold-start benchmark protocol (normative — amends §5 above)
+
+> **This section supersedes the criterion `cargo bench` defaults for any Cat. 3
+> latency benchmark.** Standard criterion warm-up is invalid for cold-start
+> measurement. See [`docs/adr/0001-cold-start-benchmark-protocol.md`](../adr/0001-cold-start-benchmark-protocol.md)
+> for the full normative spec. Summary of requirements:
+>
+> 1. **Fresh state per sample:** no warm OS page cache, no warm local cache
+>    (`cache.enabled = false`), fresh engine open per sample.
+> 2. **No criterion warm-up:** use `Bencher::iter_custom()` with
+>    `warm_up_time(Duration::from_secs(0))`, or a bespoke sampler.
+> 3. **Named profile:** every result must carry `latency_profile` in
+>    `benchmark-history.jsonl`.
+> 4. **N ≥ 200 samples** and the P99 estimated as the sample at position
+>    ⌈0.99 × N⌉.
+> 5. **Self-describing JSONL fields:** `cold: true`, `cache: "off"`,
+>    `latency_profile`, `samples`, `p99_ms`, `passed`.
+
 ### Benchmark command
 
 ```bash
@@ -399,6 +428,13 @@ CAEROSTRIS_S3_FORCE_PATH_STYLE=true \
 cargo bench --bench query_6hop -- --save-baseline nominal-s3
 ```
 
-Record the P99 latency number from the criterion output in
-`.project/reports/benchmark-history.jsonl` with `latency_profile: "nominal-s3"`.
-The rubric-grader reads this for Cat. 3 evidence.
+**IMPORTANT:** For the Cat. 3 cold-start bench, do not use the default criterion
+`iter()` loop with the command above. Use `iter_custom()` with fresh state per
+sample (see ADR 0001). The `--save-baseline` flag is still useful for tracking
+the P50/P99 series over time.
+
+Record the P99 latency number from the bench output in
+`.project/reports/benchmark-history.jsonl` with all required fields from ADR 0001
+Rule 5 (including `cold: true`, `cache: "off"`, `latency_profile: "nominal-s3"`,
+and `samples: N`). The rubric-grader reads only entries satisfying the cold-start
+filter for Cat. 3 evidence.

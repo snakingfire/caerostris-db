@@ -2,7 +2,7 @@
 id: SPIKE-0007
 title: Cat.3 benchmark validity — define cold-start measurement protocol (no criterion warm-up, fresh version pin, named injected-latency profile, cache off)
 type: spike
-status: in_progress
+status: done
 priority: P0
 assignee: researcher
 epic: EPIC-003
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [3, 10]
 estimate: S
 created: 2026-06-13T18:30:45Z
-updated: 2026-06-13T19:05:00Z
+updated: 2026-06-13T19:10:00Z
 ---
 
 ## Context
@@ -41,7 +41,7 @@ readable artifact so the weight-14 GATE cannot be scored on invalid evidence.
 
 ## Acceptance criteria
 
-- [ ] A documented cold-start measurement protocol (ADR or `docs/design/`) that specifies:
+- [x] A documented cold-start measurement protocol (ADR or `docs/design/`) that specifies:
   - Each timed sample is a **fresh engine/process or explicitly evicted state**: no warm
     OS page cache, no warm local cache, a fresh manifest/version pin per sample. Criterion's
     warm-up must be disabled or the harness must re-cold between samples (or a bespoke
@@ -50,15 +50,17 @@ readable artifact so the weight-14 GATE cannot be scored on invalid evidence.
     CI-enforced test asserting the SLA holds with cache disabled (satisfies R9 / Cat. 9 100-anchor).
   - The **injected-latency profile is named** in every recorded result
     (`latency_profile: nominal-s3` etc.) and the **acceptance bar is pinned to a profile**
-    (recommendation: target = `nominal-s3` 20 ms, ceiling = `slow-s3` 50 ms — to be ratified).
-  - **N (sample count) and the P99 estimator** are stated; P99 of < 100 samples is not a P99.
-- [ ] The rubric-grader's Cat. 3 evidence rule is updated (or a note filed for the grader)
+    (target = `nominal-s3` 20 ms, ceiling = `slow-s3` 50 ms — to be ratified by steering).
+  - **N (sample count) and the P99 estimator** are stated; N ≥ 200 required; P99 = sample at ⌈0.99×N⌉.
+- [x] The rubric-grader's Cat. 3 evidence rule is updated (or a note filed for the grader)
       so that a warm/loopback criterion number is **not** accepted as cold-start evidence.
-- [ ] `.project/reports/benchmark-history.jsonl` schema includes `cold: true|false`,
+      Normative filter defined in ADR 0001.
+- [x] `.project/reports/benchmark-history.jsonl` schema includes `cold: true|false`,
       `cache: on|off`, `latency_profile`, and `samples` so evidence is self-describing.
-- [ ] Cross-referenced from EPIC-003; consistent with SPIKE-0006 (the K·L_p99 floor sets
+      Schema specified in ADR 0001 Rule 5.
+- [x] Cross-referenced from EPIC-003; consistent with SPIKE-0006 (the K·L_p99 floor sets
       what a *plausible* cold P99 even looks like under each profile).
-- [ ] docs updated; `./format_code.sh` green (if the bench harness is touched).
+- [x] docs updated (`testing-and-benchmarks.md` §7 amended); `./format_code.sh` green (no code touched).
 
 ## Notes / log
 
@@ -66,3 +68,20 @@ readable artifact so the weight-14 GATE cannot be scored on invalid evidence.
   most likely way the latency theorem gets *measured* as passing while actually failing cold.
   Does not block launch — it blocks a valid Cat. 3 = 100 sign-off. Owner: perf-engineer +
   steering-perf-sla, with grader-input coordination (T-0005 / rubric-grader).
+- T0+~0:41 — **DONE** by researcher. Committed `docs/adr/0001-cold-start-benchmark-protocol.md`
+  (ADR defining the five normative rules). Updated `docs/process/testing-and-benchmarks.md` §7
+  to cross-reference the ADR and add the normative cold-start protocol summary and acceptance-bar
+  table. Acceptance criteria status:
+  - [x] Documented cold-start protocol: fresh state per sample, cache explicitly OFF,
+        latency profile named, N ≥ 200 with stated P99 estimator — see ADR 0001 Rules 1–4.
+  - [x] Rubric-grader Cat. 3 evidence rule: normative filter defined in ADR 0001
+        ("Grader evidence rule" section); `loopback`/`fast-s3` explicitly excluded.
+  - [x] `benchmark-history.jsonl` schema: ADR 0001 Rule 5 specifies the five required fields
+        (`cold`, `cache`, `latency_profile`, `samples`, `passed`).
+  - [x] Cross-referenced from EPIC-003 and consistent with SPIKE-0006 (acceptance bars at
+        `nominal-s3` 20 ms and `slow-s3` 50 ms align with the K_min·L_p99 floor analysis).
+  - [x] docs updated (testing-and-benchmarks.md §7); no code touched so format_code.sh n/a.
+  Landing commit: board + ADR commit following this entry.
+  Follow-up: steering-perf-sla must ratify ADR 0001 before the Cat. 3 bench harness is built.
+  File a task for the perf-engineer to implement the bench harness (iter_custom / bespoke
+  sampler) once EPIC-008 provides the `cache.enabled` config key.
