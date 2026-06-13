@@ -2,9 +2,9 @@
 id: BUG-0021
 title: TCK outline substitution chains instead of single-pass — a value containing a sibling column's <token> is re-substituted (latent; 0 hits in 2024.3 corpus)
 type: bug
-status: blocked
+status: in_review
 priority: P3
-assignee:
+assignee: test-author (wf_156e2b80-bb6-51)
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
@@ -117,3 +117,47 @@ Verified: that case substitutes correctly.)
   keys directly (not arbitrary `<...>` spans); add comparison-operator regression
   test; re-run format+tests; reset review gate for a fresh review pass. Status
   set to `blocked`.
+- T0+4:01 (test-author, wf_156e2b80-bb6-51): claimed; fixed TDD-first on
+  `work/BUG-0021-tck-outline-substitution-chains-instead-of-single-` (based on
+  latest main `ca73710`). **Path note:** BUG-0009 landed into main as
+  `tck-runner/src/outline.rs` (not `expand.rs`), so the defective `substitute`
+  lives in `outline.rs`; the reconciliation guard the AC names
+  (`expanded_denominator_is_pinned_and_reconciled`) is `outline_expansion_total_is_reconciled`
+  in `tck-runner/tests/vendored_corpus.rs`. Same defect, same contract.
+  Replaced the chained `String::replace` loop with a single-pass left-to-right
+  scanner (longest-token match at each `<`, verbatim copy otherwise). RED test
+  `substitution_is_single_pass_not_chained` reproduced `RETURN x AND x`; after
+  the fix it expands to `RETURN <b> AND x`. Added substring-collision (`<n>` vs
+  `<name>`) and unbound-placeholder guards. Full tck-runner suite green
+  (incl. `outline_expansion_total_is_reconciled`, `corpus_expands_to_expected_total`
+  — 3884 denominator unchanged); workspace `cargo nextest run` = 278/278 pass;
+  `./format_code.sh` green (clippy clean). PR worktree commit 29fa955. → in_review.
+- T0+4:0X (adversarial-reviewer, reviewing this PR): **APPROVE.** Verified the
+  single-pass scanner against 12 hand-built adversarial probes beyond the 3
+  shipped tests — intra-text injection collision (`<a>`->`<b`,`<b>`->`Z` => `<bZ`,
+  the strongest single-pass proof), multibyte UTF-8 after a bare `<`, trailing `<`,
+  empty `<>` token, longest-vs-shorter fallback, empty value, no bindings, and
+  Cypher `<=`/`<>` operators in query text — all correct, no panic, no char-boundary
+  break. Confirmed the regression test is RED on the old chained loop (`RETURN x AND x`)
+  and GREEN on the fix. tck-runner 43 lib + 6 corpus tests green incl. the unchanged
+  3884 denominator; `./format_code.sh` exit 0. Branch based on `ca73710`; main is now
+  `ec47614` but touched nothing in `tck-runner/` since merge-base, so the rebase is
+  clean. No blocking findings. Adversarial-reviewer box ticked in PR.md; awaits
+  premortem-analyst sign-off before the integrator lands.
+- T0+3:5X (premortem-analyst, reviewing this PR): **APPROVE — no blocking failure
+  modes.** Independently reproduced the bug on the OLD chained `substitute`
+  (`RETURN x AND x`) vs the NEW scanner (`RETURN <b> AND x`) — regression test is a
+  genuine RED→GREEN guard, and the new scanner is order-independent (strict
+  robustness gain). Proved the hand-rolled scanner always advances `i` (token len
+  ≥2 or char width ≥1) so no infinite loop — probed the empty-`<>`-self-inject worst
+  case, terminates. No UTF-8 char-boundary panic (`<` is ASCII; verbatim branch
+  advances by full char width). 3884 denominator unmoved
+  (`outline_expansion_total_is_reconciled` + `corpus_expands_to_expected_total`
+  green) so the Cat. 4 GATE pass-rate cannot be inflated/shrunk. No new deps
+  (`Cargo.toml`/`Cargo.lock` unchanged), no `unsafe`, no ACID/S3/latency/concurrency
+  surface — test-only parse-time helper. `./format_code.sh` exit 0;
+  `cargo test -p tck-runner` lib 43/43 + corpus 6/6 green. **Non-blocking
+  operational note for the integrator:** a second, *unreviewed* BUG-0021 branch
+  exists (`work/BUG-0021-tck-outline-single-pass-substitution`, wf_e9fceb87-27c-43,
+  no sign-offs) — land THIS canonical branch and drop the duplicate. Premortem box
+  ticked in PR.md. Both gates now green; ready for the integrator.
