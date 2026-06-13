@@ -248,3 +248,19 @@ still in_review); active wave consuming the right work — no grooming needed.
 if **nothing has LANDED on main by T+1:10 (19:34Z)**, inspect the integrator — PRs may be
 piling at the review gate (in_review bottleneck), in which case nudge the
 reviewer/premortem/integrator rather than dispatch more implementers.
+
+---
+
+## ORCHESTRATOR REDESIGN — T+1:12 (commander directive: maximize throughput of known work)
+
+Epoch-1 (`wf_84c0f0c7-752`) completed: landed BUG-0006/0007/T-0039, produced SPIKE-0001/0002/0005/0006/0007/0008. The single bounded-epoch model had three throughput killers: land-at-end barrier, fixed wave (no mid-epoch refill), and a single ~14-agent workflow cap. **Rewrote `.claude/workflows/mainspring.js` → continuous multi-lane swarm:**
+- LAND folded into each item's pipeline (global land-lock serializes merges) → a PR lands the instant IT clears gates, unblocking dependents; no waiting on unrelated siblings.
+- Continuous loop re-pulls ready+newly-unblocked work every round (ratifying a spike instantly feeds its cascade back in).
+- First-class Ratify (steering sign-off of in_review → done) + reland (rebase conflict-blocked PRs).
+- Lane-aware: atomic mkdir claims (`.project/board/.claims/<id>`) let N lanes run concurrently past the per-workflow cap.
+
+**Cores=16 → per-workflow cap = min(16,14) = 14 agents.** To reach the commander's ~30: launched **3 lanes** — lane1 `wf_3a7aff59-f20`, lane2 `wf_365f5b82-d76`, lane3 `wf_3953ff1b-6fb` (≈ up to 42 agents, throttled by available work + tokens).
+
+**pace-marshal cron** replaced (`b59eb545`→`366ea28f`, now every 6 min): maintains a **3-lane pool** (relaunch any that die), clears stale `.project/.land.lock`, prioritizes ratifying SPIKE-0001/0002, writes STOP at T0+5:00.
+
+**Watch:** more parallel branches ⇒ more src/lib.rs land-conflicts; mitigated by land-lock + integrator rebase. If conflict-thrash dominates, reduce lanes to 2.
