@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: 2026-06-13T20:45:00Z
-updated: 2026-06-13T21:35:00Z
+updated: 2026-06-13T21:39:00Z
 ---
 
 ## Context
@@ -53,3 +53,12 @@ on `main` remains until this bug lands.
   `.worktrees/<ID>/PR.md` (no script change). `cargo nextest run` 125/125 green;
   `./format_code.sh` exit 0. PR.md filled; status → `in_review`; dispatching
   adversarial-reviewer + premortem-analyst.
+- 2026-06-13T21:39:00Z (adversarial-reviewer): **APPROVE**. Verified branch-tip tree
+  omits `PR.md` (`git ls-tree`/`cat-file`), `/PR.md` gitignore correctly anchored
+  (no over-match on nested/substring), guard scoped to root `PR.md` and live in CI
+  (real git checkout as runner user — verified RED→GREEN), `format_code.sh` exit 0
+  with no fmt drift, clippy `-D warnings` clean, full `cargo test` green, rebase clean
+  vs current `main` (disjoint files; `main` still tracks `PR.md`). No secrets/deps/
+  history-rewrite. Two non-blocking notes (provenance imprecision re `f67868b`; test
+  skip-path hardening) recorded in PR.md. adversarial-reviewer box ticked. Awaits
+  premortem-analyst.
