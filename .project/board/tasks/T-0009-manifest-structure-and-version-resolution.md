@@ -2,7 +2,7 @@
 id: T-0009
 title: Implement manifest object, statistics block, and latest-version resolution
 type: task
-status: in_progress
+status: in_review
 priority: P1
 assignee: implementer-wf_156e2b80
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: [SPIKE-0002, SPIKE-0003, SPIKE-0004]
 rubric_refs: [1, 2, 3]
 estimate: M
 created: T0+0:20
-updated: T0+3:45
+updated: T0+3:58
 ---
 
 ## Context
@@ -36,3 +36,14 @@ manifest + list/max). Design-gated on SPIKE-0002 (commit primitive), SPIKE-0003
 ## Notes / log
 Design-before-code: blocked on SPIKE-0002, SPIKE-0003, SPIKE-0004. The statistics
 block is the bridge to EPIC-003's planner detection (SPIKE-0004 / decision 0009).
+
+- **T0+3:58 (implementer-wf_156e2b80):** implemented in `src/storage/manifest/`
+  (`mod.rs` + `stats.rs` + `resolve.rs`) on branch
+  `work/T-0009-manifest-and-version-resolution`, rebased on latest `main`
+  (`ec47614`). 34 unit + 5 integration + 2 doctests green; `format_code.sh`
+  green; no new deps. `status → in_review`; PR.md in the worktree root.
+  Inline OOE-critical scalars + referenced `db/stats` selectivity blobs
+  (condition C4), value-digest privacy, LIST+max resolution (ADR 0002 §2.3),
+  durability-barrier enumeration (SPIKE-0005 C3). The "integration on the real
+  S3 mock" half (no S3 `ObjectStore` adapter exists yet) is split out to
+  **T-0048** so this could land now without a new S3-client dependency.
