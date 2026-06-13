@@ -2,15 +2,15 @@
 id: BUG-0017
 title: CachingObjectStore lost-invalidation race serves stale reads after commit (no generation fence on populate)
 type: bug
-status: ready
+status: in_progress
 priority: P1
-assignee:
+assignee: implementer-wf_fe688db0-093-29
 epic: EPIC-008
 deps: [T-0033]
 rubric_refs: [9, 1]
 estimate: S
 created: T0+3:20
-updated: T0+3:20
+updated: T0+3:40
 ---
 
 ## Context
