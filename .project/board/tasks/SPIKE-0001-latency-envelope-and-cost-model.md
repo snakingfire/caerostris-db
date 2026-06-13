@@ -2,7 +2,7 @@
 id: SPIKE-0001
 title: Define latency selectivity-envelope and analytical cost model
 type: spike
-status: in_progress
+status: in_review
 priority: P0
 assignee: researcher
 epic: EPIC-003
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [3, 11]
 estimate: M
 created: T0
-updated: 2026-06-13T19:15:00Z
+updated: 2026-06-13T19:25:00Z
 ---
 
 ## Context
@@ -45,3 +45,16 @@ This output is jointly a Cat. 3 (latency) and Cat. 11 (formal artifacts) deliver
 ## Notes / log
 
 Output feeds directly into SPIKE-0003 (storage format spec must serve B_max) and into the TCK/planner implementation in EPIC-002 (planner must implement out-of-envelope detection). Steering sign-off unlocks those dependent tasks.
+
+- **T0+~00:56 (2026-06-13T19:25:00Z):** researcher completed the envelope spec and cost model.
+  - ADR committed: `docs/adr/0001-latency-selectivity-envelope.md`
+  - Sign-off request: `.project/decisions/0012-spike-0001-steering-signoff-request.md`
+  - All binding findings from ratification passes (decisions 0001, 0005, 0009, 0010 / BUG-0004, SPIKE-0006) incorporated:
+    - M_max introduced as explicit envelope parameter; max-of-M α=1.10 at M_max=8.
+    - K_min=8 (r=1), L_p99=50 ms named as explicit design-point parameters.
+    - Invalid f^6 seed-set bound replaced with capped-frontier formulation.
+    - Tail fan-out (not mean) from manifest statistics for estimator inputs.
+    - Five OOE detection conditions with O(plan-size) algorithm.
+    - Storage format constraints (r≤1, contiguous adjacency, manifest statistics, early-abort reads) fed to SPIKE-0003.
+  - Status: in_review; awaiting steering-perf-sla + steering-formal-methods sign-off.
+  - On ratification: T-0014, T-0015, T-0016 → ready; SPIKE-0003 constraints unblocked; SPIKE-0004 algebra unblocked.
