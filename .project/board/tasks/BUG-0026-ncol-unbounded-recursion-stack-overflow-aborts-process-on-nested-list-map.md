@@ -2,7 +2,7 @@
 id: BUG-0026
 title: .ncol encode/decode of nested List/Map recurses unbounded — deep nesting aborts the process (SIGABRT), not fail-closed
 type: bug
-status: in_progress
+status: in_review
 priority: P1
 assignee: implementer-wf_3215ee4a-fcf-27
 epic: EPIC-001
@@ -10,7 +10,7 @@ deps: [T-0007]
 rubric_refs: [2, 1, 10]
 estimate: S
 created: T0+~3:58
-updated: T0+~4:27
+updated: T0+~4:38
 ---
 
 ## Context
@@ -62,3 +62,18 @@ Filed by adversarial-reviewer during T-0007 review. The columnar access pattern
 (C3/AC2/AC4), round-trip fidelity for non-pathological values, and fail-closed
 behaviour for bad-magic/version/truncation are all sound; this is a bounded,
 self-contained robustness/DoS gap in the value codec shared by writer and reader.
+
+- **T0+~4:38 — implementer-wf_3215ee4a-fcf-27.** Fixed on branch
+  `work/BUG-0026-ncol-encode-decode-of-nested-list-map-recurses-unb` (based on
+  latest main, commit 19f3edd which contains the T-0007 landing). Threaded an
+  explicit nesting `depth` through `encode_value` / `decode_value` and reject
+  containers past `MAX_NESTING_DEPTH = 64` with a typed
+  `NcolError::NestingTooDeep`, **before** recursing (stack can never grow past
+  the bound). Documented the bound as a format contract in ADR 0008 §2.3.
+  Fix commit `558b251`. Tests: 6 new (TDD: RED→GREEN), `.ncol` module 25 passed,
+  whole crate 464 passed, clippy clean, `./format_code.sh` exit 0.
+- While here, found the **identical unbounded-recursion defect in the `.adj`
+  edge-property codec** (`src/storage/adjacency.rs`, T-0008). Out of scope for
+  this bug (BUG-0026 names only `ncol.rs`); filed as **BUG-0030** to keep this
+  diff small. Status set to `in_review`; awaiting adversarial-reviewer +
+  premortem-analyst sign-off.
