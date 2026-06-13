@@ -2,7 +2,7 @@
 id: BUG-0014
 title: parse_manifest silently drops entries written with aligned-key whitespace (license gate fails open)
 type: bug
-status: in_progress
+status: in_review
 priority: P2
 assignee: implementer-wf_e9fceb87-27c-6
 epic: EPIC-010
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: T0+2:45
-updated: T0+3:05
+updated: T0+3:10
 ---
 
 ## Context
@@ -77,3 +77,8 @@ defeats only the hand-rolled manifest cross-check, not all license enforcement.
   now records ~25 third-party deps (tck-runner, T-0002). They are written in
   single-space style so they parse today, but the fail-open path is now one
   aligned-key entry away from going live. Fix is timely, not speculative.
+- T+3:10 — fix landed on branch (commit e0a639e): shared `parse_key_value` helper
+  splits on first `=`, trims both sides, exact key match, strips quotes; applied to
+  both `parse_manifest` and `parse_lockfile`. 4 TDD tests added (RED→GREEN). Full
+  suite 127/127 green; `./format_code.sh` green. Status -> in_review; dispatching
+  adversarial-reviewer + premortem-analyst.
