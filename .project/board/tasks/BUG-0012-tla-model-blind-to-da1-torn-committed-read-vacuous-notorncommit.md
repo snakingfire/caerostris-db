@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [11, 1]
 estimate: S
 created: T+~2:00
-updated: 2026-06-13T (T0+~3:10)
+updated: 2026-06-13T (T0+~3:15, steering-formal-methods RATIFIED — decision 0029)
 ---
 
 ## Context
@@ -81,9 +81,18 @@ Cat. 11 ratification of SPIKE-0002.
       design-falsification loop: **decision 0026, RATIFIED-WITH-CONDITIONS** — the
       v2 model faithfully represents the DA-1 attack (distinct attempt-scoped ids;
       explicit `ZombieLateWrite`; `OrphansNeverReferenced` + `NoOverwriteOfReferenced`
-      model-checked; probes refuted). `steering-formal-methods` (primary, Cat. 11)
-      v2 re-confirm still requested (decision 0028) — required for commit-path
-      implementation readiness; the model-fidelity defect this bug names is fixed.
+      model-checked; probes refuted).
+- [x] `steering-formal-methods` (primary, Cat. 11) re-confirmed via the
+      design-falsification loop: **decision 0029, RATIFIED.** Independent
+      falsification of the v2 model text confirms the DA-1/FM-1 vacuity is closed —
+      `ObjId(v,w,a,k)` removes the v1 idempotent-union collapse (racing writers
+      stage distinct ids, `DistinctIdsProbe` refutable), `ZombieLateWrite` makes
+      the stale-PUT attack reachable (`ZombieWroteProbe` refutable), and the two
+      new invariants hold non-vacuously across that reachable post-commit state, so
+      `NoTornCommit`/`LatestIsDurable` are no longer vacuous. `steering-storage`
+      approved secondary (decision 0027). BOTH primaries signed → the SPIKE-0002
+      design gate is fully ratified and ADR 0002 → `accepted`. The model-fidelity
+      defect this bug names is fixed.
 
 ## Notes / log
 
@@ -114,3 +123,17 @@ Cat. 11 ratification of SPIKE-0002.
   arrive, also add `[x] adversarial-reviewer sign-off` and 
   `[x] premortem-analyst sign-off` to PR.md (or waive per steering sign-off
   policy for design PRs). Then the integrator can reland.
+- **T0+~3:15 (steering-formal-methods):** RATIFIED — **decision 0029**. Ran an
+  independent design-falsification pass on the v2 model text (tiny, hand-exhaustive
+  at the bound: singleton object sets, W={w1,w2}, MaxVersion=2). Confirmed (1) the
+  idempotent-union collapse is gone (`ObjId(v,w,a,k)`); (2) `ZombieLateWrite` makes
+  the stale-PUT reachable; (3) `OrphansNeverReferenced` + `NoOverwriteOfReferenced`
+  hold non-vacuously across the reachable fenced-with-committed-target state;
+  (4) `NoTornCommit`/`LatestIsDurable` no longer vacuous. Model-sync met (ADR
+  §1/§2/§6 in the same PR). This is the formal-methods half of AC line 6; with
+  decision 0026 (distributed-ACID primary) the SPIKE-0002 design gate is fully
+  ratified. No commit-path task is flipped to `ready` by this sign-off — they carry
+  decision 0026's C1–C3 land-gates and their own deps. NON-blocking note for T-0038:
+  `OrphansNeverReferenced`'s right disjunct is dead defensive padding (the left
+  disjunct carries the proof); prefer removing/guarding it so a future re-ordering
+  cannot hide a real violation behind it. Status confirmed `done`.

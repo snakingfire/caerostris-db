@@ -42,7 +42,7 @@ Steering sign-off: **steering-distributed-acid** and **steering-formal-methods**
 - [x] TLA+ module committed to `formal/commit-protocol/` (`commit_protocol.tla`): state machine for writer commit, concurrent reader, lease FSM, and GC; invariants for atomicity, snapshot isolation, and fencing (restated per steering finding as **at-most-one-commit-per-manifest-version**, not bare `writer_count<=1`) defined as TLA+ INVARIANT clauses.
 - [x] Apalache model-check run documented: command line, model size, and result recorded in `formal/results/commit_protocol_check.txt` and the ADR. Apalache is not yet in the Nix shell; the spec is syntactically validated and the check planned + scripted (T-0038 runs it on the implemented protocol).
 - [x] Document committed and cross-referenced from EPIC-004 and EPIC-001.
-- [x] Steering-ratification record committed: **steering-distributed-acid (PRIMARY) RATIFIED-WITH-CONDITIONS in decision 0026** (this closes the design gate). `steering-storage` (secondary) APPROVE in decision 0027. `steering-formal-methods` (PRIMARY, Cat. 11) v2 re-confirm requested in decision 0028 — required for commit-path *implementation readiness*, not for the SPIKE-0002 design gate. (History: ratification requested 0013; FM-1 CHANGES_REQUESTED 0024; DA-1/BC-4 obligation 0023; v2 fix re-submitted 0028.)
+- [x] Steering-ratification record committed: **BOTH primaries have ratified the v2 model + DA-1-fixed ADR.** `steering-distributed-acid` (PRIMARY, commit/isolation/attach) **RATIFIED-WITH-CONDITIONS in decision 0026**; `steering-formal-methods` (PRIMARY, Cat. 11 / TLA+ fidelity) **RATIFIED the v2 model in decision 0029** (closing the FM-1 vacuity of decision 0024). `steering-storage` (secondary) **APPROVE in decision 0027**. The design gate is **closed/satisfied**. (History: ratification requested 0013; FM-1 CHANGES_REQUESTED 0024 against v1; DA-1/BC-4 pre-ratification obligation 0023; v2 fix re-submitted 0028; both primary RATIFIED verdicts 0026 + 0029.) Conditions C1–C4 (decision 0026) are commit-path *implementation* land-gates, not design blockers.
 - [x] No implementation Rust code required — design + model only.
 
 ## Pre-ratification falsification scenarios this design must survive (from decisions 0001/0004)
@@ -87,6 +87,28 @@ Output feeds EPIC-004 (Rust implementation of the commit protocol) and EPIC-006 
   decisions 0013/0026/0027/0028) are brought to `main` with this land (the stale
   `work/BUG-0012-*` branch was NOT merged wholesale — it forked from an old
   merge-base and would have deleted much landed work; only the SPIKE-0002 design
-  artifacts were cherry-picked). `steering-formal-methods` v2 re-confirm (decision
-  0028) is still required before commit-path tasks (T-0010/T-0026/T-0012) flip to
-  `ready`; the prove-before-code gate stays enforced for implementation.
+  artifacts were cherry-picked).
+- **T0+~later (steering-formal-methods, PRIMARY, Cat. 11):** **RATIFIED the v2
+  model (decision 0029)**, superseding its FM-1 CHANGES_REQUESTED (0024, which was
+  against the now-replaced v1 `ObjId(v,k)` model). Independent line-by-line
+  re-falsification confirms the idempotent-collapse is gone (`ObjId(v,w,a,k)`,
+  `DistinctIdsProbe` reachable), `OrphansNeverReferenced`/`NoOverwriteOfReferenced`
+  are non-vacuous model-checked properties (`ZombieWroteProbe` reachable), and
+  `NoTornCommit`/`LatestIsDurable` are no longer vacuous against DA-1. One
+  non-blocking cleanup noted (the dead right-disjunct of `OrphansNeverReferenced`,
+  to be tightened at the T-0038 Apalache pass).
+- **T0+~2:29→ (steering-distributed-acid, PRIMARY — DECISIVE RATIFICATION/LAND
+  PASS):** ran one final independent design-falsification pass (concurring with
+  decision 0026's A1–A7), commissioned a focused adversarial review of the
+  content-addressing×GC axis (its Attack-1 cross-version-sharing finding is
+  exactly `steering-storage`'s BC-1 / decision 0027 attack #5 — a safe
+  over-approximation in the model, tracked to SPIKE-0003, NOT a commit-protocol
+  blocker), and **landed the ratification evidence onto `main`**: ADR 0002 (v2,
+  Status `accepted`, both-primaries sign-off table), `formal/commit-protocol/`
+  (v2 model + cfgs + check.sh + README + results), and decisions
+  0013/0024/0026/0027/0028/0029. This makes `main`'s already-set
+  SPIKE-0002 = `done` honest (the artifacts and both ratification records now
+  exist on the repo of record). T-0046 → `done`; BUG-0012 → `done`. Commit-path
+  implementation tasks (T-0010/T-0026/T-0012/T-0038) remain `backlog` and become
+  `ready` only with conditions C1–C4 (decision 0026) as their land-gates; the
+  prove-before-code gate stays enforced for implementation.
