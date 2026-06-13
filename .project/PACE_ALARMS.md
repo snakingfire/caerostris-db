@@ -583,3 +583,7 @@ done:~34 main GREEN (a874ead). Working tree ON MAIN ✓ (demo protected). 5/5 la
 done:40 main GREEN (52a3f54 — `    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.01s`). Working tree ON MAIN ✓ (demo protected). 5/5 lanes. Recent lands: **T-0009 manifest/stats/version-resolution**, T-0008 edge writer (T-0007 node writer next) → Cat 2 storage layer materializing; BUG-0015/0019/0021 (Cat4/5/12). T-DEMO2 polished MinIO demo building (165 lines, ETA soon).
 NOTE: a 'cargo build RED' this tick was TRANSIENT — caught a source file mid-write during a concurrent land merge; re-ran clean = GREEN. (Lesson: re-confirm before P0-ing on build during active merges.)
 ~45m to deadline. No real GATE sliding.
+
+## STATUS — T+4:20 (planner landed; polished demo close; main green)
+done:~42 main GREEN (2818655). Working tree ON MAIN ✓ (demo protected). 5/5 lanes. **T-0018 logical planner LANDED** (filter push-down, 12 ops) → Cat-4 chain = lexer✓+planner✓; only the executor (T-0019, now unblockable) remains for a non-zero TCK rate. Storage: T-0007 node writer in_review (full roundtrip imminent).
+T-DEMO2 polished MinIO demo building (217 lines, S3 backend non-trivial; in-memory polish fallback). ~40m to deadline. No GATE sliding; overall ~41 climbing.
