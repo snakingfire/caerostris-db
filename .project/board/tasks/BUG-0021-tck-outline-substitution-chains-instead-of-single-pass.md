@@ -2,14 +2,14 @@
 id: BUG-0021
 title: TCK outline substitution chains instead of single-pass — a value containing a sibling column's <token> is re-substituted (latent; 0 hits in 2024.3 corpus)
 type: bug
-status: ready
+status: in_review
 priority: P3
-assignee:
+assignee: test-author (wf_e9fceb87)
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+3:29
-updated: T0+3:29
+updated: T0+3:55
 ---
 
 ## Context
@@ -91,3 +91,12 @@ Verified: that case substitutes correctly.)
   scenario in the pinned corpus and does not affect the denominator; it is a
   latent correctness edge to close before EPIC-002's engine exercises the
   substituted variants. Relates to BUG-0009, Decision 0013.
+- T0+3:55 (test-author, wf_e9fceb87): claimed; fixed TDD-first on
+  `work/BUG-0021-tck-outline-single-pass-substitution` (based on latest main
+  d4a9c70). `expand.rs::substitute` is now `outline.rs::substitute` after the
+  BUG-0009 land; same chained-replace defect. Rewrote it as a single-pass
+  scanner over `<...>` spans (verbatim copy, no re-scan). Added 4 unit tests
+  (2 reproduced the bug RED, pass GREEN). Workspace: 296/296 green; corpus
+  reconciliation unchanged (total=3884); outline.rs coverage 99.47%;
+  format_code.sh green. PR.md filed; status -> in_review. Awaiting
+  adversarial-review + pre-mortem.
