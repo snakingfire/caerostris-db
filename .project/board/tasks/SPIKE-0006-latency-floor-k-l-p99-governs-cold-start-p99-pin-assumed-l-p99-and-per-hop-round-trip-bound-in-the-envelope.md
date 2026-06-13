@@ -2,15 +2,15 @@
 id: SPIKE-0006
 title: Latency floor K*L_p99 governs cold-start P99 — pin assumed L_p99 and per-hop round-trip bound in the envelope
 type: spike
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: researcher
 epic: EPIC-003
 deps: []
 rubric_refs: [3, 11]
 estimate: S
 created: 2026-06-13T18:30:45Z
-updated: 2026-06-13T18:30:45Z
+updated: 2026-06-13T19:00:00Z
 ---
 
 ## Context
