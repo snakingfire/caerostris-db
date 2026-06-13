@@ -2,7 +2,7 @@
 id: BUG-0019
 title: Index facade Equals uses orderability equality, not the openCypher `=` operator — wrong rows for null/NaN
 type: bug
-status: in_review
+status: done
 priority: P1
 assignee: implementer-wf_fe688db0-093-31
 epic: EPIC-005
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [5, 4]
 estimate: S
 created: T+3:40
-updated: T+4:09
+updated: T+4:10
 ---
 
 ## Context
@@ -94,3 +94,4 @@ so it is latent, not a live incident — hence P1, fix before T-0024/EPIC-002 la
   cypher_order staying mutually consistent — a future divergence beyond null/NaN
   would not be caught by a compile-time link (latent maintenance risk, not introduced
   here). Both review-gate sign-offs now green; ready for the integrator.
+- T+4:10 integrator: Landed in commit f95ae86. Branch `work/BUG-0019-index-equals-cypher-equal-semantics` merged into main --no-ff. Rebased cleanly onto main; 315/315 tests passed; ./format_code.sh green. Both review gates approve. Status → done.
