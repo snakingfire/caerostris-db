@@ -2,9 +2,9 @@
 id: BUG-0015
 title: SPDX is_permissive recursive-descent parser has no depth cap (stack overflow on deeply-nested parens)
 type: bug
-status: ready
+status: in_review
 priority: P3
-assignee:
+assignee: implementer-wf_e9fceb87-27c-42
 epic: EPIC-010
 deps: [BUG-0008]
 rubric_refs: [12]
@@ -67,6 +67,11 @@ which is the more conservative behaviour the module otherwise upholds.
   long auto-slug branch from a stale, zero-commit scaffold was avoided). TDD-first
   fix: cap parenthesis nesting depth in `SpdxParser` at 64 and return a
   conservative `false` past the cap.
+- T0+4:01 — PR opened (`in_review`). Fix landed in commit 80deedc on
+  `work/BUG-0015-spdx-depth-cap`: `MAX_PAREN_DEPTH = 64`, depth-bounded
+  `parse_atom`. Full suite 278/278 green; `./format_code.sh` green; 4 new
+  BUG-0015 tests + existing nesting tests pass. PR.md filled. Awaiting
+  adversarial-reviewer + premortem-analyst sign-off.
 - T0+4:08 — premortem-analyst **approve** on the same branch
   (`work/BUG-0015-spdx-depth-cap`, worktree `wf_e9fceb87-27c-42`, HEAD 8d5ce5a).
   Worked the corruption/SLA/concurrency/error/operational/security lenses: change
