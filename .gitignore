@@ -5,6 +5,12 @@
 **/target/
 **/*.rs.bk
 
+# Coverage reports (cargo-llvm-cov output) — generated in CI, uploaded as an
+# artifact, never committed. See docs/process/ci-grader-inputs.md.
+/coverage/
+*.profraw
+*.profdata
+
 # Nix / devenv / direnv
 .devenv/
 .direnv/

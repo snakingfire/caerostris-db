@@ -2,15 +2,15 @@
 id: T-0005
 title: Add cargo-llvm-cov coverage reporting and ensure CI emits grader-readable outputs
 type: task
-status: ready
+status: in_review
 priority: P0
-assignee:
+assignee: implementer-wf_156e2b80-bb6-3
 epic: EPIC-009
 deps: []
 rubric_refs: [10, 12]
 estimate: S
 created: T0
-updated: T0
+updated: T+3:18
 ---
 
 ## Context
@@ -41,7 +41,7 @@ This task operates on CI configuration and `Cargo.toml` / `flake.nix` — minima
 - [ ] `cargo-llvm-cov` available in CI (installed via Nix shell or explicit CI install step); `cargo llvm-cov` runs without error on the codebase.
 - [ ] Coverage report generated: LCOV file (or JSON) saved as a CI artifact; line coverage% emitted to stdout in the `GRADER_INPUTS` block.
 - [ ] Coverage threshold configured in CI: build step that checks coverage% against a threshold (initially 0%; documented that it will be ratcheted to 90% as tests are added).
-- [ ] TCK output path established: `.project/reports/tck-results-latest.json` exists (stub or real); CI archives it; its schema documented (fields: `total`, `pass`, `pending`, `fail`, `pass_rate`).
+- [ ] TCK output path established: `.project/reports/tck-latest.json` (the canonical path the rubric grader reads — the board's `tck-results-latest.json` was an example "e.g."; reconciled to the canonical name in decision 0012) exists (regenerated per run by the `tck-runner`); CI archives it; its schema documented (fields: `total`, `pass`, `pending`, `fail`, `pass_rate`).
 - [ ] `GRADER_INPUTS` summary block emitted in CI logs with all three fields (`coverage_pct`, `test_pass`, `tck_pass_rate`).
 - [ ] CI artifact retention set to ≥7 days for coverage and TCK reports.
 - [ ] `./format_code.sh` green; CI passes end-to-end after this change.
@@ -49,3 +49,42 @@ This task operates on CI configuration and `Cargo.toml` / `flake.nix` — minima
 ## Notes / log
 
 No dep on T-0001 or T-0002 — this task can run in parallel or even before them. The coverage% will be 0 or N/A initially; that is fine. The infrastructure is what matters here, not the number.
+
+- **T+0:40 (implementer-wf_84c0f0c7-752-17):** claimed, built TDD-first on branch
+  `work/T-0005-add-cargo-llvm-cov-coverage-reporting-and-ensure-c`. Added
+  `scripts/ci/grader-inputs.sh` (+ test harness `grader-inputs.test.sh`, 10
+  assertions, run RED→GREEN) emitting the `GRADER_INPUTS` block + coverage gate;
+  CI `coverage` job (cargo-llvm-cov LCOV+JSON, artifacts retention 14d);
+  `flake.nix` adds cargo-llvm-cov (Apache-2.0/MIT) + llvm-tools-preview; TCK stub
+  at `.project/reports/tck-results-latest.json`; docs `docs/process/ci-grader-inputs.md`;
+  decision `0012`. Verified `cargo llvm-cov --json` locally in the devenv shell
+  (line% = 60 via the CI jq query). `./format_code.sh` + `cargo nextest run` green;
+  gitleaks clean. Status → `in_review`; PR at `.worktrees/T-0005/PR.md`. Pending
+  adversarial-reviewer + premortem-analyst sign-off, then integrator land.
+
+- **T+3:10 (implementer-wf_156e2b80-bb6-3):** re-took the in-flight branch (prior
+  lane never landed; T-0005 still `ready` on `main`). **Rebased onto the latest
+  `main`** — the branch's `ci.yml` was based on a stale `main` and the rebase
+  cleanly merged the now-current jobs (openCypher TCK, gitleaks, cargo-deny,
+  latency-sim) with the new `coverage` job, so no CI capability is regressed.
+  **Reconciliations (drift fixes):** (1) reverted a foreign `BUG-0008` board edit
+  that rode in on the rebase base; (2) **consolidated the TCK path onto the
+  canonical `.project/reports/tck-latest.json`** (was `tck-results-latest.json`) —
+  the rubric/grader/`test`-job all use the canonical name; a second path would
+  silently diverge. Dropped the committed zero-count stub (it would shadow live
+  grader numbers); the `coverage` job now regenerates the file via `tck-runner`
+  and archives it. Updated `ci.yml`, `docs/process/ci-grader-inputs.md`, decision
+  `0012`, and this item. `./format_code.sh` + tests green; gitleaks clean.
+
+- **T+3:18 (implementer-wf_156e2b80-bb6-3):** `main` advanced to `0d2875e`
+  (BUG-0010 ADR renumber, SPIKE-0004, BUG-0008 in_review) mid-build; **re-rebased
+  onto current `main`** and dropped the now-obsolete BUG-0008 revert (main owns it)
+  and a stale `PACE_ALARMS.md` artifact. Final diff vs `main` is **10 files, all
+  T-0005-only** (ci.yml, .gitignore, flake.nix, scripts/ci/grader-inputs.sh[+test],
+  tests/ci_grader_inputs.rs, decision 0012, docs/process/ci-grader-inputs.md, this
+  item, PR.md) — no foreign reversals. Verified in the reloaded devenv shell:
+  `cargo llvm-cov --json` clean (line% = 96.29), `grader-inputs.sh` emits the full
+  GRADER_INPUTS block from real numbers, canonical-path TCK round-trip (0/1602).
+  `./format_code.sh` exit 0; 176/176 nextest; gitleaks clean. Worktree
+  `.claude/worktrees/wf_156e2b80-bb6-3`. Requesting adversarial-reviewer +
+  premortem-analyst.
