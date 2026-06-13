@@ -2,8 +2,7 @@
 id: T-0017
 title: Implement openCypher lexer + parser to AST
 type: task
-status: backlog
-priority: P1
+status: readypriority: P1
 assignee:
 epic: EPIC-002
 deps: [T-0001]

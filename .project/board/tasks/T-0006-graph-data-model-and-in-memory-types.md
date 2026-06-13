@@ -2,8 +2,7 @@
 id: T-0006
 title: Define core graph data-model types (Node, Edge, PropertyValue, Schema)
 type: task
-status: backlog
-priority: P1
+status: readypriority: P1
 assignee:
 epic: EPIC-001
 deps: [T-0001]

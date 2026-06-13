@@ -2,8 +2,7 @@
 id: T-0033
 title: Optional resource-aware cache wrapper around ObjectStore (LRU, bounded)
 type: task
-status: backlog
-priority: P2
+status: readypriority: P2
 assignee:
 epic: EPIC-008
 deps: [T-0001]
