@@ -2,15 +2,15 @@
 id: SPIKE-0001
 title: Define latency selectivity-envelope and analytical cost model
 type: spike
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: researcher
 epic: EPIC-003
 deps: []
 rubric_refs: [3, 11]
 estimate: M
 created: T0
-updated: T0
+updated: 2026-06-13T19:15:00Z
 ---
 
 ## Context
