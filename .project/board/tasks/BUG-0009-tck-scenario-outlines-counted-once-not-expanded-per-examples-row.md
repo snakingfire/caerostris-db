@@ -9,7 +9,7 @@ epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+0:58
-updated: T0+3:05
+updated: T0+3:2x
 ---
 
 ## Context
@@ -108,3 +108,19 @@ latent defect that activates the moment a real engine plugs in.
   introduced here) inconsistency: `src/tck.rs::PINNED_TCK_SCENARIOS=1615`
   (definition count) is not wired to the harness `total` and must use the
   expanded count when a real shrinkage guard is wired in EPIC-002.
+- T0+3:2x (adversarial-reviewer): **approve** on `work/BUG-0009-outline-expansion`.
+  Re-verified all claims empirically against the real pinned `2024.3` corpus:
+  `format_code.sh` exit 0; `cargo test --workspace --all-features` all green, 0
+  warnings; live binary reports `total: 3884`; reconciliation guard passes.
+  Attacks that failed to land: sequential-`String::replace` corruption with
+  prefix-overlapping `<map>`/`<map2>` (delimiters protect; 0 data cells contain a
+  header token), denominator gaming (total excludes parse_errors and can only
+  grow), header-only-outline mis-count (the one suspected case in `Precedence1` is
+  a commented `#|` row the parser correctly skips — zero genuine header-only
+  outlines). Non-blocking: (1) the survivor guard `scenario_has_placeholder` scans
+  docstrings+tables but not `step.value` — harmless today (no corpus outline puts
+  a placeholder on a step line) but worth future-proofing; (2) branch merge-base
+  `494a9e7` is 12 commits behind `main` (`cf70365`), none touching tck-runner, so
+  the land-time rebase should be clean. adversarial-reviewer box checked in PR.md;
+  premortem box still open — integrator must wait for premortem sign-off + rebase
+  before landing. Verdict block appended to PR.md.

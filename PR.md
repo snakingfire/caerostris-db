@@ -115,11 +115,84 @@ the 1615 definition pin. The real shrinkage protection for the harness today is
 
 ## Review gate
 
-- [ ] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
+- [x] adversarial-reviewer sign-off (see docs/process/adversarial-review-loops.md)
 - [ ] premortem-analyst sign-off (see docs/process/adversarial-review-loops.md)
-- [ ] `./format_code.sh` green
-- [ ] `cargo nextest run` green (or `cargo test` outside Nix shell)
+- [x] `./format_code.sh` green
+- [x] `cargo nextest run` green (or `cargo test` outside Nix shell)
 - [ ] coverage not regressed
 - [ ] board item updated to `in_review`
 
 <!-- Reviewers: append your verdict block below this line per adversarial-review-loops.md -->
+
+## Adversarial Review
+
+**Verdict:** approve
+
+**Blocking findings** (must be fixed before landing):
+- none.
+
+**Non-blocking observations** (consider in a follow-up):
+- The reconciliation guard's `scenario_has_placeholder` (in `vendored_corpus.rs`)
+  scans step **docstrings** and **data-table cells** for surviving `<placeholder>`
+  tokens, but not `step.value`. `substitute_step` *does* substitute `step.value`
+  (so production is correct), and I confirmed no outline in the pinned corpus
+  carries a placeholder in a `When`/`Then` step value line (`grep -rE '^\s*(When|Then|And)
+  .*<[a-zA-Z_]+>'` returns nothing), so no false 100% is reachable through this gap
+  today. Adding `step.value` to the survivor scan would future-proof the guard
+  against a corpus that moves placeholders onto the step line.
+- Branch merge-base is `494a9e7`; `main` is now `cf70365` (12 commits ahead). None
+  of those 12 commits touch `tck-runner/` (`git diff --name-only 494a9e7..main`
+  shows no tck-runner paths), so the land-time rebase should be clean. The only
+  shared-file overlap risk is the board item and Decision 0013, which are not in
+  the main delta. Integrator should rebase before landing per the PR workflow.
+- The PR's own reviewer note correctly flags the pre-existing inconsistency between
+  `caerostris_db::tck::PINNED_TCK_SCENARIOS = 1615` (scenario-*definition* count)
+  and the harness's expanded test-*case* `total = 3884`. I confirmed `verify_suite_size`
+  is only ever called from `src/tck.rs` and `tests/tck_passrate_contract.rs` with
+  synthetic inputs — it is **not** wired to the runtime `total` — so this change
+  does not trip it. Not introduced here; track for EPIC-002's real shrinkage guard.
+
+**Attacks attempted and survived** (mandatory):
+- **Sequential-substitution / prefix-overlap corruption** (`substitute` does ordered
+  `String::replace`): the corpus has prefix-overlapping placeholder names
+  (`<map>` vs `<map2>` in `Temporal7.feature`). Survived — the `<…>` delimiters mean
+  `<map>` is not a substring of `<map2>`, so no spurious replacement. I also checked
+  every Examples block for a data cell that contains a *header* `<token>`
+  (the only second-order double-substitution vector): **0 found** across all 220
+  feature files. `outline_expansion_total_is_reconciled` independently confirms **0**
+  surviving placeholders over the whole corpus.
+- **Denominator gaming (Decision 0008 / Cat. 4 GATE):** survived. `Summary::record`
+  only counts runnable scenarios into `total`; `parse_errors` (the 13 Literals6
+  scenarios, BUG-0008) stay excluded. Expansion can only *grow* the denominator
+  (1602 → 3884), and reaching Cat. 4 = 100 now genuinely requires every Examples
+  variant to pass — the exact anti-gaming intent of BUG-0009. Strict improvement.
+- **Header-only outline mis-count** (the "yields nothing" branch): survived. I found
+  exactly one suspected header-only Examples block (`Precedence1.feature`) and
+  confirmed it is actually a *commented-out* (`#| = |`) data row that the `gherkin`
+  parser correctly skips to read `| <= |` — i.e. the very `#|`-comment case that
+  drove the 2541 → 2558 grep-vs-parser correction. **Zero genuine header-only
+  outlines** exist, so the count (3884) is unaffected by that decision.
+- **Build / gate verification:** ran `./format_code.sh` → exit 0 (fmt + clippy
+  `-D warnings` + taplo, all green); `cargo test --workspace --all-features` →
+  all suites pass, 0 failures, 0 warnings; `cargo run -p tck-runner -- --format json`
+  → live `total: 3884, pass: 0, pending: 3884, fail: 0, parse_errors: 1`, matching
+  the PR's claim; `vendored_corpus` integration tests (incl. the reconciliation
+  guard) pass against the real pinned `2024.3` corpus (220 files).
+- **Scope / blast radius:** survived. Unlike the abandoned sibling branches
+  (284 files / +45k lines), this branch is correctly re-cut from a clean base: 8
+  files, all `tck-runner`-scoped + the board/decision docs. No `unsafe`, no secrets,
+  no new dependency (`gherkin` was already present).
+
+**Rationale:** The fix is correct and minimal: `expand_scenario` substitutes every
+`<placeholder>` surface the harness actually reads (query/setup docstrings, step
+values, result/side-effect table cells), `runner::all_scenarios` expands before
+classifying so `total` reflects the conventional openCypher test-case count, and a
+reconciliation guard pins the expanded denominator and asserts zero surviving
+placeholders against the real corpus. It strengthens the Decision 0008 GATE integrity
+(denominator can only grow; 100 now means all Examples variants) rather than weakening
+it. All gates are green and every attack I constructed failed to land. The remaining
+items are non-blocking. (Note: the integrator must still obtain `premortem-analyst`
+sign-off and rebase onto current `main` before landing — both review-gate boxes must
+be checked.)
+
+**Signed:** adversarial-reviewer  T+3:2x
