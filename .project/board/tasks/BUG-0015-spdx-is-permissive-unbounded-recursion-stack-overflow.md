@@ -10,7 +10,7 @@ deps: [BUG-0008]
 rubric_refs: [12]
 estimate: S
 created: T0+3:18
-updated: T0+3:18
+updated: T0+3:30
 ---
 
 ## Context
@@ -56,3 +56,9 @@ which is the more conservative behaviour the module otherwise upholds.
 - Filed by premortem-analyst during BUG-0008 review (T0+3:18). See the BUG-0008
   PR.md "Pre-mortem Analysis" block ([OPERATIONAL] finding) for the empirical
   repro and the accepted-risk rationale that kept it from blocking BUG-0008.
+- T0+3:30 — adversarial-reviewer **approve** on branch `work/BUG-0015-spdx-depth-cap`
+  (worktree `.claude/worktrees/wf_e9fceb87-27c-42`, HEAD 8d5ce5a). No blocking
+  findings; depth cap (MAX_PAREN_DEPTH=64) verified to bound the sole recursion edge,
+  cap fails closed (conservative `false`), boundary pinned by tests, format+tests
+  re-run green. Two non-blocking notes recorded in PR.md. Still needs premortem-analyst
+  sign-off before landing.

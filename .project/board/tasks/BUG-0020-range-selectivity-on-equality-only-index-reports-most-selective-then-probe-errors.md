@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [5, 3]
 estimate: S
 created: T+3:40
-updated: T+3:40
+updated: T+4:04
 ---
 
 ## Context
@@ -61,3 +61,13 @@ stub today), so P2; fix before T-0024.
 
 ## Notes / log
 - T+3:40 filed by adversarial-reviewer during T-0022 re-review. Pairs with BUG-0019.
+- T+4:04 premortem-analyst: APPROVE on PR `work/BUG-0020-range-selectivity-on-a-non-empty-equality-only-ind`
+  (worktree `wf_156e2b80-bb6-46/.worktrees/BUG-0020`). Verified locally: build +
+  clippy `-D warnings` + fmt clean, 202/202 lib tests (37/37 `index::`). Pure
+  in-memory selectivity-estimator fix; no S3/commit/lease/GC surface, no dep change.
+  Premortem box ticked in PR.md. NON-BLOCKING integrator notes: (1) sibling BUG-0019
+  (ready) edits the same `selectivity`/`probe` match blocks and still retains the
+  buggy `from_fraction(0,total)` range arm — second-to-land must keep BOTH guard arms
+  and re-run the other's regression tests post-rebase; (2) a DUPLICATE BUG-0020 PR
+  exists (`work/BUG-0020-range-selectivity-equality-only-index`, `wf_e9fceb87-27c-38`,
+  both gates already ticked) — land one, `dropped` the loser, do not double-close.
