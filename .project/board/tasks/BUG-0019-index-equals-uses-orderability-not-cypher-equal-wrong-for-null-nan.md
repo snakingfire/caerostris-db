@@ -2,15 +2,15 @@
 id: BUG-0019
 title: Index facade Equals uses orderability equality, not the openCypher `=` operator — wrong rows for null/NaN
 type: bug
-status: ready
+status: in_progress
 priority: P1
-assignee:
+assignee: implementer-wf_fe688db0-093-31
 epic: EPIC-005
 deps: []
 rubric_refs: [5, 4]
 estimate: S
 created: T+3:40
-updated: T+3:40
+updated: T+3:52
 ---
 
 ## Context
