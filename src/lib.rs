@@ -9,6 +9,7 @@
 //!
 //! | Module | Purpose |
 //! |--------|---------|
+//! | [`cypher`] | openCypher front-end: lexer + parser → typed AST (Cat. 4) |
 //! | [`engine`] | Graph engine core (stub — lands after SPIKE-0003) |
 //! | [`licenses`] | License-manifest hygiene (Cat. 12) |
 //! | [`model`] | Logical property-graph data model (Node, Edge, PropertyValue, Schema) |
@@ -18,6 +19,7 @@
 //! | [`tck`] | openCypher TCK pass-rate contract (Cat. 4) |
 //! | [`txn`] | Transaction management (stub — lands after SPIKE-0001) |
 
+pub mod cypher;
 pub mod engine;
 pub mod licenses;
 pub mod model;
