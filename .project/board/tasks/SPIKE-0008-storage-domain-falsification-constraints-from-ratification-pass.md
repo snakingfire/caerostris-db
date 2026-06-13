@@ -2,15 +2,15 @@
 id: SPIKE-0008
 title: Storage-domain falsification constraints from ratification pass
 type: spike
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: researcher
 epic: EPIC-001
 deps: []
 rubric_refs: [2, 3, 1]
 estimate: S
 created: 2026-06-13T18:29:56Z
-updated: 2026-06-13T18:29:56Z
+updated: 2026-06-13T19:05:00Z
 ---
 
 ## Context
