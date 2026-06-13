@@ -2,14 +2,14 @@
 id: BUG-0009
 title: TCK Scenario Outlines counted once, not expanded per Examples row (denominator ~2.4x too small; <placeholders> unsubstituted)
 type: bug
-status: in_review
+status: done
 priority: P1
-assignee: test-author-wf_fe688db0-093-3
+assignee: test-author-wf_156e2b80-bb6-4
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+0:58
-updated: T0+5:20
+updated: T0+5:30
 ---
 
 ## Context
@@ -157,3 +157,10 @@ latent defect that activates the moment a real engine plugs in.
   tracked by **BUG-0021**. Pre-mortem checkbox checked in PR.md. NB for the integrator: per the
   T0+3:29 note this is one of ~9 parallel BUG-0009 branches — land exactly this one and drop the
   duplicates. Verdict block in the worktree's `PR.md`.
+- T0+5:30 (integrator): **Landed** `work/BUG-0009-outline-expansion` in commit `e0104f9`.
+  Both review-gate checkboxes confirmed checked (adversarial-reviewer approve T+3:2x,
+  premortem-analyst approve T+3:31 per PR.md). `./format_code.sh` green; `cargo nextest run`
+  (123 workspace + 61 tck-runner) all passed, 0 failed. Additive merge conflict in board file
+  resolved (all log entries from both sides preserved); PR.md removed from tree (tracked by
+  BUG-0016). Push to remote requires manual push (`git push origin main`). Duplicate
+  BUG-0009 branches left for pace-marshal to clean up. Status: done.
