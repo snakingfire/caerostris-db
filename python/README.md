@@ -33,5 +33,5 @@ except caerostris.CaerostrisError as exc:
     ...                     # typed, catchable — never a bare RuntimeError
 ```
 
-See [`docs/adr/0004-python-bindings-pyo3-maturin.md`](../docs/adr/0004-python-bindings-pyo3-maturin.md)
+See [`docs/adr/0006-python-bindings-pyo3-maturin.md`](../docs/adr/0006-python-bindings-pyo3-maturin.md)
 for the build/packaging decisions.

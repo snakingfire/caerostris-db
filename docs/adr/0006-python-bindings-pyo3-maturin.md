@@ -1,4 +1,4 @@
-# ADR 0004 — Python bindings: PyO3 + maturin scaffold and packaging
+# ADR 0006 — Python bindings: PyO3 + maturin scaffold and packaging
 
 ## Status
 
