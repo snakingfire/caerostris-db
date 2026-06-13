@@ -237,3 +237,116 @@ fn labels_round_trip_including_empty_label_set() {
     assert_eq!(back, vec![n]);
     assert!(back[0].labels.is_empty());
 }
+
+// ---- generative round-trip fidelity (AC3) --------------------------------
+//
+// AC3 calls for property-based round-trip fidelity over "arbitrary node sets
+// ... (labels + all property types)". The engine deliberately avoids the `rand`
+// crate (and therefore `proptest`, which pulls in ~19 transitive crates) to
+// keep the lockfile lean and the license manifest small — the same call
+// `src/dataset/rng.rs` already made. We instead drive a deterministic,
+// reproducible generator (the repo's own SplitMix64) over many seeds, which
+// gives the same coverage of the value space with zero new dependencies. A
+// follow-up task may add a proptest harness if the dependency tree is justified
+// at the workspace level. The seed is printed on failure for reproduction.
+
+use crate::dataset::SplitMix64;
+
+/// Build an arbitrary [`PropertyValue`] of bounded `depth` (containers nest
+/// only while `depth > 0`), covering every variant including `Null`.
+fn arb_value(g: &mut SplitMix64, depth: u32) -> PropertyValue {
+    let kinds = if depth == 0 { 5 } else { 7 };
+    match g.below(kinds) {
+        0 => PropertyValue::Null,
+        1 => PropertyValue::Boolean(g.below(2) == 1),
+        2 => PropertyValue::Integer(g.next_u64() as i64),
+        3 => {
+            // Mix in some special floats (incl. a NaN) for total-order coverage.
+            let pick = g.below(4);
+            let f = match pick {
+                0 => f64::NAN,
+                1 => 0.0,
+                2 => -1.5,
+                _ => g.unit_f64() * 1e6 - 5e5,
+            };
+            PropertyValue::Float(f)
+        }
+        4 => {
+            let len = g.below(6) as usize;
+            let s: String = (0..len)
+                .map(|_| char::from(b'a' + (g.below(26) as u8)))
+                .collect();
+            PropertyValue::String(s)
+        }
+        5 => {
+            let n = g.below(4) as usize;
+            PropertyValue::List((0..n).map(|_| arb_value(g, depth - 1)).collect())
+        }
+        _ => {
+            let n = g.below(4) as usize;
+            let mut m = BTreeMap::new();
+            for k in 0..n {
+                m.insert(format!("k{k}"), arb_value(g, depth - 1));
+            }
+            PropertyValue::Map(m)
+        }
+    }
+}
+
+/// Build an arbitrary node set with distinct ids in a (possibly sparse) band.
+fn arb_nodes(g: &mut SplitMix64) -> Vec<Node> {
+    let count = 1 + g.below(12) as usize;
+    let mut ids = std::collections::BTreeSet::new();
+    while ids.len() < count {
+        ids.insert(g.below(1000));
+    }
+    let label_pool = ["Person", "Place", "Thing", "Event"];
+    let key_pool = ["name", "age", "score", "tags", "meta"];
+    ids.into_iter()
+        .map(|id| {
+            let mut node = Node::new(NodeId(id));
+            let nlabels = g.below(label_pool.len() as u64 + 1) as usize;
+            for _ in 0..nlabels {
+                node.labels
+                    .insert(label_pool[g.below(label_pool.len() as u64) as usize].to_string());
+            }
+            let nprops = g.below(key_pool.len() as u64 + 1) as usize;
+            for _ in 0..nprops {
+                let key = key_pool[g.below(key_pool.len() as u64) as usize];
+                node.properties.insert(key.to_string(), arb_value(g, 2));
+            }
+            node
+        })
+        .collect()
+}
+
+/// Round-tripping any arbitrary node set returns the identical set; and the
+/// serialised bytes are deterministic (re-serialising yields identical bytes),
+/// which the content-addressed commit layer (T-0009/ADR 0002) relies on.
+#[test]
+fn generative_round_trip_fidelity_and_determinism() {
+    for seed in 0..400u64 {
+        let mut g = SplitMix64::new(seed);
+        let nodes = arb_nodes(&mut g);
+
+        let shard1 = NcolWriter.serialize(&nodes).expect("serialize");
+        let shard2 = NcolWriter.serialize(&nodes).expect("serialize");
+        assert_eq!(
+            shard1.bytes, shard2.bytes,
+            "seed {seed}: serialisation must be deterministic"
+        );
+
+        let mut store = MemoryStore::new();
+        store.put(KEY, shard1.bytes).expect("put");
+        let back = NcolReader::read_all(&store, KEY, &shard1.dir).expect("read_all");
+
+        // Expected = the same nodes sorted by id (the shard ordering).
+        let mut expected = nodes.clone();
+        expected.sort_by_key(|n| n.id.0);
+        assert_eq!(back, expected, "seed {seed}: round-trip mismatch");
+
+        // The self-describing directory rediscovers identically.
+        let rediscovered = NcolReader::read_dir(&store, KEY).expect("read_dir");
+        assert_eq!(rediscovered, shard1.dir, "seed {seed}: dir mismatch");
+    }
+}
