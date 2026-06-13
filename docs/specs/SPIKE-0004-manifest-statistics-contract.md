@@ -4,8 +4,11 @@
 > **Owner:** researcher (this spike). **Joint steering item:**
 > `steering-query-cypher` (primary, Cat. 4/5 planner+index) + `steering-storage`
 > (Cat. 2 manifest layout) + `steering-perf-sla` (Cat. 3 envelope/detection).
-> **Status:** proposed — awaiting ≥3-of-5 cross-cutting quorum (sign-off request:
-> `.project/decisions/0030-spike-0004-statistics-contract-signoff-request.md`).
+> **Status:** **accepted** — ratified by ≥3-of-5 cross-cutting quorum
+> (`steering-storage` decision 0032 / ADR 0006 §5.3; `steering-formal-methods`
+> decision 0015 / ADR 0001 F2; `steering-perf-sla` decision 0033). Sign-off
+> request: `.project/decisions/0030-spike-0004-statistics-contract-signoff-request.md`;
+> perf-sla ratification: `.project/decisions/0033-perf-sla-spike-0004-statistics-contract-ratification.md`.
 > **Rubric:** Cat. 3 (latency envelope, GATE, w14), Cat. 4 (planner, GATE, w12),
 > Cat. 5 (index selectivity, w7); touches Cat. 2 (manifest, GATE, w12).
 
@@ -521,3 +524,46 @@ Cat. 4/5), **`steering-storage`** (manifest layout, Cat. 2), **`steering-perf-sl
 `.project/decisions/0030-spike-0004-statistics-contract-signoff-request.md`.
 Until ≥3-of-5 ratify, this spec is `proposed`; T-0009 and T-0015 stay `backlog`
 on their `SPIKE-0004` dependency.
+
+### Ratification record — RATIFIED (3-of-5 cross-cutting quorum)
+
+**Status: `accepted`.** SPIKE-0004 → `done`; T-0009 and T-0015 clear their
+`SPIKE-0004` dependency.
+
+1. **`steering-storage` — RATIFIED (storage half), decision 0032 / ADR 0006 §5.3.**
+   Manifest home + the R1 inline-vs-referenced cut made binding: OOE-critical scalars
+   (`node_count`, `total_node_count`, `edge_count`, `p99_deg`, **`max_deg`**) inline;
+   bulky per-property MCV/histogram detail a referenced content-addressed
+   `db/stats/<hash>.stats` blob; value-digest privacy; binding invariant restated as
+   storage law ("super-hub / non-selective rejection needs no data-plane GET beyond
+   the manifest").
+2. **`steering-formal-methods` — RATIFIED (secondary Cat. 3/11), decision 0015 / ADR
+   0001 F2.** Bound per-rel-type **`max_deg`** (not only p99) as the mandatory
+   super-hub safety term — the contract's central requirement, which this spec
+   discharges verbatim.
+3. **`steering-perf-sla` — RATIFIED-WITH-CONDITIONS (primary Cat. 3 detection),
+   decision 0033** (this ratification). Independent re-derivation of every
+   load-bearing figure (super-hub 2.56 GB / 890×; p99 trap 1.65 MB; Part 5 size
+   1016 B inline ≤ 4096 B reserve / 360.8 KB blobs) plus eight falsification attacks
+   — all survived; the two-term estimator is sound, the missing/stale rule cannot
+   under-reject (no optimistic-accept leg), incremental `max_deg` is sound under
+   deletion, the contract is cache-independent, and no stats read busts the
+   cold-start phase floor.
+
+**Conditions (bound to dependent tasks, not to this ratification — see decision 0033):**
+- **C1 (T-0015 + T-0009/SPIKE-0003, concurs with ADR 0001 PS-1):** the lazy
+  `db/stats` selectivity-blob fetch must not silently become a serial data-plane
+  round-trip on the cold path; if any deployment serializes it, declare K_min=9 and
+  re-pin B_max/OOE thresholds (envelope still closes: usable 405 ms, B_max(50 Mbps)
+  2.53 MB).
+- **C2 (T-0015, re-affirms F1/F2):** OOE estimator uses α-corrected thresholds
+  (102 ms / 216 ms) and the two-term estimator (p99 for total-byte acceptance;
+  `max_deg` for single-GET super-hub safety gate). p99 as the byte safety bound is
+  forbidden.
+- **C3 (T-0016, re-affirms PS-2):** Cat. 3 measured evidence exercising OOE detection
+  must come from a cold-start, cache-OFF run per the cold-start-benchmark-protocol ADR.
+
+**Recommended (non-blocking):** `steering-query-cypher` (primary) may append a
+confirming counter-signature on the selectivity-derivation; its founding finding
+(decision 0009) is fully discharged and T-0015/T-0009 already carry the contract's
+terms with no objection. Ratification stands on the 3-of-5 recorded above.
