@@ -9,8 +9,10 @@
 //!
 //! | Module | Purpose |
 //! |--------|---------|
+//! | [`cli`] | Shared command-line dispatch for the `caerostris-db` / `caero` binaries |
 //! | [`cypher`] | openCypher front-end: lexer + parser → typed AST (Cat. 4) |
 //! | [`dataset`] | License-clean synthetic graph dataset generator (Cat. 10) |
+//! | [`demo`] | Minimal in-memory store + `MATCH ... RETURN` executor for the end-to-end demo |
 //! | [`engine`] | Graph engine core (stub — lands after SPIKE-0003) |
 //! | [`index`] | Pluggable secondary-index interface (Cat. 5) |
 //! | [`licenses`] | License-manifest hygiene (Cat. 12) |
@@ -21,8 +23,10 @@
 //! | [`tck`] | openCypher TCK pass-rate contract (Cat. 4) |
 //! | [`txn`] | Transaction management (stub — lands after SPIKE-0001) |
 
+pub mod cli;
 pub mod cypher;
 pub mod dataset;
+pub mod demo;
 pub mod engine;
 pub mod index;
 pub mod licenses;
