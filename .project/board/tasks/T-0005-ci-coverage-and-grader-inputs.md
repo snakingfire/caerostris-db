@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [10, 12]
 estimate: S
 created: T0
-updated: T+3:15
+updated: T+3:40
 ---
 
 ## Context
@@ -96,3 +96,18 @@ No dep on T-0001 or T-0002 — this task can run in parallel or even before them
   `cargo nextest run` 180/180 pass; `cargo llvm-cov` 96.29% line coverage (>90% target).
   Merged to main with `--no-ff`. **Landed in commit `0dd2f2d` at T+3:15.**
   Coverage report: `.project/reports/coverage-T+03-15.md`.
+
+- **T+3:40 (premortem-analyst):** Post-land pre-mortem of the landed diff (`0dd2f2d`,
+  9 files, CI/tooling/docs only). **Verdict: approve** — pre-mortem sign-off recorded
+  in the canonical PR.md (`.claude/worktrees/wf_156e2b80-bb6-3/PR.md`, gitignored
+  worktree scratch per BUG-0013). All P0 lenses impossible-by-scope or mitigated:
+  no `src/*.rs` / `Cargo.toml` touched (ACID / latency-theorem / concurrency
+  out of scope), no shipped dependency (cargo-llvm-cov is dev/CI-only, Apache-2.0 OR
+  MIT). Headline risk — a fail-OPEN coverage GATE — was probed directly against the
+  landed `grader-inputs.sh`: the awk gate fails **CLOSED** on null/empty/garbage and
+  on a genuine 89.9-vs-90 regression (all exit 1); only a real value ≥ threshold
+  passes. 10/10 shell-harness assertions green on `main`. Non-blocking follow-ups
+  (no live consumer for the `GRADER_INPUTS` block — grader reads
+  `.project/reports/coverage-*.md`/`tck-latest.json` files; `test_pass` under-counts
+  without `--workspace`) emit no false evidence and have no live consumer; track in a
+  metrics-accuracy follow-up alongside BUG-0013's ratchet hardening.

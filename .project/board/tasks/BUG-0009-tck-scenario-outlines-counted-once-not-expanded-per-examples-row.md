@@ -9,7 +9,7 @@ epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+0:58
-updated: T0+5:05
+updated: T0+5:20
 ---
 
 ## Context
@@ -103,3 +103,41 @@ latent defect that activates the moment a real engine plugs in.
   and already owned by BUG-0018 (noted there that the live total moves to 3884). Awaiting
   premortem-analyst sign-off before the integrator lands. Verdict block in the worktree's
   `PR.md`.
+- T0+3:29 (adversarial-reviewer): **approve** on a *second*, parallel BUG-0009 branch
+  `work/BUG-0009-expand-outlines-per-examples-row` (worktree `wf_e9fceb87-27c-4`,
+  merge-base `09e26ac`). Clean, tightly-scoped 7-file diff (`tck-runner` src/tests +
+  Decision 0013 addendum + board). Outline expansion in `expand::expand_scenario` wired
+  into `runner::run_feature`; all substantive ACs met. Verified empirically against the
+  real 220-file corpus: harness `total` 1602 → **3884** (`(1339 plain + 2558 parser-true
+  Examples rows) − 13 Literals6`); the reconciliation guard
+  `expanded_denominator_is_pinned_and_reconciled` passes against the live corpus and makes
+  silent drift impossible. `cargo test -p tck-runner` 40+ green; clippy `-D warnings` clean;
+  `cargo fmt --check` clean. Denominator moves in the GATE-*safe* direction (harder to hit
+  100%), consistent with Decision 0008 + commander's intent. Strongest attack — the
+  sequential `str::replace` chain-substitution in `expand::substitute` (a value containing a
+  sibling column's `<token>` is re-substituted, deviating from single-pass Cucumber
+  semantics) — is real but provably inert: an exhaustive parser-true scan found **0**
+  colliding `Examples` cells across all 276 outlines. Filed as **BUG-0021** (P3, latent,
+  close before EPIC-002's engine runs the variants). NB: this is one of 9 parallel BUG-0009
+  branches; the sibling `work/BUG-0009-expand-outlines-by-examples` is already approved
+  (T0+5:05 stamp). Integrator must land exactly one and drop the duplicates. Stale committed
+  `PR.md` at HEAD (a T-0014 leftover; the working-tree PR.md is the correct BUG-0009 one) —
+  already tracked by BUG-0016. Verdict block appended to the worktree's `PR.md`.
+- T0+5:20 (premortem-analyst): **approve** on `work/BUG-0009-expand-outlines-by-examples`
+  (worktree `wf_fe688db0-093-3`, HEAD `18c7135`, merge-base `494a9e7` = current `main`).
+  Worked backwards from a hypothetical incident across all six pre-mortem lenses. **No P0
+  failure mode is reachable**: the diff is confined to the read-only `tck-runner` grading
+  harness — no engine/storage/manifest/commit/lease/planner/cache surface, no new dependency
+  (`Cargo.toml`/`Cargo.lock` untouched), no `unsafe`, no secrets. Re-verified empirically (not
+  from PR text): full `cargo test --workspace` green incl. the live-corpus reconciliation guard
+  `expanded_denominator_reconciles_and_is_guarded` (`total == 3884`, `parse_errors == 1`,
+  `fail == 0`, `pass_rate == 0.0`); independently confirmed plain=1339/outlines=276 by grep;
+  `clippy -p tck-runner -D warnings` and `./format_code.sh` exit 0. Two **non-blocking** risks,
+  both guarded: (1) the grader still pins `1.0.0-M23`/`total == 1615` — but this PR does **not**
+  introduce/worsen that mismatch (live `1602 ≠ 1615` already), the emitted rate stays honest
+  `0.0`, and reconciliation is owned by **BUG-0018** (which records the `1602 → 3884` move);
+  (2) the sequential `str::replace` chain-substitution is real but double-gated (corpus-bump
+  trips the count-pin guard + needs a sibling-`<token>` cell, of which the corpus has 0) and
+  tracked by **BUG-0021**. Pre-mortem checkbox checked in PR.md. NB for the integrator: per the
+  T0+3:29 note this is one of ~9 parallel BUG-0009 branches — land exactly this one and drop the
+  duplicates. Verdict block in the worktree's `PR.md`.
