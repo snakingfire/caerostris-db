@@ -2,7 +2,7 @@
 id: BUG-0019
 title: Index facade Equals uses orderability equality, not the openCypher `=` operator — wrong rows for null/NaN
 type: bug
-status: in_progress
+status: in_review
 priority: P1
 assignee: implementer-wf_fe688db0-093-31
 epic: EPIC-005
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [5, 4]
 estimate: S
 created: T+3:40
-updated: T+3:52
+updated: T+3:58
 ---
 
 ## Context
@@ -65,3 +65,12 @@ so it is latent, not a live incident — hence P1, fix before T-0024/EPIC-002 la
 ## Notes / log
 - T+3:40 filed by adversarial-reviewer during T-0022 re-review. Pairs with BUG-0020
   (range selectivity on equality-only index).
+- T+3:58 implemented on `work/BUG-0019-index-equals-cypher-equal-semantics` (based on
+  latest `main`). Surface chosen: keep the documented `= <value>` semantics; guard
+  `Equals(v)` in both `probe` and `selectivity` to short-circuit to no rows when
+  `cypher_equal(v, v) != Some(true)` (the sole orderability-vs-`=` divergence: `null`,
+  `NaN`, indeterminate containers). Clean probes need no post-filtering (proof in the
+  helper doc + ADR 0005). 7 new TDD tests (4 RED→GREEN, 3 regression guards); full suite
+  285 passed; clippy + `./format_code.sh` green. ADR 0005 + `IndexQuery::Equals` doc
+  corrected. Status → in_review; review gate (adversarial-reviewer + premortem-analyst)
+  pending.
