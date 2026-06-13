@@ -2,7 +2,7 @@
 id: SPIKE-0002
 title: Design S3 commit protocol and TLA+ model for atomicity + isolation
 type: spike
-status: in_progress
+status: in_review
 priority: P0
 assignee: formal-prover
 epic: EPIC-004
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [1, 11]
 estimate: M
 created: T0
-updated: 2026-06-13T19:12:00Z
+updated: 2026-06-13T19:35:00Z
 ---
 
 ## Context
@@ -55,3 +55,17 @@ Steering sign-off: **steering-distributed-acid** and **steering-formal-methods**
 ## Notes / log
 
 Output feeds EPIC-004 (Rust implementation of the commit protocol) and EPIC-006 (writer leasing for attach modes). The TLA+ model must be kept in sync with the implementation throughout the project; drift is a bug.
+
+- **T0+~1:11 (formal-prover):** design + TLA+ model authored, TLC-checked
+  (7406 states, no invariant violations; liveness holds; zombie race reachable),
+  and committed on branch `work/SPIKE-0002-design-s3-commit-protocol-and-tla-model-for-atomic`
+  (awaiting integrator land + steering ratification). Status → `in_review`.
+  Artifacts on that branch (canonical paths per BUG-0003):
+  ADR `docs/adr/0002-s3-commit-protocol.md`; TLA+ `formal/commit-protocol/`
+  (`commit_protocol.tla` + `.cfg` + `commit_protocol_liveness.cfg` + `check.sh`
+  + `README.md`); checker output `formal/results/commit_protocol_check.txt`;
+  ratification request `.project/decisions/0013-commit-protocol-steering-ratification-request.md`.
+  Fencing invariant corrected to `AtMostOneCommitPerVersion` (decision 0004 #3).
+  **Stays `in_review` until steering-distributed-acid + steering-formal-methods
+  ratify** (design-falsification Loop A); EPIC-001/EPIC-004 commit-path tasks
+  stay `backlog` until then. Apalache-on-implementation is T-0038.
