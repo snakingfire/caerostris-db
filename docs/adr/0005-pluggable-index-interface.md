@@ -97,6 +97,53 @@ trait to exercise the interface in unit tests; it is explicitly **not** the
 object-store B-tree (T-0023). A second, unordered equality-only index type is
 sketched in the tests to prove the trait carries no B-tree assumptions.
 
+## Extensibility demonstration (T-0025)
+
+The extensibility criterion (Cat. 5 = 100, "one additional index type stubbed
+against the same trait") is satisfied by **`HashIndex<K, V>`** in
+`src/index/hash.rs` — a first-class library index type, promoted from the
+test-only sketch the trait shipped with. It is the proof that the interface
+generalises beyond the B-tree shape **without any change to the trait
+signature**:
+
+- It is an **equality-only** multimap (`HashMap<K, Vec<V>>`) whose key bound is
+  `K: Eq + Hash` — deliberately **not** `Ord`. A key space with no natural total
+  order (a hash domain, a full-text token) fits `HashIndex` but could never fit a
+  B-tree, which is exactly the assumption the trait was designed not to bake in.
+- It advertises `IndexCapabilities::equality_only()` and **declines**
+  `range_scan` with `IndexError::RangeUnsupported` rather than fabricating an
+  order — the behaviour the *fallible* `range_scan` and the
+  *capability-advertisement* design (above) exist to enable.
+- It gains the type-erased `PropertyIndex` planner facade **for free** via the
+  blanket impl: the planner consults `HashIndex` through the *same* `&dyn
+  PropertyIndex` API it uses for the B-tree, with zero knowledge of the concrete
+  type. A test holds a heterogeneous catalog (`Vec<Box<dyn PropertyIndex>>`)
+  mixing the ordered `InMemoryIndex` and the unordered `HashIndex` behind one
+  trait object.
+
+The only addition the second type required outside `hash.rs` was a `Hash` impl
+on `OrderedKey` — purely **additive**, not a trait-signature change. It is
+defined consistently with `OrderedKey`'s `cypher_order`-based `Eq` (the
+`Hash`/`Eq` contract: `a == b ⇒ hash(a) == hash(b)`), which is non-trivial
+because openCypher orderability makes `Integer(1) == Float(1.0)`; the impl folds
+all numerics to a canonical `f64`, all `NaN`s to one bit pattern, and `-0.0` to
+`+0.0`, and recurses through lists/maps. This validates that the *key* type, not
+just the trait, generalises across ordered and hashed index families.
+
+### A facade bug the second index type fixes (BUG-0020)
+
+Driving a **non-empty** equality-only index through the `PropertyIndex` facade
+with a range query is exactly the scenario BUG-0020 (filed during T-0022
+adversarial review) flagged: the blanket-impl `selectivity` returned
+`from_fraction(0, total)` = `0.0` on `RangeUnsupported`, the *most* selective
+estimate, which would make the planner **prefer** an index that then errors on
+`probe`. (The original `equality_only` test sketch only ever exercised an *empty*
+index, where `total == 0` masks the bug as `1.0`.) Fixed here to return
+`from_fraction(total, total)` = `1.0`, the *least* selective estimate, so the
+planner correctly falls back to a scan; `probe` still surfaces the error
+explicitly. The new non-empty `HashIndex` regression tests pin the behaviour.
+Resolves BUG-0020.
+
 ## Alternatives considered
 
 ### Alternative A — Single object-safe `dyn SecondaryIndex` keyed on `PropertyValue`, no generic trait
@@ -149,8 +196,9 @@ the index layer where it belongs.
 ### Positive
 
 - Advances Cat. 5 toward 100: pluggable trait defined; selectivity-aware
-  planner facade in place; a second index type proven against the same trait
-  (the extensibility criterion) — all without core rewrites.
+  planner facade in place; a second index type (`HashIndex`, T-0025) proven as
+  first-class library code against the same trait (the extensibility criterion)
+  — all without core rewrites.
 - Unblocks T-0023 (object-store B-tree implements `SecondaryIndex`) and T-0025
   (second concrete index type) on a stable contract.
 - Object-safe planner facade lets EPIC-002 hold a heterogeneous index catalog

@@ -44,6 +44,9 @@ use std::ops::Bound;
 
 use crate::model::{NodeId, PropertyValue};
 
+mod hash;
+pub use hash::HashIndex;
+
 /// A [`PropertyValue`] wrapped so it can serve as an **ordered index key**.
 ///
 /// [`PropertyValue`] intentionally implements neither [`Ord`] nor [`Eq`] — it
@@ -91,6 +94,94 @@ impl PartialEq for OrderedKey {
 }
 
 impl Eq for OrderedKey {}
+
+/// [`Hash`] consistent with [`OrderedKey`]'s [`Eq`] (the
+/// [`cypher_order`](PropertyValue::cypher_order)-equality relation), so
+/// `OrderedKey` can key a hash-based index ([`HashIndex`]) as well as the ordered
+/// [`InMemoryIndex`]. The `Hash`/`Eq` contract requires `a == b ⇒ hash(a) ==
+/// hash(b)`; the non-obvious equality classes this honours are:
+///
+/// - **numeric cross-type**: `Integer(1)` and `Float(1.0)` are `cypher_order`-equal,
+///   so both hash via their canonical `f64` value (`hash_numeric`);
+/// - **floats**: every `NaN` is equal under `cypher_order`, so all `NaN`s hash to
+///   one canonical bit pattern; `-0.0` and `+0.0` are equal and normalised to
+///   `+0.0` before hashing;
+/// - **lists / maps**: hashed element-wise through `OrderedKey` so the recursion
+///   inherits the same equality classes (maps iterate their [`BTreeMap`] in sorted
+///   key order, matching `map_cypher_order`).
+///
+/// Unequal values may still collide (permitted for `Hash`); only equal-implies-
+/// equal-hash is load-bearing for correctness.
+impl std::hash::Hash for OrderedKey {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        hash_property_value(&self.0, state);
+    }
+}
+
+/// Hash a [`PropertyValue`] consistently with
+/// [`cypher_order`](PropertyValue::cypher_order) equality. See the [`Hash`] impl
+/// on [`OrderedKey`] for the equality classes this must respect.
+fn hash_property_value<H: std::hash::Hasher>(value: &PropertyValue, state: &mut H) {
+    use std::hash::Hash as _;
+    match value {
+        // Numerics share a hash domain (Integer(1) == Float(1.0)); hash the
+        // canonical f64 so cross-type-equal values collide deliberately.
+        PropertyValue::Integer(_) | PropertyValue::Float(_) => {
+            0u8.hash(state); // numeric group tag
+            hash_numeric(value, state);
+        }
+        PropertyValue::Boolean(b) => {
+            1u8.hash(state);
+            b.hash(state);
+        }
+        PropertyValue::String(s) => {
+            2u8.hash(state);
+            s.hash(state);
+        }
+        PropertyValue::List(items) => {
+            3u8.hash(state);
+            items.len().hash(state);
+            for item in items {
+                hash_property_value(item, state);
+            }
+        }
+        PropertyValue::Map(entries) => {
+            4u8.hash(state);
+            entries.len().hash(state);
+            // BTreeMap iterates in sorted key order, matching map orderability.
+            for (k, v) in entries {
+                k.hash(state);
+                hash_property_value(v, state);
+            }
+        }
+        PropertyValue::Null => {
+            5u8.hash(state);
+        }
+    }
+}
+
+/// Hash a numeric [`PropertyValue`] by its canonical `f64` bits, with `NaN`
+/// folded to one pattern and `-0.0` normalised to `+0.0`, so any two values that
+/// are equal under [`cypher_order`](PropertyValue::cypher_order) hash identically.
+fn hash_numeric<H: std::hash::Hasher>(value: &PropertyValue, state: &mut H) {
+    use std::hash::Hash as _;
+    #[allow(clippy::cast_precision_loss)]
+    let f = match value {
+        PropertyValue::Integer(i) => *i as f64,
+        PropertyValue::Float(f) => *f,
+        _ => unreachable!("hash_numeric called on non-numeric value"),
+    };
+    let canonical = if f.is_nan() {
+        // All NaNs are cypher_order-equal ⇒ one canonical bit pattern.
+        f64::NAN.to_bits()
+    } else if f == 0.0 {
+        // -0.0 == +0.0 under cypher_order ⇒ normalise to +0.0's bits.
+        0.0f64.to_bits()
+    } else {
+        f.to_bits()
+    };
+    canonical.hash(state);
+}
 
 impl PartialOrd for OrderedKey {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -598,3 +689,6 @@ impl<K: Ord + Clone, V: Clone + PartialEq> SecondaryIndex for InMemoryIndex<K, V
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod hash_tests;
