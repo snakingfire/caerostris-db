@@ -2,14 +2,14 @@
 id: BUG-0021
 title: TCK outline substitution chains instead of single-pass — a value containing a sibling column's <token> is re-substituted (latent; 0 hits in 2024.3 corpus)
 type: bug
-status: in_review
+status: done
 priority: P3
 assignee: test-author (wf_156e2b80-bb6-51)
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+3:29
-updated: T0+4:12
+updated: T0+4:15
 ---
 
 ## Context
@@ -161,3 +161,7 @@ Verified: that case substitutes correctly.)
   exists (`work/BUG-0021-tck-outline-single-pass-substitution`, wf_e9fceb87-27c-43,
   no sign-offs) — land THIS canonical branch and drop the duplicate. Premortem box
   ticked in PR.md. Both gates now green; ready for the integrator.
+- T0+4:15 (integrator): Landed in commit fc34fe5 at T0+4:15. Merge commit:
+  `land: BUG-0021 TCK outline substitution chains instead of single-pass`.
+  Both review gates verified approve in PR.md; 278/278 tests green; format_code.sh
+  exit 0 in worktree (wf_156e2b80-bb6-51). Status: done.
