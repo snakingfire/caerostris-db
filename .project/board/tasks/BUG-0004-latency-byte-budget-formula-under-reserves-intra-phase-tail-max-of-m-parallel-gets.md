@@ -2,15 +2,15 @@
 id: BUG-0004
 title: Latency byte-budget formula under-reserves intra-phase tail (max-of-M parallel GETs)
 type: bug
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: formal-prover
 epic: EPIC-003
 deps: []
 rubric_refs: [3, 11]
 estimate: M
 created: 2026-06-13T18:30:41Z
-updated: 2026-06-13T18:30:41Z
+updated: 2026-06-13T21:30:00Z
 ---
 
 ## Context
