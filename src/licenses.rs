@@ -80,30 +80,175 @@ impl std::fmt::Display for LicenseViolation {
     }
 }
 
-/// Returns `true` if every license token in an SPDX expression is approved.
+/// Returns `true` iff the SPDX license expression is satisfiable using only
+/// licenses on the approved allow-list ([`APPROVED_SPDX`]).
 ///
-/// Handles simple `A OR B` / `A/B` (legacy crates.io) disjunctions: a crate is
-/// acceptable if *any* offered license is approved. AND-style expressions
-/// (`A AND B`) require *all* tokens to be approved; we treat any non-OR
-/// separator conservatively as requiring all tokens.
+/// The expression is parsed and evaluated honoring SPDX operator precedence and
+/// grouping (SPDX spec, Annex D):
+///
+/// - `OR` (disjunction, *lowest* precedence): permissive iff *any* operand is.
+/// - `AND` (conjunction, binds tighter than `OR`): permissive iff *all* operands
+///   are — an `AND` operand is a license you are *required* to comply with.
+/// - `(...)` parentheses override the default precedence.
+/// - `WITH <exception>` (license exception, binds tightest) is treated as a
+///   single opaque token; since no exception-bearing identifier is on the
+///   allow-list it is conservatively rejected.
+/// - The legacy crates.io `A/B` slash form is normalized to `A OR B`.
+///
+/// Token matching is case-insensitive. Malformed expressions (unbalanced
+/// parentheses, empty or dangling operands) are conservatively rejected
+/// (`false`) — we never guess in the permissive direction.
+///
+/// This fixes BUG-0008: the previous substring heuristic checked for ` OR `
+/// before ` AND `, so `(MIT OR Apache-2.0) AND GPL-3.0` was misclassified as a
+/// pure disjunction and its required copyleft `AND` operand was ignored.
 #[must_use]
 pub fn is_permissive(spdx: &str) -> bool {
     let normalized = spdx.replace('/', " OR ");
-    if normalized.to_ascii_uppercase().contains(" OR ") {
-        // Disjunction: any approved license suffices.
-        normalized
-            .split(" OR ")
-            .map(|tok| tok.trim().trim_matches(|c| c == '(' || c == ')').trim())
-            .any(|tok| APPROVED_SPDX.iter().any(|a| a.eq_ignore_ascii_case(tok)))
-    } else if normalized.to_ascii_uppercase().contains(" AND ") {
-        // Conjunction: all components must be approved.
-        normalized
-            .split(" AND ")
-            .map(|tok| tok.trim().trim_matches(|c| c == '(' || c == ')').trim())
-            .all(|tok| APPROVED_SPDX.iter().any(|a| a.eq_ignore_ascii_case(tok)))
-    } else {
-        let tok = normalized.trim();
-        APPROVED_SPDX.iter().any(|a| a.eq_ignore_ascii_case(tok))
+    let tokens = match spdx_tokenize(&normalized) {
+        Some(t) => t,
+        None => return false, // unrecognized character → reject conservatively
+    };
+    let mut parser = SpdxParser {
+        tokens: &tokens,
+        pos: 0,
+    };
+    match parser.parse_or() {
+        // A well-formed parse that consumed the whole expression.
+        Some(permissive) if parser.pos == tokens.len() => permissive,
+        _ => false, // dangling tokens / unbalanced parens / empty → reject
+    }
+}
+
+/// A lexical token of an SPDX license expression.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum SpdxToken {
+    Or,
+    And,
+    With,
+    LParen,
+    RParen,
+    /// A license / exception identifier (already lower-cased for matching).
+    Ident(String),
+}
+
+/// Split an SPDX expression into tokens. Returns `None` if a character outside
+/// the recognized set (idents, whitespace, parentheses) appears, so callers can
+/// reject malformed input rather than silently dropping it.
+fn spdx_tokenize(input: &str) -> Option<Vec<SpdxToken>> {
+    let mut tokens = Vec::new();
+    let mut ident = String::new();
+
+    // Flush an accumulated identifier, classifying reserved words.
+    let flush = |ident: &mut String, tokens: &mut Vec<SpdxToken>| {
+        if ident.is_empty() {
+            return;
+        }
+        match ident.as_str() {
+            "or" => tokens.push(SpdxToken::Or),
+            "and" => tokens.push(SpdxToken::And),
+            "with" => tokens.push(SpdxToken::With),
+            _ => tokens.push(SpdxToken::Ident(std::mem::take(ident))),
+        }
+        ident.clear();
+    };
+
+    for ch in input.chars() {
+        match ch {
+            '(' | ')' => {
+                flush(&mut ident, &mut tokens);
+                tokens.push(if ch == '(' {
+                    SpdxToken::LParen
+                } else {
+                    SpdxToken::RParen
+                });
+            }
+            c if c.is_whitespace() => flush(&mut ident, &mut tokens),
+            // SPDX ids: letters, digits, '.', '-', '+'. Reject anything else.
+            c if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+') => {
+                ident.push(c.to_ascii_lowercase());
+            }
+            _ => return None,
+        }
+    }
+    flush(&mut ident, &mut tokens);
+    Some(tokens)
+}
+
+/// Recursive-descent evaluator over SPDX tokens. Each `parse_*` returns the
+/// permissive verdict of the sub-expression it consumed, or `None` on a parse
+/// error (which the caller turns into a conservative `false`).
+struct SpdxParser<'a> {
+    tokens: &'a [SpdxToken],
+    pos: usize,
+}
+
+impl SpdxParser<'_> {
+    fn peek(&self) -> Option<&SpdxToken> {
+        self.tokens.get(self.pos)
+    }
+
+    /// `or_expr := and_expr ( "OR" and_expr )*` — permissive iff any operand is.
+    fn parse_or(&mut self) -> Option<bool> {
+        let mut acc = self.parse_and()?;
+        while matches!(self.peek(), Some(SpdxToken::Or)) {
+            self.pos += 1;
+            let rhs = self.parse_and()?;
+            acc = acc || rhs;
+        }
+        Some(acc)
+    }
+
+    /// `and_expr := with_expr ( "AND" with_expr )*` — permissive iff all are.
+    fn parse_and(&mut self) -> Option<bool> {
+        let mut acc = self.parse_with()?;
+        while matches!(self.peek(), Some(SpdxToken::And)) {
+            self.pos += 1;
+            let rhs = self.parse_with()?;
+            acc = acc && rhs;
+        }
+        Some(acc)
+    }
+
+    /// `with_expr := atom ( "WITH" ident )?` — an exception-bearing token is not
+    /// on the allow-list, so it is never permissive.
+    fn parse_with(&mut self) -> Option<bool> {
+        let lhs = self.parse_atom()?;
+        if matches!(self.peek(), Some(SpdxToken::With)) {
+            self.pos += 1;
+            // The exception must be a bare identifier.
+            match self.peek() {
+                Some(SpdxToken::Ident(_)) => {
+                    self.pos += 1;
+                    Some(false) // no `<license> WITH <exception>` is approved
+                }
+                _ => None, // dangling WITH → parse error
+            }
+        } else {
+            Some(lhs)
+        }
+    }
+
+    /// `atom := "(" or_expr ")" | ident`
+    fn parse_atom(&mut self) -> Option<bool> {
+        match self.peek() {
+            Some(SpdxToken::LParen) => {
+                self.pos += 1;
+                let inner = self.parse_or()?;
+                if matches!(self.peek(), Some(SpdxToken::RParen)) {
+                    self.pos += 1;
+                    Some(inner)
+                } else {
+                    None // unbalanced paren
+                }
+            }
+            Some(SpdxToken::Ident(tok)) => {
+                let approved = APPROVED_SPDX.iter().any(|a| a.eq_ignore_ascii_case(tok));
+                self.pos += 1;
+                Some(approved)
+            }
+            _ => None, // operator/paren where an atom was expected, or end-of-input
+        }
     }
 }
 
@@ -263,6 +408,90 @@ mod tests {
     fn and_expression_requires_all_tokens_approved() {
         assert!(is_permissive("MIT AND Apache-2.0"));
         assert!(!is_permissive("MIT AND GPL-3.0"));
+    }
+
+    // --- BUG-0008: mixed AND/OR conjunctions ---------------------------------
+
+    #[test]
+    fn parenthesized_or_anded_with_copyleft_is_not_permissive() {
+        // The reported bug: a permissive disjunction AND a copyleft component.
+        // GPL-3.0 is a *required* conjunct, so the whole expression is not
+        // permissive — even though `MIT OR Apache-2.0` on its own would be.
+        assert!(!is_permissive("(MIT OR Apache-2.0) AND GPL-3.0"));
+    }
+
+    #[test]
+    fn parenthesized_disjuncts_anded_are_permissive_when_each_satisfiable() {
+        // Each conjunct is a disjunction with at least one approved token:
+        //   (MIT OR GPL-3.0)  -> MIT approved
+        //   Apache-2.0        -> approved
+        // so the conjunction is satisfiable by approved tokens and is permissive.
+        assert!(is_permissive("(MIT OR GPL-3.0) AND Apache-2.0"));
+    }
+
+    #[test]
+    fn parenthesized_disjuncts_anded_are_not_permissive_when_one_unsatisfiable() {
+        // (MIT OR Apache-2.0) is satisfiable, but (GPL-3.0 OR AGPL-3.0) is not:
+        // no approved token satisfies the second conjunct.
+        assert!(!is_permissive(
+            "(MIT OR Apache-2.0) AND (GPL-3.0 OR AGPL-3.0)"
+        ));
+    }
+
+    #[test]
+    fn and_binds_tighter_than_or_without_parens() {
+        // SPDX precedence: AND binds tighter than OR, so
+        //   MIT OR Apache-2.0 AND GPL-3.0  ==  MIT OR (Apache-2.0 AND GPL-3.0)
+        // MIT alone satisfies the disjunction -> permissive.
+        assert!(is_permissive("MIT OR Apache-2.0 AND GPL-3.0"));
+        //   GPL-3.0 OR MIT AND BSD-3-Clause  ==  GPL-3.0 OR (MIT AND BSD-3-Clause)
+        // (MIT AND BSD-3-Clause) is fully approved -> permissive.
+        assert!(is_permissive("GPL-3.0 OR MIT AND BSD-3-Clause"));
+        //   GPL-3.0 AND MIT OR LGPL-2.1  ==  (GPL-3.0 AND MIT) OR LGPL-2.1
+        // neither operand of the top-level OR is permissive -> not permissive.
+        assert!(!is_permissive("GPL-3.0 AND MIT OR LGPL-2.1"));
+    }
+
+    #[test]
+    fn nested_parentheses_are_honored() {
+        // ((MIT OR GPL-3.0) AND Apache-2.0) OR SSPL-1.0
+        // left operand is permissive (see above) -> whole expression permissive.
+        assert!(is_permissive(
+            "((MIT OR GPL-3.0) AND Apache-2.0) OR SSPL-1.0"
+        ));
+        // (MIT AND (GPL-3.0 OR AGPL-3.0)) -> second conjunct unsatisfiable -> not permissive.
+        assert!(!is_permissive("MIT AND (GPL-3.0 OR AGPL-3.0)"));
+    }
+
+    #[test]
+    fn with_clause_is_treated_as_a_single_token() {
+        // SPDX `WITH` (license exception) binds tightest. We do not approve any
+        // exception-bearing token by default, so it is conservatively rejected,
+        // and an AND with it stays rejected.
+        assert!(!is_permissive("Apache-2.0 WITH LLVM-exception"));
+        assert!(!is_permissive("MIT AND Apache-2.0 WITH LLVM-exception"));
+        // But an OR where the other branch is plain-approved still passes.
+        assert!(is_permissive("MIT OR Apache-2.0 WITH LLVM-exception"));
+    }
+
+    #[test]
+    fn malformed_expressions_are_conservatively_rejected() {
+        // Unbalanced parentheses, empty operands, or dangling operators must not
+        // be silently classified permissive.
+        assert!(!is_permissive(""));
+        assert!(!is_permissive("(MIT"));
+        assert!(!is_permissive("MIT)"));
+        assert!(!is_permissive("MIT OR"));
+        assert!(!is_permissive("AND MIT"));
+        assert!(!is_permissive("()"));
+        assert!(!is_permissive("MIT AND AND Apache-2.0"));
+    }
+
+    #[test]
+    fn whitespace_and_case_are_normalized() {
+        assert!(is_permissive("  mit   or   apache-2.0  "));
+        assert!(is_permissive("(  MIT  )  and  (  apache-2.0  )"));
+        assert!(!is_permissive("(mit or apache-2.0) and gpl-3.0"));
     }
 
     #[test]
