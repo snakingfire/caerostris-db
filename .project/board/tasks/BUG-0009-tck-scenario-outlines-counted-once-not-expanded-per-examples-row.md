@@ -9,7 +9,7 @@ epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+0:58
-updated: T0+1:31
+updated: T0+5:05
 ---
 
 ## Context
@@ -89,3 +89,17 @@ latent defect that activates the moment a real engine plugs in.
   documented-gap+guard interim the AC permits), fill PR.md with real test
   evidence, re-request review. Pre-mortem sign-off withheld. Verdict block in
   `.worktrees/BUG-0009/PR.md`.
+- T0+5:05 (adversarial-reviewer): **approve** on `work/BUG-0009-expand-outlines-by-examples`
+  (worktree `wf_fe688db0-093-3`, merge-base `494a9e7`). The re-cut branch is clean and
+  tightly scoped (9 files: `tck-runner` src/tests + Decision 0013 + board + PR.md; no
+  unrelated commits). Outline expansion implemented in `scenario::expand_scenario` +
+  `runner::run_feature`; all three substantive ACs met. Verified empirically against the
+  real corpus: harness `total` 1602 → **3884** (`(1339 plain + 2558 parser-true Examples
+  rows) − 13 Literals6`); triple-reconciliation guard (`expanded_denominator_reconciles_and_is_guarded`)
+  pins it and makes silent drift impossible. `cargo test --workspace` green; `./format_code.sh`
+  exit 0. Strongest attack (sequential `str::replace` chain-substitution) is real in
+  principle but provably inert — 0 colliding cells in the pinned/guarded corpus — logged as
+  a non-blocking hardening note. Pre-existing pin/denominator reconciliation is out of scope
+  and already owned by BUG-0018 (noted there that the live total moves to 3884). Awaiting
+  premortem-analyst sign-off before the integrator lands. Verdict block in the worktree's
+  `PR.md`.

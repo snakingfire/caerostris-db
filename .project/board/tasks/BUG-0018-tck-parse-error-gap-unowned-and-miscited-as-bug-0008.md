@@ -51,7 +51,7 @@ stale; the discrepancy is currently undocumented as a defect.
 - [ ] The parse failure is owned: this BUG (or a linked one) tracks fixing it so the
       live `total` reaches the pinned scenario count (or the pin is corrected — see below).
 - [ ] All artifacts mis-citing "BUG-0008" for the TCK parse gap are corrected to cite
-      this item (`BUG-0016`): `.project/reports/tck-latest.json` `_stub`,
+      this item (`BUG-0018`): `.project/reports/tck-latest.json` `_stub`,
       `.project/reports/README.md`, and any PR text. Fix forward on `main` after T-0005
       lands (or fold the citation fix into the T-0005 re-review).
 - [ ] The vendored-corpus pin (`2024.3` / `677cbaf`) vs spec pin (`1.0.0-M23` / `007895a`)
@@ -66,3 +66,10 @@ stale; the discrepancy is currently undocumented as a defect.
   predates T-0005 (baked in when T-0002 landed at T+2:30); T-0005 propagated the
   wrong citation into the grader contract doc, which is why the T-0005 PR is
   returned `changes_requested` to correct the citations alongside this filing.
+- **T+5:05 — adversarial-reviewer** (reviewing BUG-0009, `work/BUG-0009-expand-outlines-by-examples`):
+  heads-up for the reconciliation here — once BUG-0009 lands, the live harness `total`
+  moves **1602 → 3884** and `tck_tag` stays `2024.3` (Scenario Outlines now expanded per
+  `Examples` data row, per Decision 0013). The pin/denominator reconciliation in this item
+  must therefore target 3884 (the fully-expanded parseable count), not 1602/1615. The
+  grader instruction (`.claude/agents/rubric-grader.md` L51-52) still pins `1.0.0-M23` /
+  `total == 1615`; reconciling it is part of this BUG's scope.
