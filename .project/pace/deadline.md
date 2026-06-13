@@ -52,7 +52,7 @@ If actual < expected at a marker:
   landed — board still at scaffold state, no reports/decisions.
 - **Re-launched** `2026-06-13T18:24:00Z`: T0 re-stamped to now, markers refilled,
   hard deadline `2026-06-13T23:24:00Z`. Crons + mainspring re-armed below.
-- **Crons armed (re-launch):** rubric-grader `<filled-below>` (`*/20 * * * *`);
-  pace-marshal `<filled-below>` (`*/10 * * * *`). Both session-only (live with this
+- **Crons armed (re-launch):** rubric-grader `0c896bf3` (`*/20 * * * *`);
+  pace-marshal `47888961` (`*/10 * * * *`). Both session-only (live with this
   launch session — if it ends, re-run `/launch`).
 - **Epoch 1 mainspring** kicked off at T0 by `/launch` (run id in launch hand-off).
