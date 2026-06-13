@@ -234,6 +234,21 @@ when ids are dense, or is materialized as a delta-varint column when sparse; the
 header `id_band_lo/hi` + `row_count` disambiguates. A filter that needs the id (to
 chain into adjacency) reads it from the (cheap) id column or computes it directly.
 
+**Maximum value nesting depth (a format contract, not a platform accident).**
+The self-describing `plain` codec encodes a `List`/`Map` value by recursing once
+per nesting level, both when serializing and when reconstructing. The format
+therefore caps container nesting at **`MAX_NESTING_DEPTH = 64`** levels (a scalar
+is depth 0; a top-level `List`/`Map` is depth 1). Both the writer and the reader
+enforce this bound **before** descending a level: an over-deep value (writer) or a
+byte stream that nests past the bound (reader) is rejected **fail-closed** with a
+typed error (`NcolError::NestingTooDeep`) — never by overflowing the stack and
+aborting the process. This is a stated contract so the limit is not an accident of
+the host's stack size, and so the reader stays fail-closed on untrusted/corrupt
+objects (§8.2; the BUG-0014 "parse must not fail open" lesson) rather than exposing
+a remote, unauthenticated stack-exhaustion DoS. 64 is far beyond any realistic
+openCypher literal yet small enough that the bounded recursion can never exhaust a
+default thread stack. (BUG-0026.)
+
 ### 2.4 Reader access pattern (the bytes a filter actually reads)
 
 To evaluate `MATCH (n:Person) WHERE n.country = 'IS'`:
