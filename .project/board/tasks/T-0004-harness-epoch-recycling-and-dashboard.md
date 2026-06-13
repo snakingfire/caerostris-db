@@ -2,15 +2,15 @@
 id: T-0004
 title: Mainspring epoch-recycling, board/pace dashboard, and STOP-sentinel handling
 type: task
-status: in_progress
+status: done
 priority: P0
-assignee: implementer-wf_e9fceb87-27c-37
+assignee: integrator
 epic: EPIC-010
 deps: []
 rubric_refs: [12]
 estimate: M
 created: T0
-updated: T+4:05
+updated: T+4:10
 ---
 
 ## Context
@@ -72,3 +72,10 @@ This task has no deps — it is ready from T0. The epoch hand-off format should 
   releases its claim — the rival's PR is the one to review/land. This lane's branch
   is left intact as a fallback artifact should the rival PR stall (T-0004 has a long
   history of stalling at this stage); if so, it can be picked up and landed cleanly.
+- **T+4:10 — integrator: Landed in commit 1c5c118 at T+4:10.** Reland of
+  `work/T-0004-mainspring-epoch-recycling-board-pace-dashboard`; rebased onto
+  `61ffdac`, additive board conflict resolved (timestamp union), `./format_code.sh`
+  green, 259/259 tests passed, merged `--no-ff` to main and pushed. Cat. 12 /
+  EPIC-010 delivered: `scripts/board/dashboard.sh`, `scripts/board/checkpoint.sh`,
+  `scripts/board/epoch-handoff.sh`, `docs/process/epoch-recycling.md`,
+  `.project/epochs/README.md`, CI board-dashboard job, 4 Rust test suites (28 tests).
