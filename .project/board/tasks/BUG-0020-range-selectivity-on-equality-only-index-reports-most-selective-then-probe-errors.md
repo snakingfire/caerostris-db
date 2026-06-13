@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [5, 3]
 estimate: S
 created: T+3:40
-updated: T+3:58
+updated: T+4:02
 ---
 
 ## Context
@@ -68,3 +68,13 @@ stub today), so P2; fix before T-0024.
   inverted comment. RED→GREEN regression tests on a NON-EMPTY equality-only index.
   Full workspace suite 296/296 green; `./format_code.sh` green. PR.md filled;
   status -> in_review. Dispatching adversarial-reviewer + premortem-analyst.
+- T+4:02 adversarial-reviewer: **APPROVE** (verdict in PR.md). Independently
+  reproduced RED→GREEN (reverted prod arm → 2 regression tests fail "got 0" /
+  "usable at threshold 0", over-correction guard stays green → restored). Verified
+  `cargo build --lib`, `clippy --lib --all-features -D warnings`, `cargo test --lib`
+  (202 pass) all clean. Attacks landed: none — symmetric Equals gap (no, lookup is
+  mandatory), prefix-bypass (no, prefix=Range, gated), latency/ACID/security (not
+  engaged / strictly safer). Reviewer checkbox ticked. Non-blocking notes: stale
+  base (board-file deltas vs current main are NOT this branch's; land.sh rebases
+  first — integrator confirm clean rebase); threshold-1.0 edge documented for the
+  T-0024 planner author. Awaiting premortem-analyst sign-off before landing.
