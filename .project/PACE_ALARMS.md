@@ -472,3 +472,10 @@ Pool: 3 v3 lanes alive (work-saturated; ready=11<12 so holding 3). Scale to 5 th
 Board STATIC since last tick: done:11, no new Merge work/ (only BUG-0007), src/tests flat. T-0001/T-0002 ready but NOT landing. Root cause confirmed: NO [workspace] in Cargo.toml → no crate (tck-runner etc.) can build/land until the skeleton lands. T-0001 is the keystone and it's built on branch work/T-0001-... but never merged (the recurring "built-not-landed" failure).
 ACTION: Hand-land trigger fired (foundational tasks didn't land in 2 ticks). Claimed T-0001 (lanes skip it) and dispatched a DEDICATED integrator (bg) to rebase + resolve src/lib.rs/Cargo.toml conflicts + land work/T-0001 directly, or build a minimal green workspace if the branch is broken. Once it lands, the crate chain (T-0002/T-0006/...) can finally land.
 Pool: 3 v3 lanes alive (work-starved, ready=11<12, hold 3). Env OK; SPIKE-0002 still ratifying; no land-lock stuck. Deep RED (~16 vs ~48). Next tick: verify T-0001 landed → then hand-land T-0002, scale lanes as backlog cascades.
+
+---
+
+## STATUS — T+2:18 (keystone hand-land in its build/test phase — progressing)
+done:11 ready:10 backlog:45; no new Merge work/ since T-0039. [workspace] still absent — T-0001 hand-land integrator (bg) is ALIVE and PROGRESSING (cargo process running = compiling/testing the workspace; transcript 109 lines; holds the land-lock legitimately ~9min — a cold workspace build+test takes minutes). Did NOT clear the lock (active agent, not stale).
+Lanes (3) are landing-blocked behind the lock — correct, since NOTHING can land until the workspace exists; they keep building/ratifying meanwhile. Env OK; SPIKE-0002 still in_review.
+NEXT: on integrator completion verify [workspace] on main + T-0001 done; then hand-land T-0002 (TCK) on top + let lanes/cascade flow. If it dies WITHOUT landing, free the lock and finish the merge by hand. Deep RED (~16 vs ~48).
