@@ -606,3 +606,6 @@ done:44 main GREEN (94c4f60). No STOP (23:03Z<2324Z). Working tree ON MAIN ✓; 
 
 ## STATUS — T+4:45 (steady; main green; ~15m to STOP)
 done:45 main GREEN (9dcd4db). No STOP (23:08Z<2324Z). Working tree ON MAIN ✓; demos intact + verified. 5/5 lanes (executor T-0019 / commit T-0010 / snapshot T-0011 the live targets). Last land: BUG-0018 Cypher parse gap (Cat4/12). Overall ~43; GATEs steady. Env OK. STOP at 2324Z.
+
+## STATUS — T+4:49 (steady; main green; ~11m to STOP)
+done:45 main GREEN (9a2d489). No STOP (23:13Z<2324Z). Working tree ON MAIN ✓; demos intact + verified. 5/5 lanes building (executor/commit/snapshot the live targets). Overall ~43; GATEs steady. Env OK. STOP fires at 2324Z (next tick).
