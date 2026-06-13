@@ -500,3 +500,10 @@ NOW: dispatched serial integrator for T-0006 (data model → unblocks storage). 
 Root-caused + fixed the shared-worktree merge race: ALL main-writes (land merges, ratify/design commits, unblock.sh) now acquire the land-lock and run WHILE ON main (git merge --no-ff <branch>); agents NEVER git-checkout a branch in the main worktree; build/test only in isolated worktrees; land.sh banned. Plus orient retries 4x on null (transient API blips can't kill a lane); MAX_ROUNDS 150; unblock.sh lock-protected. Proven safe: T-0001/T-0002/T-0006 all landed clean via this path; main=248ef27 builds green; 18 done.
 Relaunched 5 lanes via scriptPath (real on-disk orchestrator, not the name-cache): wf_6a2f8faf / wf_3215ee4a / wf_e9fceb87 / wf_fe688db0 / wf_156e2b80. Verified: disjoint claims (lane 1 owns SPIKE-0004/T-0004/T-0005), main on `main` + green. Cron 584ccb3d maintains 5 lanes + verifies `cargo build` each tick (P0+revert if main goes red).
 Dozens of agents build in parallel; only the fast merge serializes. This is the E2E config.
+
+---
+
+## STATUS — T+3:05 (healthy: main green, 5 lanes parallel, race-free)
+done:19 ready:13 in_progress:3 blocked:0 backlog:38. MAIN BUILDS GREEN (head 1010367, cargo build 0.01s) — no P0. Recent lands: T-0014 sim (P99 889ms cache-off), T-0006 data model; lanes building next wave (no new merge this tick yet). 5/5 lanes alive (2 quiet — deep builds or between rounds; cron self-heals on exit).
+No GATE sliding: Cat 3=78 + Cat 11=65 strong (sim+TLA+ landed); Cat 4=0 awaiting the query-engine chain (lanes on it). Env OK, land-lock free, cascade ran (gated on in-progress designs). Overall ~25, climbing. ~1h55m to hard deadline.
+Action: none — race-free parallel config holding; cron maintains 5 lanes. Watch the 2 quiet lanes next tick.
