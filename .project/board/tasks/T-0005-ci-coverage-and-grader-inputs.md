@@ -2,15 +2,15 @@
 id: T-0005
 title: Add cargo-llvm-cov coverage reporting and ensure CI emits grader-readable outputs
 type: task
-status: in_review
+status: done
 priority: P0
-assignee: implementer-wf_156e2b80-bb6-3
+assignee: integrator
 epic: EPIC-009
 deps: []
 rubric_refs: [10, 12]
 estimate: S
 created: T0
-updated: T+3:18
+updated: T+3:15
 ---
 
 ## Context
@@ -88,3 +88,11 @@ No dep on T-0001 or T-0002 — this task can run in parallel or even before them
   `./format_code.sh` exit 0; 176/176 nextest; gitleaks clean. Worktree
   `.claude/worktrees/wf_156e2b80-bb6-3`. Requesting adversarial-reviewer +
   premortem-analyst.
+
+- **T+3:15 (integrator):** Direct-land dispatch from pace-marshal. Safe-merge protocol
+  applied: isolated worktree, rebased onto main (two rounds — main advanced during landing;
+  PR.md conflict resolved by keeping T-0005 content, then resolved again as delete/modify
+  when BUG-0013 landed and removed PR.md from tracking). `./format_code.sh` green;
+  `cargo nextest run` 180/180 pass; `cargo llvm-cov` 96.29% line coverage (>90% target).
+  Merged to main with `--no-ff`. **Landed in commit `0dd2f2d` at T+3:15.**
+  Coverage report: `.project/reports/coverage-T+03-15.md`.
