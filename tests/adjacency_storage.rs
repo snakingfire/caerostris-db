@@ -181,6 +181,39 @@ fn super_hub_frontier_is_hard_capped_below_budget() {
 }
 
 #[test]
+fn exhausted_budget_on_last_source_early_aborts_not_errors() {
+    // BUG-0028: when an executor has nearly exhausted its running byte budget
+    // across a frontier, the *remaining budget* handed to the last source(s) can
+    // legitimately be 0 or a few bytes — below the block's leading degree varint.
+    // ADR 0008 §3.4 / C2 require that to early-abort (Ok, truncated), never to
+    // surface as a StorageFormatError the executor can't distinguish from real
+    // corruption. A super-hub block (degree >= 128) has a multi-byte degree
+    // varint, so caps of 0 and 1 both land before/inside it.
+    let mut edges = Vec::new();
+    for j in 0..1_000u64 {
+        edges.push(Edge::new(j, "FOLLOWS", 0, 1_000_000 + j));
+    }
+    let mut store = MemoryStore::new();
+    write_shard(&mut store, &edges, 0, 0);
+    let reader = AdjacencyShardReader::open(store, KEY).unwrap();
+    assert_eq!(reader.degree(0).unwrap(), 1_000);
+
+    for remaining in [0usize, 1, 2] {
+        let exp = reader
+            .expand(0, ExpandCap::bytes(remaining))
+            .unwrap_or_else(|e| {
+                panic!("remaining budget {remaining} B must early-abort, got Err({e:?})")
+            });
+        assert!(
+            exp.truncated,
+            "a budget-exhausted read (cap {remaining} B) must report truncation"
+        );
+        // 0/1-byte caps can't even reach the first neighbour; that's a clean stop.
+        assert!(exp.neighbors.len() < 1_000);
+    }
+}
+
+#[test]
 fn directory_probe_is_one_small_range_get() {
     // The O(1) degree probe must read exactly one 16-byte directory entry —
     // never the whole object (the basis for OOE super-hub rejection without a
