@@ -47,10 +47,12 @@
               # Rust toolchain (stable) comes from devenv's `languages.rust`,
               # which pins rustc / cargo / clippy / rustfmt / rust-analyzer
               # together. Non-Nix users get an equivalent via rust-toolchain.toml.
+              # `llvm-tools-preview` is required by cargo-llvm-cov (it shells out
+              # to llvm-profdata / llvm-cov from the matching toolchain).
               languages.rust = {
                 enable = true;
                 channel = "stable";
-                components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" ];
+                components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "llvm-tools-preview" ];
               };
 
               packages = with pkgs; [
@@ -60,6 +62,7 @@
                 jq
               ] ++ (with pkgs-unstable; [
                 cargo-nextest # fast test runner; pulled fresh from unstable
+                cargo-llvm-cov # line-coverage reporting (Apache-2.0 OR MIT)
               ]);
             };
 
