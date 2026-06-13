@@ -535,3 +535,10 @@ Env OK, lock free, cascade gated on SPIKE-0003 (storage format spec). ~1h40m to 
 done:22 (T-0017 lexer + T-0022 index + BUG-0013 landed) ready:10 in_review:5 backlog:36. MAIN GREEN (019d18b, builds 0.06s) — no P0. 5/5 lanes building.
 Focused landers running: T-0005 coverage (Cat-10 GATE; slow — sub-workspace llvm-cov complexity), T-0018 planner (Cat-4 chain, on top of landed lexer). in_review backlog (BUG-0008/0010/0014, T-0004) is all low-value Cat-12 hygiene → left to lanes (not worth dedicated landers; Cat12 already ~62/w4).
 KEYSTONE WATCH: SPIKE-0003 storage format spec still in_progress (researcher) — the biggest pending unlock (→ T-0007/0008 writer/reader Cat2, T-0009/0010 commit Cat1, executor for Cat4). Will fast-ratify the moment it hits in_review. No GATE sliding. ~1h35m to deadline.
+
+---
+
+## STATUS — T+3:30 (main green, done 25; driving the storage keystone)
+done:25 ready:11 in_review:3 backlog:36. MAIN GREEN (455c770, builds 0.95s) — no P0. Landed since last tick: T-0005 coverage (96.29% line via cargo-llvm-cov → Cat-10 GATE ~14→82), BUG-0008/BUG-0014 (Cat 12). 5/5 lanes building.
+ACTION: SPIKE-0003 (storage format spec) stuck in_progress ~30min with nothing committed → dispatched focused steering-storage to produce+ratify the format ADR decisively. This unblocks the storage cascade: T-0007/0008 writer/reader (Cat 2 w12), T-0009/0010 manifest+commit (Cat 1 w14), and the executor that moves Cat 4 off 0. T-0018 planner lander still in flight.
+GATEs now strong: Cat3=78, Cat10~82, Cat11=65. Laggards Cat4/2/1 all gated on SPIKE-0003 → that's the focus. ~1h30m to deadline.
