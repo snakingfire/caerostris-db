@@ -31,6 +31,34 @@ jobs:
       - name: Test
         run: cargo test --all-features --verbose
 
+  # Hygiene gate: secrets must never reach the repo. gitleaks scans full history
+  # using the committed .gitleaks.toml, so a pushed secret fails the build (not
+  # just the local pre-commit hook). See docs/process/open-source-guardrails.md.
+  secret-scan:
+    name: gitleaks (secret scan)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so gitleaks scans every commit
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  # Hygiene gate: every dependency must be license-clean (permissive-only
+  # allow-list). Layer 2 of the license check — layer 1 is the in-repo manifest
+  # test (tests/license_manifest.rs) that runs in the `test` job above.
+  license-check:
+    name: cargo-deny (license check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run cargo-deny (licenses + sources)
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check licenses sources
+
   # Secondary signal: prove the Nix dev shell still builds (catches flake rot).
   nix:
     name: nix dev shell builds

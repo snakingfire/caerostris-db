@@ -8,6 +8,7 @@
 //! This is scaffolding. Real requirements land later — the public surface here
 //! exists only to exercise the toolchain (build, test, doctest, clippy, fmt).
 
+pub mod licenses;
 pub mod query;
 pub mod tck;
 
