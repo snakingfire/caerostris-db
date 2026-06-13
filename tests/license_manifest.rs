@@ -10,7 +10,7 @@
 
 use std::path::PathBuf;
 
-use caerostris_db::licenses::{check, parse_lockfile, parse_manifest};
+use caerostris_db::licenses::{check, is_permissive, parse_lockfile, parse_manifest};
 
 /// Workspace members that are not third-party dependencies.
 ///
@@ -85,5 +85,65 @@ fn manifest_file_exists() {
         manifest_path.exists(),
         "missing license manifest: {} — create it (see docs/licenses/README.md)",
         manifest_path.display()
+    );
+}
+
+/// Read the SPDX expression recorded for `crate_name` in the real license
+/// manifest, or panic if the crate is not recorded.
+fn manifest_spdx_for(crate_name: &str) -> String {
+    let manifest_path = repo_root().join("docs/licenses/manifest.toml");
+    let manifest_src = std::fs::read_to_string(&manifest_path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", manifest_path.display()));
+    parse_manifest(&manifest_src)
+        .into_iter()
+        .find(|e| e.name == crate_name)
+        .unwrap_or_else(|| panic!("`{crate_name}` not recorded in the license manifest"))
+        .spdx
+}
+
+/// Regression for BUG-0023: `unicode-ident`'s real published SPDX is
+/// `(MIT OR Apache-2.0) AND Unicode-3.0` (verified against the crate's
+/// `Cargo.toml` `license` field). The manifest must record that *actual*
+/// expression — including the `AND Unicode-3.0` conjunct — not a truncated
+/// `MIT OR Apache-2.0` that drops a required-compliance term. The manifest
+/// protocol (docs/licenses/manifest.toml header) mandates recording the crate's
+/// real SPDX so a manifest-vs-reality audit does not flag drift.
+#[test]
+fn unicode_ident_manifest_records_actual_spdx_with_unicode_3_0_conjunct() {
+    let spdx = manifest_spdx_for("unicode-ident");
+    assert_eq!(
+        spdx, "(MIT OR Apache-2.0) AND Unicode-3.0",
+        "unicode-ident must record its actual published SPDX (BUG-0023): the \
+         `AND Unicode-3.0` conjunct must not be dropped"
+    );
+    // And the recorded expression must still evaluate permissive — the in-repo
+    // parser handles parenthesized AND/OR, and Unicode-3.0 is on the approved
+    // allow-list (src/licenses.rs APPROVED_SPDX).
+    assert!(
+        is_permissive(&spdx),
+        "the actual unicode-ident SPDX `{spdx}` must evaluate permissive"
+    );
+}
+
+/// Regression for BUG-0023: the in-repo allow-list (`APPROVED_SPDX`) and the
+/// `deny.toml` `[licenses].allow` list are two layers of the same gate; they
+/// must agree on `Unicode-3.0`. `src/licenses.rs` already lists it, so the root
+/// `deny.toml` (which cargo-deny evaluates against each crate's *real* metadata,
+/// requiring every AND conjunct to be allowed) must list it too — otherwise the
+/// `license-check` CI job can error on the `Unicode-3.0` conjunct of
+/// `unicode-ident`, an engine-workspace dependency.
+#[test]
+fn root_deny_toml_allows_unicode_3_0() {
+    let deny_path = repo_root().join("deny.toml");
+    let deny_src = std::fs::read_to_string(&deny_path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", deny_path.display()));
+    // The `[licenses].allow` array is the relevant list. A bare substring check
+    // is sufficient here because `Unicode-3.0` is a distinctive token; the
+    // allow array is the only place an SPDX id appears as a quoted entry.
+    assert!(
+        deny_src.contains("\"Unicode-3.0\""),
+        "root deny.toml [licenses].allow must include \"Unicode-3.0\" so \
+         cargo-deny does not error on the Unicode-3.0 conjunct of \
+         unicode-ident (BUG-0023)"
     );
 }

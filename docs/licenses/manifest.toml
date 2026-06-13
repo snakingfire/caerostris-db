@@ -159,8 +159,8 @@ note = "Proc-macro component of typed-builder; dual-licensed permissive."
 [[dependency]]
 name = "unicode-ident"
 version = "1.0.24"
-spdx = "MIT OR Apache-2.0"
-note = "Unicode identifier tables for proc-macro2; permissive (MIT/Apache-2.0 component chosen)."
+spdx = "(MIT OR Apache-2.0) AND Unicode-3.0"
+note = "Unicode identifier tables for proc-macro2. Actual published SPDX: code is MIT/Apache-2.0, the Unicode data tables are Unicode-3.0 (a permissive Unicode license). Every AND conjunct is on the approved allow-list (open-source-guardrails.md §5; src/licenses.rs APPROVED_SPDX); the in-repo parser evaluates the parenthesized AND/OR. BUG-0023."
 
 [[dependency]]
 name = "unicode-linebreak"
