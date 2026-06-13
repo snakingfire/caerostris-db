@@ -32,6 +32,26 @@ impl GraphStore {
         Self::default()
     }
 
+    /// Rebuild a store from already-identified nodes and edges, preserving their
+    /// existing ids.
+    ///
+    /// Used by [`crate::demo::persist::load_graph`] to reconstruct a graph read
+    /// back out of an object store: the entities already carry the ids they were
+    /// persisted under, so we must *not* reassign them. The id counters are
+    /// advanced past the highest existing id so any subsequent `insert_*` keeps
+    /// assigning unique ids.
+    #[must_use]
+    pub fn from_parts(nodes: Vec<Node>, edges: Vec<Edge>) -> Self {
+        let next_node = nodes.iter().map(|n| n.id.get() + 1).max().unwrap_or(0);
+        let next_edge = edges.iter().map(|e| e.id.get() + 1).max().unwrap_or(0);
+        Self {
+            nodes,
+            edges,
+            next_node,
+            next_edge,
+        }
+    }
+
     /// Insert a node with the given labels and properties, returning its
     /// freshly assigned [`NodeId`].
     ///

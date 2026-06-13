@@ -32,6 +32,7 @@ pub mod counting;
 pub mod manifest;
 pub mod memory;
 pub mod ncol;
+pub mod s3_cli;
 
 pub use adjacency::{
     AdjacencyShardReader, AdjacencyShardWriter, Direction, ExpandCap, Expansion, Neighbor,
@@ -40,6 +41,7 @@ pub use adjacency::{
 pub use cache::{CacheConfig, CacheStats, CachingStore, DiskCacheConfig, EvictionPolicy};
 pub use counting::CountingStore;
 pub use memory::MemoryStore;
+pub use s3_cli::S3CliStore;
 
 /// Errors returned by [`ObjectStore`] operations.
 #[derive(Debug, Clone, PartialEq, Eq)]
