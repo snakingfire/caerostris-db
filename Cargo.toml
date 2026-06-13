@@ -41,3 +41,12 @@ serde_json.workspace = true
 [dev-dependencies]
 # (serde_json is a normal dependency above, used by the dataset generator and
 # by the model's serde round-trip tests.)
+
+# Warm-query micro-benchmark for the optional cache (T-0033, Cat. 9). A
+# dependency-free harness (`harness = false`) — deliberately not criterion, to
+# avoid dragging criterion's large transitive tree through the license manifest
+# for one micro-measurement. The same property is asserted in
+# tests/cache_integration.rs so CI guards it without running the bench.
+[[bench]]
+name = "cache_warm_read"
+harness = false

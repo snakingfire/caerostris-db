@@ -19,7 +19,7 @@
 //! | [`model`] | Logical property-graph data model (Node, Edge, PropertyValue, Schema) |
 //! | [`planner`] | openCypher query planner (stub — lands in EPIC-002) |
 //! | [`query`] | Query execution surfaces (side-effect accounting) |
-//! | [`storage`] | Object-store abstraction + in-memory backend |
+//! | [`storage`] | Object-store abstraction + in-memory backend + optional cache wrapper |
 //! | [`tck`] | openCypher TCK pass-rate contract (Cat. 4) |
 //! | [`txn`] | Transaction management (stub — lands after SPIKE-0001) |
 
