@@ -2,14 +2,14 @@
 id: BUG-0021
 title: TCK outline substitution chains instead of single-pass — a value containing a sibling column's <token> is re-substituted (latent; 0 hits in 2024.3 corpus)
 type: bug
-status: ready
+status: in_review
 priority: P3
-assignee:
+assignee: test-author (wf_156e2b80-bb6-51)
 epic: EPIC-002
 deps: []
 rubric_refs: [4, 10]
 created: T0+3:29
-updated: T0+3:29
+updated: T0+4:01
 ---
 
 ## Context
@@ -91,3 +91,18 @@ Verified: that case substitutes correctly.)
   scenario in the pinned corpus and does not affect the denominator; it is a
   latent correctness edge to close before EPIC-002's engine exercises the
   substituted variants. Relates to BUG-0009, Decision 0013.
+- T0+4:01 (test-author, wf_156e2b80-bb6-51): claimed; fixed TDD-first on
+  `work/BUG-0021-tck-outline-substitution-chains-instead-of-single-` (based on
+  latest main `ca73710`). **Path note:** BUG-0009 landed into main as
+  `tck-runner/src/outline.rs` (not `expand.rs`), so the defective `substitute`
+  lives in `outline.rs`; the reconciliation guard the AC names
+  (`expanded_denominator_is_pinned_and_reconciled`) is `outline_expansion_total_is_reconciled`
+  in `tck-runner/tests/vendored_corpus.rs`. Same defect, same contract.
+  Replaced the chained `String::replace` loop with a single-pass left-to-right
+  scanner (longest-token match at each `<`, verbatim copy otherwise). RED test
+  `substitution_is_single_pass_not_chained` reproduced `RETURN x AND x`; after
+  the fix it expands to `RETURN <b> AND x`. Added substring-collision (`<n>` vs
+  `<name>`) and unbound-placeholder guards. Full tck-runner suite green
+  (incl. `outline_expansion_total_is_reconciled`, `corpus_expands_to_expected_total`
+  — 3884 denominator unchanged); workspace `cargo nextest run` = 278/278 pass;
+  `./format_code.sh` green (clippy clean). PR worktree commit 29fa955. → in_review.
