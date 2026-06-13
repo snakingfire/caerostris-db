@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [10, 12]
 estimate: S
 created: T+3:30
-updated: T+4:10
+updated: T+4:51
 ---
 
 ## Context
@@ -69,3 +69,26 @@ only. Reference: PR pre-mortem in `.claude/worktrees/wf_156e2b80-bb6-3/PR.md`
   Author must address the adversarial finding, commit a fix in the worktree, and
   re-request both adversarial-reviewer and premortem-analyst sign-off (checkboxes
   reset to unchecked). Branch preserved in `.claude/worktrees/wf_156e2b80-bb6-47`.
+- **T+4:51 (adversarial-reviewer):** **APPROVE** for branch
+  `work/BUG-0022-committed-coverage-consumer` (tip `a730cdb`). The prior T+4:07
+  changes_requested finding is fully resolved: instead of a gitignored/artifact-only
+  file, `scripts/release-hourly.sh` step 7b now calls a new
+  `scripts/release-coverage-report.sh` which renders the file via
+  `grader-inputs.sh --write-report` AND **git-commits** it to
+  `.project/reports/coverage-hourly-<N>.md` — the exact committed-working-tree glob
+  the shipped `rubric-grader` reads for Cat. 10 (`rubric-grader.md:38`). Verified the
+  end-to-end wire in a throwaway git repo: file lands git-tracked, matches the
+  `coverage-*.md` glob, embeds the verbatim GRADER_INPUTS block + a human table, and
+  leaves a clean tree. AC (i) `cargo test --workspace` tally confirmed to sum across
+  all workspace members; AC (ii) null/empty/garbage coverage normalises to `0` (never
+  literal `null`), valid decimals pass through. Bonus correctness fix: CI step now
+  `set -o pipefail` so the coverage gate's exit propagates through `| tee` (it was
+  previously masked — the gate was effectively a no-op in CI). Checks green:
+  `./format_code.sh` exit 0 (fmt+clippy -D warnings+taplo clean); 541/541 workspace
+  tests pass (1 benign leaky); 30+16 shell assertions + 5 Rust integration tests pass.
+  Coverage not regressed (additions are shell + `#[test]` only). Attacks attempted —
+  see below; none landed as blockers. Two non-blocking observations filed (release-time
+  cargo duplication; marker path-traversal robustness in the general-purpose helper,
+  unreachable via the only caller). Reviewer-gate box should be ticked in the
+  regenerated PR.md (the original worktree `wf_156e2b80-bb6-76` was pruned).
+  Premortem-analyst sign-off still required before the integrator lands.
