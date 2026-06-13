@@ -600,3 +600,6 @@ No GATE sliding (Cat3=78/Cat10=84/Cat11=65); overall ~43-45 climbing. STOP fires
 
 ## STATUS — T+4:35 (steady; main green, demos protected; ~25m left)
 done:43 main GREEN (d75e934). No STOP (22:59Z<2324Z). Working tree ON MAIN ✓; demo.sh + demo-minio.sh intact + verified. 5/5 lanes building. Flat window (no new done; lanes deep in executor T-0019 / remaining storage+commit). Overall ~43-45; GATEs steady (Cat3=78/Cat10=84/Cat11=65/Cat2~60). Env OK. STOP fires at 2324Z.
+
+## STATUS — T+4:40 (steady; main green, demos protected; ~20m to STOP)
+done:44 main GREEN (94c4f60). No STOP (23:03Z<2324Z). Working tree ON MAIN ✓; demo.sh + demo-minio.sh intact + verified (judge-video ready). 5/5 lanes building (executor T-0019 / commit T-0010 / snapshot T-0011 the live targets). Overall ~43; GATEs steady (Cat2~62/Cat3=78/Cat10=84/Cat11=65). Env OK. STOP fires at 2324Z.
