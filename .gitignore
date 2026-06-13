@@ -20,5 +20,35 @@
 .idea/
 .vscode/
 
+# Autonomous-run state that is LOCAL to a run, not part of the repo:
+# - PR worktrees created by scripts/pr/open.sh
+# - run sentinels (bootstrap / stop / mainspring lock) — agents see them on the
+#   filesystem; they must NOT persist into a clean clone.
+.worktrees/
+.project/.bootstrapped
+.project/.mainspring.lock
+.project/STOP
+
+# Datasets & large fixtures are fetched/generated, never committed (release
+# notes in releases/*.md ARE committed; built binaries/wheels are not).
+/data/
+/datasets/
+*.whl
+target/wheels/
+
+# Python bindings build/test cruft
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
+# Formal-methods tool output (specs are committed; checker output is not)
+*.toolbox/
+states/
+
+# Claude Code harness run-state (agent defs / commands / workflows ARE committed)
+.claude/scheduled_tasks.lock
+.claude/*.lock
+
 # NOTE: Cargo.lock IS committed — this crate ships a binary, so we pin the
 # exact dependency graph for reproducible builds.
