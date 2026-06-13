@@ -10,7 +10,7 @@ deps: [T-0039]
 rubric_refs: [12]
 estimate: S
 created: T0+0:48
-updated: T0+3:12
+updated: T0+3:18
 ---
 
 ## Context
@@ -63,3 +63,26 @@ SPDX expression is recorded** in the manifest.
   case) RED→GREEN; full suite 131/131 green; `./format_code.sh` clean.
   Set `in_review`; PR.md in the worktree. Awaiting adversarial-reviewer +
   premortem sign-off.
+- T0+3:14 (adversarial-reviewer): **approve**. Verified the precedence-aware
+  recursive-descent evaluator on branch `work/BUG-0008-spdx-precedence-eval`.
+  Every attack (copyleft `AND`-component false-positive, precedence bypass,
+  `WITH` smuggling, malformed/illegal-char input) resolves in the conservative
+  reject direction — could not construct a permissive misclassification of a
+  required copyleft term. `./format_code.sh` exit 0, full `cargo test` green,
+  `tests/license_manifest.rs` green against all ~27 real manifest entries (no
+  regression). Non-blocking notes: over-strict `Apache-2.0+` handling (safe
+  direction) and the pre-existing tracked-PR.md hygiene issue (BUG-0013, out of
+  scope). Adversarial-reviewer checkbox ticked in PR.md. Pending premortem.
+- T0+3:18 (premortem-analyst): **approve**. Worked backwards through all six
+  pre-mortem lenses; the only consequence surface this pure-function change can
+  touch is the license guardrail, and every probed failure direction resolves in
+  the conservative (reject / fail-loud) direction — no path to a silent
+  false-permissive (the one P0 outcome). Re-verified gate checks in the worktree:
+  `./format_code.sh` exit 0, `cargo test --lib` 107/107, `tests/license_manifest.rs`
+  2/2 against the real (now non-empty) manifest. Diff scope is `src/licenses.rs`
+  + `PR.md` only — no `Cargo.toml`/`Cargo.lock` change, so no new dependency to
+  vet, no `unsafe`, no concurrency/storage interaction. Filed **BUG-0015** (P3,
+  ready) for a latent unbounded-recursion stack-overflow on pathologically deep
+  parens (reachable only via the committed manifest; fail-loud, never masks
+  copyleft) — accepted as non-blocking follow-up, not a gate. Premortem checkbox
+  ticked in PR.md. Both review gates now green; ready for the integrator.

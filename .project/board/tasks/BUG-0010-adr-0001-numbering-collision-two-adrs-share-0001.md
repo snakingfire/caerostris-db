@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [12]
 estimate: S
 created: 2026-06-13T19:52:00Z
-updated: 2026-06-13T21:24:00Z
+updated: 2026-06-13T21:54:00Z
 ---
 
 ## Context
@@ -68,3 +68,16 @@ decisions, reports, and board items.)
   sitting uncommitted in the main worktree. `git mv` to `0004`, all live references updated,
   `./format_code.sh` green. Set `in_review` with steering sign-off request `.project/decisions/0031`.
   On sign-off next round → `done`. Lower-churn target confirmed; envelope ADR stays `0001`.
+- 2026-06-13T21:54Z (T0+~3:30) `adversarial-reviewer`: reviewed branch
+  `work/BUG-0010-renumber-cold-start-bench-adr` (worktree `.claude/worktrees/wf_156e2b80-bb6-6`,
+  tip `a4007c8`). **Verdict: changes_requested** (verdict block appended to that PR.md). The
+  renumber+doc fix this branch carries **already landed on `main`** (commit `c25fe61`); the branch is
+  built off a stale merge-base (`c3cc51a`) and `git merge-tree main a4007c8` shows hard content
+  conflicts (`docs/adr/0001-latency-selectivity-envelope.md` F3 note + this board item), so `land.sh`
+  will abort. Also: this branch left `formal/latency-sim/src/lib.rs:369` at the stale `ADR-0001
+  cold-start-benchmark` ref (main already fixed it to `ADR-0004`), contradicting the "all references
+  updated" criterion. The only non-redundant value is the two new `tests/repo_hygiene.rs` guards
+  (`adr_sequence_numbers_are_unique`, `adr_file_links_resolve`) — not on `main`, compile/pass/clippy/
+  fmt clean. Recommended path: rebase onto current `main` (resolve to main's landed text) so the diff
+  collapses to a test-only PR adding just those two guards. fmt + clippy + `--test repo_hygiene`
+  (11 passed) verified green at tip.
