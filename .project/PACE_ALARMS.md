@@ -571,3 +571,6 @@ NOTE: restored main worktree to main (a T-0008 lane had transiently checked out 
 ## STATUS — T+4:01 (human-testing window; building the POLISHED judge demo)
 done:33 main GREEN (ec47614), working tree ON MAIN (demo runnable + protected). 5/5 lanes. TRACKED REQUEST: polished MinIO-backed wow demo for the 1-min judge video (empty bucket -> insert -> objects appear -> MATCH returns -> complex queries). Filed T-DEMO2; dispatched a focused builder (a8120ba) to build the missing S3 ObjectStore backend + persist path + polished scripts/demo-minio.sh, fallback = polish the in-memory demo. Storage writers T-0007/0008 building in parallel.
 Every tick now also VERIFIES the working tree stays on main (protects the demo from the recurring checkout-in-main race). ~59m to deadline.
+
+## STATUS — T+4:05 (main green, working tree protected on main; polished demo building)
+done:~33 main GREEN (8e6f016). Working tree confirmed ON MAIN (demo runnable + protected from checkout race). 5/5 lanes. T-DEMO2 polished MinIO demo builder progressing (56 lines; S3 backend + demo-minio.sh not landed yet, ETA ~20-30m); fallback = polish in-memory demo. Storage writers T-0007/0008 building. ~55m to deadline; no GATE sliding (Cat3=78/Cat10=82/Cat11=65), overall ~36.
