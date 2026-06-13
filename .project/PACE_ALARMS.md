@@ -507,3 +507,10 @@ Dozens of agents build in parallel; only the fast merge serializes. This is the 
 done:19 ready:13 in_progress:3 blocked:0 backlog:38. MAIN BUILDS GREEN (head 1010367, cargo build 0.01s) — no P0. Recent lands: T-0014 sim (P99 889ms cache-off), T-0006 data model; lanes building next wave (no new merge this tick yet). 5/5 lanes alive (2 quiet — deep builds or between rounds; cron self-heals on exit).
 No GATE sliding: Cat 3=78 + Cat 11=65 strong (sim+TLA+ landed); Cat 4=0 awaiting the query-engine chain (lanes on it). Env OK, land-lock free, cascade ran (gated on in-progress designs). Overall ~25, climbing. ~1h55m to hard deadline.
 Action: none — race-free parallel config holding; cron maintains 5 lanes. Watch the 2 quiet lanes next tick.
+
+---
+
+## STATUS — T+3:10 (healthy; dozens of agents building in parallel, main green)
+done:19 ready:12 in_progress:4 blocked:0 backlog:38. MAIN GREEN (on main @ 479fd96, cargo build 0.02s) — NO P0. 5/5 lanes alive; ~43 active-lane worktrees = dozens of parallel agents building (T-0017 lexer, T-0022 index, T-0030 python, T-0033 cache, T-0004 dashboard, T-0005 coverage, storage/commit). 6 commits on main since last tick (board threading); no NEW done item yet — big items mid-build (long cycle).
+NOTE: a self-check found my SHELL cwd had drifted into a worktree (showed work/BUG-0008) — a monitoring artifact, NOT main corruption; main repo dir is correctly + continuously on `main` (the safe-merge fix is HOLDING — agents build in isolated worktrees, never checkout in main). Some historical worktree duplication from killed lanes (clutter, safe — only one branch per task can land via the lock).
+No GATE sliding (Cat3=78/Cat11=65 strong). Env OK. ~1h50m to deadline. Action: none; cron maintains 5 lanes. Watch for the lexer/storage/commit landings (Cat4/2/1 levers).
