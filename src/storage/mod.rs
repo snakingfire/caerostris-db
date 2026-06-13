@@ -10,8 +10,9 @@
 //! - **Swappable backends.** Unit tests use [`MemoryStore`]; integration tests
 //!   and production use an S3-compatible client. The same code path covers both.
 //! - **Byte-oriented.** The trait deals in raw `Vec<u8>` / byte slices. The
-//!   storage format layer (to be designed in SPIKE-0003) sits above this and
-//!   handles serialisation.
+//!   storage format layer (ADR 0008, `docs/adr/0008-storage-format.md`) sits
+//!   above this and handles serialisation — see [`ncol`] for the columnar
+//!   node-property objects.
 //! - **No async at the trait level (for now).** Introducing `async_trait` or
 //!   RPITIT stabilisation requirements is deferred until the engine actually
 //!   needs concurrent I/O on the hot path. The trait is synchronous and
@@ -29,6 +30,7 @@ pub mod adjacency;
 pub mod cache;
 pub mod manifest;
 pub mod memory;
+pub mod ncol;
 
 pub use adjacency::{
     AdjacencyShardReader, AdjacencyShardWriter, Direction, ExpandCap, Expansion, Neighbor,
