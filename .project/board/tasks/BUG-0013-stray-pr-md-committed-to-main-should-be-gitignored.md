@@ -2,15 +2,15 @@
 id: BUG-0013
 title: Stray PR.md committed to main (should be gitignored, not tracked)
 type: bug
-status: in_review
+status: done
 priority: P3
-assignee: implementer-wf_156e2b80-bb6-13
+assignee: integrator
 epic: EPIC-010
 deps: []
 rubric_refs: [12]
 estimate: S
 created: 2026-06-13T20:45:00Z
-updated: 2026-06-13T21:42:00Z
+updated: 2026-06-13T22:00:00Z
 ---
 
 ## Context
@@ -73,3 +73,4 @@ on `main` remains until this bug lands.
   `/PR.md` ignore is root-anchored, and no dep/secret/data surface. Lenses 1–3
   (corruption/SLA/split-brain) unreachable — diff is `.gitignore` + a test + a board
   file + untrack. premortem-analyst box ticked; both review-gate sign-offs now present.
+- 2026-06-13T22:00:00Z (integrator): Landed in commit 4eef834 at T+3:36. Both review-gate sign-offs verified (adversarial-reviewer + premortem-analyst approve). `./format_code.sh` green; `cargo nextest run` 125/125 green. Modify/delete conflict on `PR.md` at merge time resolved by accepting the branch deletion (the correct fix intent of this PR). Branch `work/BUG-0013-stray-pr-md-committed-to-main-should-be-gitignored` merged with `--no-ff`.

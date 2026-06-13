@@ -2,8 +2,7 @@
 id: T-0025
 title: Stub a second index type against the trait to prove extensibility
 type: task
-status: backlog
-priority: P3
+status: readypriority: P3
 assignee:
 epic: EPIC-005
 deps: [T-0022]

@@ -10,7 +10,7 @@ deps: [T-0001]
 rubric_refs: [9]
 estimate: M
 created: T0+0:20
-updated: T0+0:20
+updated: T0+3:20
 ---
 
 ## Context
@@ -34,3 +34,10 @@ needs the object-store trait, so it is ready now. See `EPIC-008`.
 ## Notes / log
 Ready now: depends only on T-0001's object-store trait. The cold-SLA-without-cache
 proof is T-0034 (depends on the benchmark T-0016).
+
+- T+3:20 — adversarial review: **changes_requested**. Blocking: lost-invalidation
+  stale-read race in `load_object` (populate not fenced against a concurrent
+  commit+invalidate) violates acceptance criterion 4 / Cat. 1; and the no-stale-read
+  property is only tested in the serial case. Filed `BUG-0017`. Verdict + attacks in
+  the worktree `PR.md`. Review-gate checkbox left unchecked. Other surfaces (budget,
+  path traversal, latency, deps/license/unsafe) survived.

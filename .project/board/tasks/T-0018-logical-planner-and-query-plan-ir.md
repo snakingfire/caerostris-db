@@ -2,14 +2,15 @@
 id: T-0018
 title: Logical query planner + plan IR with filter push-down
 type: task
-status: readypriority: P1
-assignee:
+status: in_progress
+priority: P1
+assignee: implementer-T0018
 epic: EPIC-002
 deps: [T-0017]
 rubric_refs: [4, 3]
 estimate: M
 created: T0+0:20
-updated: T0+0:20
+updated: T0+3:22
 ---
 
 ## Context
