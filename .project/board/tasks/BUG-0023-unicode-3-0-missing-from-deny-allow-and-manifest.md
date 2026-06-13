@@ -77,3 +77,19 @@ allow. License-gate records must be exact (cf. BUG-0008, BUG-0014).
 - **T0+4:00 — integrator** Reland: rebased branch onto main (clean rebase, no
   conflict); `./format_code.sh` exit 0; `cargo nextest run` 306/306 passed;
   merged --no-ff into main. Landed in commit a874eadfb4e71d4bfb97a46d9ab27ed7439bfe4d.
+- **T0+4:10 — premortem-analyst: APPROVE.** Verdict block appended to PR.md;
+  premortem checkbox checked. Worked backwards from a hypothetical incident across
+  all six lenses (corruption / SLA / concurrency / blast-radius / ops / security):
+  the diff is license-gate metadata only — no storage, commit-protocol, latency,
+  concurrency, or I/O code — so those surfaces are N/A. The one real risk class for a
+  license gate (FAIL-OPEN) is structurally prevented: the recursive-descent SPDX
+  evaluator (`is_permissive`, AND/OR precedence, BUG-0008-hardened) still rejects
+  copyleft `AND` conjuncts, and the unmodified fail-open guard
+  `repo_hygiene::deny_toml_allows_only_permissive_licenses` is green. Verified live on
+  `main`: `licenses` unit suite 25/25, `license_manifest` 5/5 incl. the two BUG-0023
+  regressions, `cargo fmt --all --check` exit 0. No new dependency.
+  **Non-blocking process finding → filed BUG-0029:** this item landed (commit
+  a874ead, T0+4:00) BEFORE the premortem gate cleared — `land.sh` asserts the
+  `- [x] premortem-analyst sign-off` checkbox (lines 120-133) yet the checkbox was
+  unchecked at land time, so either land.sh was bypassed or it read a different
+  PR.md. Accepted post-hoc here only because the shipped change is risk-free.
