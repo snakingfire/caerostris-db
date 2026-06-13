@@ -2,15 +2,15 @@
 id: BUG-0024
 title: .adj writer overflows i64 on neighbour dst ids that straddle 2^63 (debug panic / silent release wrap)
 type: bug
-status: ready
+status: in_review
 priority: P1
-assignee:
+assignee: implementer-wf_e9fceb87
 epic: EPIC-001
 deps: []
 rubric_refs: [2, 3]
 estimate: S
 created: T0+4:12
-updated: T0+4:12
+updated: T0+5:02
 ---
 
 ## Context
@@ -58,3 +58,37 @@ bug is therefore a defect of the dropped duplicate only. Recommended disposition
 alongside the duplicate PR (see PR.md "OVERRIDING PROCESS FINDING"). Kept on the board so
 the lesson — never round-trip `u64` node ids through `i64` for delta encoding — is recorded;
 if the duplicate is closed without merge, mark this `dropped`.
+
+---
+**T0+4:42 — claimed by implementer-wf_e9fceb87** (branch
+`work/BUG-0024-adj-writer-i64-delta-overflow-on-high-node-ids`, based on latest `main`
+`05463f1`). Verified the disposition note: the canonical `AdjacencyShardWriter` on `main`
+encodes the delta with `wrapping_sub` (`src/storage/adjacency.rs:355`) and decodes with
+`wrapping_add` (`:790`) — both purely in the `u64` domain, no `as i64` round-trip. **AC #1
+is therefore already satisfied on `main`; a code fix would be a no-op.**
+
+Rather than bare-`drop` and lose the value, I am delivering the genuinely-missing **AC #2**:
+a round-trip regression test covering neighbour dst ids spanning the `2^63` boundary
+(`{7, 2^63-1, 2^63, u64::MAX}` from one source). The existing `tests/adjacency_storage.rs`
+suite never exercised dst ids above `~1e6`, so AC #3's "arbitrary directed typed edge sets"
+claim was unproven for the full `u64` id space (Cat. 2 / Cat. 3). The test is the durable
+form of the recorded lesson and converts BUG-0024 into a permanent regression guard. No
+production code changes; test-only diff.
+
+**T0+4:52 — in_review.** Branch `work/BUG-0024-adj-writer-i64-delta-overflow-on-high-node-ids`,
+2 commits ahead of `main` (claim + test). PR.md filled. Test
+`neighbor_dst_ids_spanning_2_63_boundary_round_trip` verified RED (panics
+`attempt to subtract with overflow` at `adjacency.rs:356`) against a temporary signed-delta
+variant and GREEN against the canonical `wrapping_sub` in both debug and release. Full suite
+476/476 pass (was 475); `./format_code.sh` exit 0. Dispatching adversarial-reviewer +
+premortem-analyst.
+
+**T0+5:02 — premortem-analyst sign-off: approve.** Verified the diff is test-only (zero
+production lines), so every P0 lens (corruption / SLA / split-brain / blast-radius / OSS
+hygiene) is provably N/A. Confirmed landed code encodes the dst-id delta in the `u64`
+domain (`adjacency.rs:355` `wrapping_sub`, `:787` `wrapping_add` — no `as i64` on the
+neighbour path; buggy `AdjShardWriter` absent). Reproduced the guard's teeth: patched
+production to the signed variant → test RED (`subtract with overflow` at `:355`), reverted
+clean. Boundary test green in debug **and** release; full `adjacency_storage` suite 8/8;
+`./format_code.sh` exit 0. Non-blocking: stale PR.md test-evidence prose; `drop`→`guard`
+repurposing (a strict improvement, accepted). Pre-mortem box ticked in PR.md. Clear to land.
