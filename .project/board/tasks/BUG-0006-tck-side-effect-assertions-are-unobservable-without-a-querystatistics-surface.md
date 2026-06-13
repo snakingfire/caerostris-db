@@ -2,7 +2,7 @@
 id: BUG-0006
 title: TCK side-effect assertions are unobservable without a QueryStatistics surface
 type: bug
-status: in_review
+status: done
 priority: P0
 assignee: implementer-wf_84c0f0c7-752-19
 epic: EPIC-002
@@ -10,7 +10,7 @@ deps: []
 rubric_refs: [4, 10]
 estimate: S
 created: 2026-06-13T18:24:00Z
-updated: 2026-06-13T19:06:00Z
+updated: 2026-06-13T19:28:53Z
 ---
 
 ## Context
@@ -91,3 +91,7 @@ tranche) are unaffected. Must be resolved before P2 (writes+txns) work is `ready
   in Decision 0012. EPIC-002 + T-0002 acceptance criteria amended to mandate the
   adapter read this surface. PR worktree: `.worktrees/BUG-0006`,
   branch `work/BUG-0006-...`. Status → in_review.
+- T0+1:29 `integrator`: both review-gate sign-offs verified (adversarial-reviewer
+  approve T+1:10, premortem-analyst approve T+1:14). format_code.sh green, cargo
+  test 18 passed (14 unit + 3 integration + 1 doctest). Merged to main.
+  Landed in commit 4a5b41a.
