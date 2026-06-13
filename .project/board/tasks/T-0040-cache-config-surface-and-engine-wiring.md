@@ -6,11 +6,11 @@ status: backlog
 priority: P3
 assignee:
 epic: EPIC-008
-deps: [T-0033, T-0019]
+deps: [T-0033, T-0019, BUG-0017]
 rubric_refs: [9]
 estimate: S
 created: T0+0:20
-updated: T0+0:20
+updated: T0+3:35
 ---
 
 ## Context
@@ -33,3 +33,10 @@ the real read path rather than just in the wrapper. See `EPIC-008`, `EPIC-002`.
 ## Notes / log
 Design-before-code: depends on the cache wrapper (T-0033) and the read path
 (T-0019). P3 — the cold-SLA-off guard (T-0034) is the higher-value Cat. 9 evidence.
+
+- T+3:35 — BUG-0017 (lost-invalidation race in CachingStore populate window) added
+  as a hard dep. An enabled CachingStore must NOT be wired into the read path until
+  BUG-0017's generation-fence fix lands; see cache.rs Concurrency warning section.
+  See acceptance criteria: add a criterion confirming enabled-cache wiring only ships
+  after BUG-0017 is resolved (i.e. the fence is in place and the concurrent test
+  passes).

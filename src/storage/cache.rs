@@ -37,6 +37,37 @@
 //! The storage/commit layer is expected to call `invalidate_all` (or
 //! per-object `invalidate`) when it observes a newer manifest version, keeping
 //! the cache *version-correct*.
+//!
+//! ## Concurrency warning — BUG-0017 (must be fixed before enabling in production)
+//!
+//! **Do not use an enabled `CachingStore` concurrently with a writer that calls
+//! `invalidate` / `invalidate_all` until BUG-0017 is resolved.**
+//!
+//! The miss-populate path in [`CachingStore::get`] fetches bytes from the backend
+//! under the inner-store lock, drops that lock, and then re-acquires the cache-state
+//! lock to insert. There is a window between the two lock acquisitions during which
+//! a concurrent `invalidate` / `invalidate_all` / `put` / `delete` executes against
+//! an empty cache slot (the entry is not yet inserted), so the invalidation is a
+//! no-op. The reader then populates the cache with **pre-commit bytes** and every
+//! subsequent read serves the stale version indefinitely — a snapshot-isolation
+//! violation (Cat. 1 / ACID gate).
+//!
+//! **Safe use cases today:**
+//! - `CacheConfig::disabled()` (the default): all reads pass through; no staleness
+//!   possible. This is the only wiring mode until BUG-0017 is fixed.
+//! - An enabled cache used **without any concurrent invalidator** (e.g. a
+//!   single-threaded warm-read benchmark): the race window is never entered.
+//!
+//! **Unsafe use case (blocked by BUG-0017):** an enabled `CachingStore` shared via
+//! `Arc` across a single writer + multiple readers where the writer calls
+//! `invalidate_all` on commit. This is exactly the multi-reader wiring target
+//! (T-0040). **T-0040 must not wire an enabled cache until BUG-0017 is fixed.**
+//! BUG-0017 is a hard dependency of T-0040 (see board item
+//! `.project/board/tasks/T-0040-cache-config-surface-and-engine-wiring.md`).
+//!
+//! The fix (a monotonic generation counter snapshotted before the backend fetch,
+//! rechecked on populate, bumped by every invalidate) is small and local; it is
+//! tracked in BUG-0017 with full acceptance criteria.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
