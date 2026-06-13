@@ -27,7 +27,12 @@ categories = ["database-implementations"]
 # byte format. License-clean (MIT OR Apache-2.0; already recorded in the license
 # manifest via the tck-runner) and already resolved in Cargo.lock.
 serde.workspace = true
+# JSONL serialisation for the synthetic dataset generator's portable output
+# (T-0035, src/dataset/io.rs) — the format benches/tests load until the
+# on-object storage writers exist. License-clean (MIT OR Apache-2.0; recorded in
+# the license manifest) and already in Cargo.lock.
+serde_json.workspace = true
 
 [dev-dependencies]
-# JSON round-trip assertions for the model's serde derives (T-0006 tests only).
-serde_json.workspace = true
+# (serde_json is a normal dependency above, used by the dataset generator and
+# by the model's serde round-trip tests.)
