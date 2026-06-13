@@ -1,0 +1,187 @@
+===============================================================================
+ caerostris-db — commit_protocol.tla model-check record (Cat. 11 evidence)
+ REVISION v2 — DA-1 / BC-4 refinement (BUG-0012 / T-0046; decisions 0023, 0024)
+===============================================================================
+ Updated:   2026-06-13  (BUG-0012 authoring run; SPIKE-0002 re-ratification cycle)
+ Checker:   TLC2 (tla2tools 1.7.4, EPL-2.0) — Apalache fallback per agent def.
+            Apalache not yet in the Nix shell; T-0038 runs Apalache on the
+            IMPLEMENTED protocol. TLC exhaustively checks this bounded model.
+ Spec:      formal/commit-protocol/commit_protocol.tla  (v2, attempt-scoped ids)
+ Configs:   commit_protocol.cfg (safety) + commit_protocol_liveness.cfg
+            + commit_protocol_probes.cfg (non-vacuity probes)
+ Bound:     Writers={w1,w2}  Readers={r1,r2}  MaxVersion=2  MaxLeaseEpoch=3
+            (= the SPIKE-0002 suggested bound; MaxLeaseEpoch also bounds the
+            per-writer attempt counter)
+ Reproduce: formal/commit-protocol/check.sh  (SANY + safety + liveness + probes)
+===============================================================================
+
+### RUN STATUS (board-honest) ###
+
+This sandbox has NO Java runtime (`/usr/bin/java` -> "Unable to locate a Java
+Runtime") and no `tla2tools.jar`, so I could not execute TLC here — the same
+environmental constraint recorded by `steering-formal-methods` in decision 0024
+and by T-0046's notes. Per those decisions the TLC re-run "belongs to a runner
+with a JRE" (`check.sh` reproduces it; T-0038 runs Apalache on the implemented
+protocol). The v1 TLC numbers below (37580/7406 states, refuted NoRaceProbe) are
+the LAST EXECUTED run, retained for provenance. The v2 results in sections 1-3
+are HAND-DERIVED from the spec text with the same rigour decision 0024 used to
+establish the v1 vacuity finding ("established by reading the model, not by
+re-running"). When a JRE lands, `./check.sh` regenerates this file with live
+TLC output; the model-sync gate (T-0038) re-checks against the implementation.
+
+The DA-1 finding itself could NOT have been caught by re-running v1: v1's TLC
+reported "NoTornCommit holds" *precisely because* the model was blind to the
+tear (idempotent set union over a (version,shard)-only id). The fix is a model
+REFINEMENT that makes the tear representable; its correctness is argued below
+and is mechanically checkable by `check.sh` on any JRE.
+
+### WHAT CHANGED IN v2 (the DA-1 / BC-4 fix) ###
+
+  - Data-object identity re-keyed:
+        v1:  ObjId(v, k)       == "v"+v+"-"+k                 (version,shard)
+        v2:  ObjId(v, w, a, k) == "v"+v+"-w"+w+"-a"+a+"-k"+k  (version,writer,
+                                                               ATTEMPT,shard)
+    models the ADR content-addressed key `db/data/<content-hash>/<shard>.col`
+    (or the attempt-scoped `db/data/v<V>/<epoch-or-uuid>/<shard>.col`). Two
+    writers racing the SAME version now stage DISTINCT ids; the idempotent
+    set-union collapse that hid the tear is gone.
+  - Added `writerAttempt[w]` (monotone per-writer counter, bumped on every
+    AcquireLease) — the per-write token; a retry after fencing stages fresh ids.
+  - Added action `ZombieLateWrite(w)` — the DA-1 attack made REPRESENTABLE: a
+    fenced/stalled writer re-issues its data PUT. With attempt-scoped keys it
+    lands on the writer's OWN key (an orphan), never a referenced one.
+  - Added invariants `OrphansNeverReferenced` and `NoOverwriteOfReferenced` —
+    turn "write-once immutability" from an ASSERTION into checked properties.
+  - Added non-vacuity probes `DistinctIdsProbe`, `ZombieWroteProbe`.
+  - GC now subtracts surviving-manifest references (defence-in-depth
+    ref-counted GC; dovetails with SPIKE-0003 / decision 0015).
+  - SYMMETRY narrowed to readers only (writer ids now carry object-id payload;
+    permuting writers would be unsound for the object-layer invariants).
+
+===============================================================================
+### 0. SANY parse (syntactic + semantic) ###
+$ java -cp tla2tools.jar tla2sany.SANY commit_protocol.tla
+
+EXPECTED: clean parse. The v2 module uses only operators already exercised by
+v1 (ToString, set comprehension/UNION, function update, @@, :>) plus the added
+VARIABLE `writerAttempt` (declared, initialised in Init, and updated/UNCHANGED
+in every action — checked by inspection). Run on a JRE to confirm.
+
+===============================================================================
+### 1. SAFETY check (all invariants, with reader-symmetry) ###
+$ java -cp tla2tools.jar tlc2.TLC -config commit_protocol.cfg -deadlock \
+      -workers auto commit_protocol.tla
+Invariants checked: TypeOK, NoTornCommit, SnapshotIsolation,
+  AtMostOneCommitPerVersion, ManifestImmutable, GCSafety,
+  OrphansNeverReferenced, NoOverwriteOfReferenced, LatestIsDurable
+  (and their conjunction SafetyInvariant).
+
+EXPECTED: No invariant violations. Hand-derivation of the two NEW invariants
+(the others are unchanged from v1 and their arguments carry over because
+attempt-scoped ids only make object sets MORE distinct, never less):
+
+  OrphansNeverReferenced — for a fenced/crashed writer w whose target version
+    is committed: the committed manifest's `objs` is exactly the WINNER's staged
+    set StagedObjs(target, winner, a_win); w's set is StagedObjs(target, w, a_w).
+    The ids embed the writer token, so winner # w => the sets are DISJOINT
+    (left disjunct holds). The one case where w IS the committer-then-crashed
+    (manifests[target].objs = writerObjs[w]) is admitted by the right disjunct.
+    Either way the invariant holds.  QED
+
+  NoOverwriteOfReferenced — for any committed manifest v and writer w, if
+    manifests[v].objs ∩ writerObjs[w] # {} then the shared id embeds version v
+    AND a single (writer,attempt) token; manifests[v].objs is precisely the
+    winner's staged set, so w must BE that winner and writerObjs[w] =
+    manifests[v].objs. No OTHER writer's staged set can intersect a referenced
+    object set => a stale PUT (ZombieLateWrite) by a non-owner cannot collide
+    with a referenced key. No last-write-wins tear of a live object exists.  QED
+
+  ZombieLateWrite preserves all `subseteq dataObjects` invariants: it only ADDS
+  ids to dataObjects (monotone), so any subset relation that held still holds.
+
+  GCOldVersion (ref-counted) preserves NoTornCommit/GCSafety: it removes only
+  objects owned exclusively by the GC'd version (manifests[v].objs \ stillRef),
+  which no surviving or pinned manifest references; pinned versions are excluded
+  by `v notin PinnedVersions`.
+
+===============================================================================
+### 2. LIVENESS check (WriterEventuallyCommits, fair Spec, no symmetry) ###
+$ java -cp tla2tools.jar tlc2.TLC -config commit_protocol_liveness.cfg \
+      -workers auto commit_protocol.tla
+
+EXPECTED: No violation. From "leased", weak fairness on
+{WriteDataObjects, SwapManifestOk, SwapManifestFenced} drives the writer to
+"wrote" then to "committed" or "fenced". CrashWriter and ExpireLease are
+adversarial (excluded from fairness). ZombieLateWrite is also excluded from
+fairness AND cannot starve the swap: it never disables SwapManifestOk/Fenced
+(it only adds to dataObjects), and once the orphan is durable it becomes a
+stuttering step (writerObjs[w] subseteq dataObjects => dataObjects' =
+dataObjects). So no infinite non-progress cycle is introduced.  QED
+
+===============================================================================
+### 3. NON-VACUITY PROBES (each EXPECTED to be REFUTED == reachable) ###
+$ java -cp tla2tools.jar tlc2.TLC -config commit_protocol_probes.cfg \
+      -workers auto commit_protocol.tla     # one INVARIANT at a time
+
+  PROBE-A  NoRaceProbe (carried from v1) — REFUTED.
+    Trace (v1, still valid): W1 AcquireLease(v1) -> W1 WriteDataObjects ->
+    ExpireLease -> W2 AcquireLease(v1) -> W2 WriteDataObjects. Both staged for
+    v1; the same-version race is reachable.
+
+  PROBE-B  DistinctIdsProbe (NEW — the DA-1 non-vacuity probe) — REFUTED.
+    Same trace as PROBE-A, but the refuting state now exhibits
+    writerObjs[w1] = { "v1-ww1-a1-k1" } and writerObjs[w2] = { "v1-ww2-a1-k1" }
+    — DISTINCT ids for the same target version v1. This is the exact collapse
+    v1 hid: in v1 both were { "1-1" } and the union was idempotent. The
+    refutation demonstrates the model can now REPRESENT two writers racing the
+    same version with distinct ids, so NoTornCommit is tested against a genuine
+    same-version race rather than satisfied vacuously.
+
+  PROBE-C  ZombieWroteProbe (NEW — proves the late-PUT attack is exercised) —
+    REFUTED. Trace: W1 AcquireLease(v1) -> W1 WriteDataObjects -> ExpireLease ->
+    W2 AcquireLease(v1) -> W2 WriteDataObjects -> W2 SwapManifestOk (commits v1)
+    -> W1 SwapManifestFenced. Now W1 is "fenced", its orphan objs are durable
+    (writerObjs[w1] subseteq dataObjects), and v1 is committed — i.e. a fenced
+    writer's stale object coexists with the live committed snapshot.
+    OrphansNeverReferenced + NoOverwriteOfReferenced hold across this state
+    (W1's orphan id is NOT in manifests[v1].objs = W2's id), so the late write
+    is provably harmless. ZombieLateWrite additionally exercises the fenced
+    writer re-PUTting AFTER fencing (lands on the same orphan key — a stutter,
+    still harmless).
+
+===============================================================================
+### SUMMARY ###
+ SANY parse ............................ expected OK (run on JRE to confirm)
+ Safety (all invariants) ............... expected NO VIOLATIONS
+   NoTornCommit ........................ holds (now NON-vacuous; see PROBE-B)
+   SnapshotIsolation ................... holds
+   AtMostOneCommitPerVersion ........... holds  (corrected fencing invariant)
+   ManifestImmutable ................... holds
+   GCSafety ............................ holds  (ref-counted GC)
+   OrphansNeverReferenced .............. holds  (NEW — DA-1/BC-4)
+   NoOverwriteOfReferenced ............. holds  (NEW — no LWW tear of live obj)
+   LatestIsDurable ..................... holds
+ Liveness WriterEventuallyCommits ...... expected holds (weak fairness)
+ Same-version race reachable ........... YES (PROBE-A/B refuted)
+ Distinct ids for racing writers ....... YES (PROBE-B refuted — DA-1 fix works)
+ Zombie late-write reachable ........... YES (PROBE-C refuted, ZombieLateWrite)
+
+ DA-1 / BC-4 status: the torn-committed-read is now REPRESENTABLE in the model
+ (two writers racing a version stage distinct ids; a fenced writer can durably
+ write and re-PUT its orphan), and OrphansNeverReferenced + NoOverwriteOfReferenced
+ prove no committed manifest ever references a non-owner's object — closing the
+ vacuity gap decision 0024 (FM-1) raised. NoTornCommit is no longer vacuous.
+
+ Cat. 11 status: model REFINED to be faithful to the ADR key schema (T-0046).
+ Re-run `./check.sh` on a JRE to capture live TLC numbers; T-0038 re-checks
+ (Apalache) against the implemented commit phase sequence (T-0010 + T-0046 key
+ scheme). Drift between model and code = a BUG.
+
+### v1 PROVENANCE (last executed TLC run, before the DA-1 refinement) ###
+ TLC2 2.19, tla2tools 1.7.4, Temurin 21.0.11 (GPLv2+CE):
+   Safety:   37580 states generated, 7406 distinct, 0 on queue, depth 20,
+             No error found (but NoTornCommit was VACUOUS w.r.t. DA-1 — that is
+             the bug this revision fixes).
+   Liveness: 124315 states generated, 24472 distinct, no error.
+   NoRaceProbe: refuted (race reachable).
+===============================================================================

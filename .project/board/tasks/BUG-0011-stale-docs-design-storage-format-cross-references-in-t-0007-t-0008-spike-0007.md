@@ -2,15 +2,15 @@
 id: BUG-0011
 title: Stale docs/design/storage-format.md cross-references in T-0007, T-0008, SPIKE-0007
 type: bug
-status: in_review
+status: done
 priority: P3
-assignee: implementer-wf_86b0c2e8-f29-13
+assignee: integrator
 epic: EPIC-001
 deps: []
 rubric_refs: [2, 12]
 estimate: S
 created: 2026-06-13T20:20:00Z
-updated: 2026-06-13T21:06:00Z
+updated: 2026-06-13T21:08:00Z
 ---
 
 ## Context
@@ -93,3 +93,8 @@ silently capping. Filed because BUG-0003's own fix already corrected `docs/desig
   reverted clean), `./format_code.sh` exit 0, and full `cargo test` green. Residual risks
   are all P3 operational/accuracy notes (PR.md churn → BUG-0013; allowlist-by-file;
   walker error-swallow) — accepted/already filed. Both gates green; clear to land.
+- 2026-06-13T21:08:00Z (integrator): Landed in commit b5c7143 at T+2:45. Both
+  review-gate sign-offs confirmed (adversarial-reviewer approve T+02:39,
+  premortem-analyst approve T+02:42). format_code.sh green, cargo test green
+  (76 tests). Branch rebased onto main (resolved trivial PR.md conflict — stale
+  tracked file per BUG-0013). Worktree and branch cleaned up.

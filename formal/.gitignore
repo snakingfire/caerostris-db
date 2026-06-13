@@ -1,0 +1,10 @@
+# TLC / Apalache run artifacts — never committed. The canonical, committed
+# evidence is formal/results/*.txt (the checker output we curate by hand).
+**/states/
+*.st
+*.fp
+nodes_*
+ptrs_*
+_apalache-out/
+*.tlc.json
+MC.out
