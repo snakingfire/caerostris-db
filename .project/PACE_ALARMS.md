@@ -514,3 +514,10 @@ Action: none — race-free parallel config holding; cron maintains 5 lanes. Watc
 done:19 ready:12 in_progress:4 blocked:0 backlog:38. MAIN GREEN (on main @ 479fd96, cargo build 0.02s) — NO P0. 5/5 lanes alive; ~43 active-lane worktrees = dozens of parallel agents building (T-0017 lexer, T-0022 index, T-0030 python, T-0033 cache, T-0004 dashboard, T-0005 coverage, storage/commit). 6 commits on main since last tick (board threading); no NEW done item yet — big items mid-build (long cycle).
 NOTE: a self-check found my SHELL cwd had drifted into a worktree (showed work/BUG-0008) — a monitoring artifact, NOT main corruption; main repo dir is correctly + continuously on `main` (the safe-merge fix is HOLDING — agents build in isolated worktrees, never checkout in main). Some historical worktree duplication from killed lanes (clutter, safe — only one branch per task can land via the lock).
 No GATE sliding (Cat3=78/Cat11=65 strong). Env OK. ~1h50m to deadline. Action: none; cron maintains 5 lanes. Watch for the lexer/storage/commit landings (Cat4/2/1 levers).
+
+---
+
+## STATUS — T+3:15 (main green; forcing landings — lanes build but don't land)
+done:19 (stuck ~15min) ready:9 in_review:3 backlog:38. MAIN GREEN (on main @ 0d2875e, builds 0.02s) — no P0. 5/5 lanes alive + ~43 worktrees building, BUT no new done landings since the 5-lane relaunch — same pattern: lanes BUILD well, don't LAND. Focused integrators remain the only reliable landers (T-0001/0002/0006/0014 all landed that way).
+ACTION: reclaimed + dispatched 3 focused landers (safe-merge the already-BUILT branches): T-0017 cypher lexer/parser (Cat 4 keystone), T-0005 coverage (Cat 10 GATE), T-0022 index trait (Cat 5). Lanes keep building breadth; focused integrators land. Land-lock serializes all merges.
+Env OK; cascade gated on SPIKE-0003 (storage format spec, in-progress → unblocks T-0007/0008/0009). ~1h45m to deadline. Next: verify the 3 land + dispatch the next built batch (storage, commit, python).
