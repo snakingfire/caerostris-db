@@ -574,3 +574,7 @@ Every tick now also VERIFIES the working tree stays on main (protects the demo f
 
 ## STATUS — T+4:05 (main green, working tree protected on main; polished demo building)
 done:~33 main GREEN (8e6f016). Working tree confirmed ON MAIN (demo runnable + protected from checkout race). 5/5 lanes. T-DEMO2 polished MinIO demo builder progressing (56 lines; S3 backend + demo-minio.sh not landed yet, ETA ~20-30m); fallback = polish in-memory demo. Storage writers T-0007/0008 building. ~55m to deadline; no GATE sliding (Cat3=78/Cat10=82/Cat11=65), overall ~36.
+
+## STATUS — T+4:10 (storage landing; polished demo building; main green, tree protected)
+done:~34 main GREEN (a874ead). Working tree ON MAIN ✓ (demo protected). 5/5 lanes. **T-0008 adjacency edge writer+reader LANDED** (storage layer materializing → Cat 2 up). T-DEMO2 polished MinIO demo building (125 lines, S3 backend + demo-minio.sh ETA ~15-20m; in-memory polish fallback). Storage writers reinforce the persist-to-S3 story for the demo.
+~50m to deadline. No GATE sliding (Cat3=78/Cat10=82/Cat11=65). No P0.
