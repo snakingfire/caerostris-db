@@ -60,6 +60,19 @@ decisions, reports, and board items.)
   (3) rebase onto main keeping BOTH `pub mod query;` and `pub mod tck;` sorted,
   (4) re-run ./format_code.sh + cargo nextest run green,
   (5) re-request integrator landing. Branch: work/BUG-0010-adr-numbering-collision-two-adrs-share-0001-latenc. Worktree: .worktrees/BUG-0010.
+<<<<<<< HEAD
+- 2026-06-13T21:05Z `implementer-wf_f36e3f02`: re-implemented from a FRESH base on the
+  LATEST main (the prior `…-latenc` branch was far behind main — its diff would have
+  deleted now-landed files such as `src/tck.rs`, so it was abandoned rather than rebased).
+  TDD: added `adr_numbers_are_unique` (RED → GREEN) + `adr_markdown_links_are_not_dangling`
+  to `tests/repo_hygiene.rs`. Fix: `git mv` cold-start ADR `0001` → `0004` (0002 is reserved
+  for the unlanded SPIKE-0002 commit-protocol ADR; 0003 is the landed server-mode ADR),
+  updated title, the two live links in `testing-and-benchmarks.md`, finding F3 in the
+  envelope ADR, and the ADR README. Decision `0024`. Append-only history left intact.
+  Full suite `cargo nextest run`: 74/74 pass. `./format_code.sh`: green. Status → in_review.
+  Branch: `work/BUG-0010-renumber-cold-start-benchmark-adr` (NEW, distinct from the two
+  stale BUG-0010 branches which were left untouched). PR.md filled; review gate unchecked
+  pending adversarial-reviewer + premortem-analyst sign-off.
 - 2026-06-13T21:24Z (T0+~3:05) `docs-memory-curator`: RESOLVED. This is a docs/board-hygiene
   fix (Cat. 12), not code — the prior code-gate (PR.md adversarial/pre-mortem checkboxes) does
   not apply; it routes through steering ratification instead. Did the renumber fresh in an
