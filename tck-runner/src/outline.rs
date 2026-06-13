@@ -19,9 +19,11 @@
 //!   row after the header) across every `Examples:` block, with each
 //!   `<header>` token substituted by that row's cell value in the scenario
 //!   name, every step `value`, every step docstring, and every step data-table
-//!   cell. Substitution is a literal textual replace of `<header>` — exactly the
-//!   Gherkin contract — so a placeholder embedded in a larger token (e.g.
-//!   `'<text>'` or `{num: <num>}`) substitutes correctly.
+//!   cell. Substitution is a **single simultaneous pass** — exactly the Gherkin
+//!   `Scenario Outline` contract — so a placeholder embedded in a larger token
+//!   (e.g. `'<text>'` or `{num: <num>}`) substitutes correctly, while a column
+//!   value that itself contains a sibling column's `<token>` is placed verbatim
+//!   and **never re-scanned** for further substitution (BUG-0021).
 //! - A `Scenario Outline:` with no usable `Examples` rows yields **nothing**:
 //!   an outline with zero variants has zero executable test cases (it cannot run
 //!   with literal `<placeholder>` text), so it must not inflate the denominator
@@ -101,16 +103,47 @@ fn substitute_step(step: &mut Step, bindings: &[(String, &str)]) {
     }
 }
 
-/// Replace every `<placeholder>` token in `text` with its bound value. A plain
-/// textual replace, matching the Gherkin substitution contract (a placeholder
-/// can appear anywhere, including inside a larger literal like `'<text>'`).
+/// Replace every `<placeholder>` token in `text` with its bound value, in a
+/// **single simultaneous pass** (Cucumber/Gherkin `Scenario Outline` semantics).
+///
+/// The scanner walks `text` left to right; at each `<...>` span it resolves the
+/// token to its column value and copies that value **verbatim** into the output
+/// — the cursor then advances past the original token, so a value that itself
+/// contains a `<sibling>` token is never re-scanned for further substitution
+/// (BUG-0021). An unbound `<token>` (no matching column header) and a malformed
+/// `<` with no closing `>` are copied through verbatim, mirroring lenient
+/// Gherkin behaviour. A placeholder can appear anywhere, including inside a
+/// larger literal like `'<text>'` or `{num: <num>}`.
 fn substitute(text: &str, bindings: &[(String, &str)]) -> String {
-    let mut out = text.to_string();
-    for (token, value) in bindings {
-        if out.contains(token.as_str()) {
-            out = out.replace(token.as_str(), value);
+    // Nothing to do when there are no `<` markers at all — the overwhelmingly
+    // common case for already-substituted or placeholder-free text.
+    if !text.contains('<') {
+        return text.to_string();
+    }
+
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(open) = rest.find('<') {
+        // Copy everything up to (and not including) the `<`.
+        out.push_str(&rest[..open]);
+        let after_open = &rest[open..]; // starts with '<'
+        if let Some(close_rel) = after_open.find('>') {
+            // `token` is the whole `<...>` span including the delimiters; this
+            // is exactly the key form stored in `bindings`.
+            let token = &after_open[..=close_rel];
+            if let Some((_, value)) = bindings.iter().find(|(t, _)| t == token) {
+                out.push_str(value); // verbatim; not re-scanned
+            } else {
+                out.push_str(token); // unbound: leave the literal `<token>`
+            }
+            rest = &after_open[close_rel + 1..];
+        } else {
+            // A dangling `<` with no `>`: copy the remainder verbatim and stop.
+            out.push_str(after_open);
+            rest = "";
         }
     }
+    out.push_str(rest);
     out
 }
 
@@ -306,6 +339,167 @@ Feature: T
         assert!(names.contains(&"multi 1"));
         assert!(names.contains(&"multi 2"));
         assert!(names.contains(&"multi 3"));
+    }
+
+    #[test]
+    fn substitution_is_single_pass_not_chained() {
+        // BUG-0021: a column value that *contains* a sibling column's
+        // `<token>` must be placed verbatim and never re-scanned. Columns
+        // `a`, `b` with data row `a = "<b>"`, `b = "x"`, query
+        // `RETURN <a> AND <b>` must expand to `RETURN <b> AND x` — Cucumber's
+        // single simultaneous-pass semantics. The buggy chained `String::replace`
+        // produces `RETURN x AND x`: `<a>` -> `<b>`, then the later `<b>`
+        // binding re-substitutes the just-injected `<b>` to `x`. Corrupt.
+        let src = r#"
+Feature: T
+  Scenario Outline: chained <a> <b>
+    Given any graph
+    When executing query:
+      """
+      RETURN <a> AND <b>
+      """
+    Then the result should be, in any order:
+      | n               |
+      | <a> AND <b>     |
+    Examples:
+      | a   | b |
+      | <b> | x |
+"#;
+        let expanded = expand_scenario(&parse_one(src));
+        assert_eq!(expanded.len(), 1);
+        let s = &expanded[0];
+
+        // Scenario name: `<a>` -> literal `<b>`, original `<b>` -> `x`.
+        assert_eq!(
+            s.name, "chained <b> x",
+            "scenario name must use single-pass substitution"
+        );
+
+        // Query docstring: the just-injected `<b>` must NOT be re-substituted.
+        let query = s
+            .steps
+            .iter()
+            .find(|st| st.ty == StepType::When)
+            .and_then(|st| st.docstring.clone())
+            .expect("when step has a docstring");
+        assert_eq!(
+            query.trim(),
+            "RETURN <b> AND x",
+            "single-pass: injected <b> from column `a` is verbatim, not re-substituted to `x`"
+        );
+
+        // Result-table cell: same single-pass invariant on every textual surface.
+        let cell = &s
+            .steps
+            .iter()
+            .find_map(|st| st.table.as_ref())
+            .expect("then step has a table")
+            .rows[1][0];
+        assert_eq!(
+            cell, "<b> AND x",
+            "result-table cell must use single-pass substitution"
+        );
+    }
+
+    #[test]
+    fn substring_collision_between_column_names_substitutes_correctly() {
+        // BUG-0021 note: column names that are substrings of each other (e.g.
+        // `n` vs `name`) are unaffected, because the `<...>` delimiters make
+        // `<n>` a non-substring of `<name>`. A single-pass scanner must keep
+        // this correct: `<n>` -> its value, `<name>` -> its (different) value.
+        let src = r#"
+Feature: T
+  Scenario Outline: collide <n> <name>
+    Given any graph
+    When executing query:
+      """
+      RETURN <n> AS short, <name> AS long
+      """
+    Then the result should be, in any order:
+      | short | long   |
+      | <n>   | <name> |
+    Examples:
+      | n | name  |
+      | 1 | alice |
+"#;
+        let expanded = expand_scenario(&parse_one(src));
+        assert_eq!(expanded.len(), 1);
+        let query = expanded[0]
+            .steps
+            .iter()
+            .find(|st| st.ty == StepType::When)
+            .and_then(|st| st.docstring.clone())
+            .unwrap();
+        assert_eq!(query.trim(), "RETURN 1 AS short, alice AS long");
+        assert_eq!(expanded[0].name, "collide 1 alice");
+    }
+
+    #[test]
+    fn unbound_placeholder_is_left_verbatim() {
+        // A `<token>` with no matching column header is left untouched by a
+        // single-pass scan (lenient Gherkin behaviour: missing bindings are not
+        // an error). The value `1` for `bound` is placed; `<unbound>` survives.
+        let src = r#"
+Feature: T
+  Scenario Outline: keep <bound>
+    Given any graph
+    When executing query:
+      """
+      RETURN <bound>, <unbound>
+      """
+    Then the result should be, in any order:
+      | n |
+      | 1 |
+    Examples:
+      | bound |
+      | 1     |
+"#;
+        let expanded = expand_scenario(&parse_one(src));
+        assert_eq!(expanded.len(), 1);
+        let query = expanded[0]
+            .steps
+            .iter()
+            .find(|st| st.ty == StepType::When)
+            .and_then(|st| st.docstring.clone())
+            .unwrap();
+        assert_eq!(
+            query.trim(),
+            "RETURN 1, <unbound>",
+            "an unbound placeholder is left verbatim by the single-pass scan"
+        );
+    }
+
+    #[test]
+    fn longest_placeholder_token_wins_at_an_offset() {
+        // Defensive: ensure the one-pass scanner anchors on `<` and reads to the
+        // matching `>`, so `<x>` inside the text is matched as the whole token
+        // and not confused with a shorter prefix. Two distinct tokens back to
+        // back substitute independently in a single pass.
+        let src = r#"
+Feature: T
+  Scenario Outline: adjacent <x><y>
+    Given any graph
+    When executing query:
+      """
+      RETURN '<x><y>'
+      """
+    Then the result should be, in any order:
+      | n |
+      | 1 |
+    Examples:
+      | x  | y  |
+      | <y>| ab |
+"#;
+        let expanded = expand_scenario(&parse_one(src));
+        assert_eq!(expanded.len(), 1);
+        let query = expanded[0]
+            .steps
+            .iter()
+            .find(|st| st.ty == StepType::When)
+            .and_then(|st| st.docstring.clone())
+            .unwrap();
+        // `<x>` -> literal `<y>` (verbatim, not re-substituted); `<y>` -> `ab`.
+        assert_eq!(query.trim(), "RETURN '<y>ab'");
     }
 
     #[test]
