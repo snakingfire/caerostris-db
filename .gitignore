@@ -28,6 +28,11 @@
 # - run sentinels (bootstrap / stop / mainspring lock) — agents see them on the
 #   filesystem; they must NOT persist into a clean clone.
 .worktrees/
+# Per-worktree PR scratch. `scripts/pr/open.sh` writes PR.md under
+# `.worktrees/<ID>/` (already ignored above); a root-level PR.md is transient
+# per-PR scratch and must never be tracked on `main` (BUG-0013) — a tracked copy
+# makes every freshly-opened worktree inherit a stale PR description.
+/PR.md
 .project/.bootstrapped
 .project/.mainspring.lock
 .project/.land.lock
