@@ -170,3 +170,44 @@ corrections to keep the record honest and prevent a future mis-step:
 **Env:** MinIO healthy @ `:9000`. **No new alarm** — the T+00:27 AMBER stands; T+0:40 (19:04Z)
 remains the hard re-check. If the current wave lands T-0000/T-0002 + the design specs before
 then, the ~10 checkpoint is reachable.
+
+---
+
+## STATUS — T+00:40 (AMBER holds — score AHEAD, but implementation still at zero)
+
+**Level:** AMBER (escalates to **RED P0** if no code lands by T+1:00 / 19:24Z)
+**Wallclock:** 2026-06-13T19:04:21Z (T+00:40)
+**Grade (T+0:37 report):** overall **13** vs. ~10 expected → **+3 AHEAD**. Driven entirely by
+  the **latency envelope ADR landing** (Cat 3 8→48). The design GATE risk is retiring on
+  schedule — good.
+**Env (1b):** MinIO healthy. No action.
+**Epoch / relaunch:** Single epoch `wf_84c0f0c7-752` **alive & hot** (13 files <3min). Per the
+  cron rule, **no relaunch**. It has completed SPIKE-0006/0007/0008 + T-0003, has SPIKE-0001
+  **in_review** (steering sign-off pending) and SPIKE-0002/0005 in-progress.
+
+**Board grooming — verified, NO unblock this tick:**
+- **Corrects the grader's flag:** SPIKE-0003 must **NOT** be flipped to ready — its dep
+  **SPIKE-0001 is `in_review`, not `done`** (envelope ADR is `proposed`, awaiting steering
+  ratification per decision 0012). Design-falsification gating is correct; leave it `backlog`.
+- Full backlog dep-scan: **nothing is fully unblockable right now.** The done set
+  (SPIKE-0006/0007/0008, T-0003) does not satisfy any backlog item's full deps. The entire
+  implementation tree gates on: **T-0000** (env hardening → unblocks T-0001 skeleton),
+  **SPIKE-0001** clearing review, **SPIKE-0002** (TLA+) completing.
+- SPIKE-0001 in_review is **fresh** (just entered), not stuck — no nudge yet.
+
+**⚠️ THE BOTTLENECK (root cause, 3rd cycle running):** **T-0000** (env hardening) and
+  **T-0002** (TCK harness) are **READY, P0, design-independent, and still UNCLAIMED** after 40
+  min. The epoch has dispatched only researchers/steering — **no implementer/test-author has
+  picked up the design-independent critical-path code.** Cat 4 (TCK, w12) sits at floor 0
+  purely for this reason. **Directive for the NEXT relaunch (when epoch 1 ends):** dedicate
+  an implementer to **T-0000** and a test-author to **T-0002** *before* any further design
+  work. Wiring T-0002 alone lifts a weight-12 GATE off the floor.
+
+**Minor (Cat 12):** epoch agents are stamping **future timestamps** (SPIKE-0001
+  `updated:19:25Z` and ADR `T0+0:56` while wallclock is T+0:40) — breaks `updated`-based
+  staleness detection. Flagged to docs-memory-curator alongside the ADR/decision ID
+  collisions from the T+0:37 report.
+
+**Action:** No relaunch (epoch alive). No P0 yet (score ahead). **Hard line: if `find src tests
+formal -name '*.rs' -o -type f` still shows zero landed code at T+1:00 (19:24Z), escalate to
+RED P0** and force implementer dispatch to T-0000+T-0002 on the next epoch.
