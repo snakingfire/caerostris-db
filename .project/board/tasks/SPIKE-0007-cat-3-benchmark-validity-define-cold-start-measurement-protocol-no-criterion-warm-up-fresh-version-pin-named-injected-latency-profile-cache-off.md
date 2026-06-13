@@ -2,15 +2,15 @@
 id: SPIKE-0007
 title: Cat.3 benchmark validity — define cold-start measurement protocol (no criterion warm-up, fresh version pin, named injected-latency profile, cache off)
 type: spike
-status: ready
+status: in_progress
 priority: P0
-assignee:
+assignee: researcher
 epic: EPIC-003
 deps: []
 rubric_refs: [3, 10]
 estimate: S
 created: 2026-06-13T18:30:45Z
-updated: 2026-06-13T18:30:45Z
+updated: 2026-06-13T19:05:00Z
 ---
 
 ## Context
